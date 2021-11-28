@@ -33,7 +33,7 @@ export default function App() {
         <Button
           block={true}
           mt={84}
-          mx={39}
+          mx="xl"
           px='xl'
           py='lg'
           bg='purp_primary'
@@ -49,7 +49,7 @@ export default function App() {
         <Button
           block={true}
           mt={16}
-          mx={39}
+          mx="xl"
           px='xl'
           py='lg'
           bg='transparent'

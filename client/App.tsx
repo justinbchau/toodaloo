@@ -41,7 +41,8 @@ const theme = {
   colors: {
     purp_primary: "#6C63FF",
     white: "#fff",
-    light_grey: "#B8B8B8"
+    light_grey: "#B8B8B8",
+    dark_grey: "#6c6c6c"
   },
   components: {
     Text: {
