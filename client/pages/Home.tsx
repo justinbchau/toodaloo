@@ -1,11 +1,12 @@
 import { StatusBar } from 'expo-status-bar';
 import React from 'react';
-import { SafeAreaView } from 'react-native';
+import { SafeAreaView, useWindowDimensions } from 'react-native';
 import { Button, Text, Div } from 'react-native-magnus';
 import { RootStackParamList } from '../RootStackParams';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { useNavigation } from '@react-navigation/native';
 
+import { Labels } from '../constants/labels'
 
 // import LandingPageButton from '../components/LandingPageButton';
 
@@ -14,8 +15,12 @@ import Bathroom from '../assets/undraw_wash_hands_nwl2.svg';
 type homeScreenProp = StackNavigationProp<RootStackParamList, 'ToodaLoo'>;
 
 
-export default function App() {
+export function Home() {
   const navigation = useNavigation<homeScreenProp>();
+  const { height, width } = useWindowDimensions();
+
+  console.log(height, width);
+
 
   return (
     <SafeAreaView style={{ flex: 1 }}>
@@ -44,7 +49,7 @@ export default function App() {
           underlayColor='purp+primary'
           onPress={() => navigation.navigate("SignUp")}
         >
-          Sign Up
+          {Labels.signup}
         </Button>
         <Button
           block={true}
@@ -61,7 +66,7 @@ export default function App() {
           fontSize="2xl"
           onPress={() => navigation.navigate("Login")}
         >
-          Log In
+          {Labels.login}
         </Button>
         <Text textAlign="center" color="purp_primary" textDecorLine="underline">
           Continue as guest

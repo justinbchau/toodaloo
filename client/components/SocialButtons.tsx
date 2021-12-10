@@ -8,7 +8,7 @@ import Google from '../assets/icons8-google.svg'
 
 type loginScreenProp = StackNavigationProp<RootStackParamList, 'Login'>;
 
-export default function SocialButtons() {
+export function SocialButtons() {
     const navigation = useNavigation<loginScreenProp>();
 
     return (

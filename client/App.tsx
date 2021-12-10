@@ -28,9 +28,13 @@ import {
 } from '@expo-google-fonts/poppins';
 
 
-import Home from './pages/Home';
-import SignUp from './pages/SignUp';
-import Login from './pages/Login';
+import { Home } from './pages/Home';
+import { SignUp } from './pages/SignUp';
+import { Login } from './pages/Login';
+import { Confirmation } from './pages/Confirmation';
+import { Username } from './pages/Username';
+import { Password } from './pages/Password';
+import { Map } from './pages/Map';
 
 
 const theme = {
@@ -90,6 +94,10 @@ export default function App() {
             <Stack.Screen name='ToodaLoo' component={Home} />
             <Stack.Screen name='Login' component={Login} />
             <Stack.Screen name='SignUp' component={SignUp} />
+            <Stack.Screen name='Confirmation' component={Confirmation} />
+            <Stack.Screen name='Username' component={Username} />
+            <Stack.Screen name='Password' component={Password} />
+            <Stack.Screen name='Map' component={Map} />
           </Stack.Navigator>
         </NavigationContainer>
       </ThemeProvider>
