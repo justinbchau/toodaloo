@@ -19,8 +19,6 @@ export function Home() {
   const navigation = useNavigation<homeScreenProp>();
   const { height, width } = useWindowDimensions();
 
-  console.log(height, width);
-
 
   return (
     <SafeAreaView style={{ flex: 1 }}>

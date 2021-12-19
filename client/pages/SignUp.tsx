@@ -1,9 +1,9 @@
 import React from 'react';
-import { SafeAreaView } from 'react-native';
 import { Div, Input, Text, Button, Icon } from 'react-native-magnus'
 import { RootStackParamList } from '../RootStackParams';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { useNavigation } from '@react-navigation/native';
+
 
 import { Page } from '../templates/Page'
 import { SocialButtons } from '../components/SocialButtons';
