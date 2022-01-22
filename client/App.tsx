@@ -35,6 +35,7 @@ import { Confirmation } from './pages/Confirmation';
 import { Username } from './pages/Username';
 import { Password } from './pages/Password';
 import { Map } from './pages/Map';
+import { ModalTest } from './pages/ModalTest';
 
 
 const theme = {
@@ -46,7 +47,8 @@ const theme = {
     purp_primary: "#6C63FF",
     white: "#fff",
     light_grey: "#B8B8B8",
-    dark_grey: "#6c6c6c"
+    dark_grey: "#6c6c6c",
+    text_black: "#525252"
   },
   components: {
     Text: {
@@ -54,6 +56,9 @@ const theme = {
     },
     Button: {
       fontFamily: "Poppins_600SemiBold"
+    },
+    Tag: {
+      fontFamily: "Poppins_400Regular"
     }
   }
 };
@@ -98,6 +103,7 @@ export default function App() {
             <Stack.Screen name='Username' component={Username} />
             <Stack.Screen name='Password' component={Password} />
             <Stack.Screen name='Map' component={Map} />
+            <Stack.Screen name='ModalTest' component={ModalTest} />
           </Stack.Navigator>
         </NavigationContainer>
       </ThemeProvider>
