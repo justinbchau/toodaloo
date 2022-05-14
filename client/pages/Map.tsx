@@ -8,7 +8,7 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import { useNavigation } from '@react-navigation/native';
 import { LocationObject } from 'expo-location';
 import { Modal } from '../components/Modal';
-import ActionSheet from "react-native-actions-sheet";
+import ActionSheet, { SheetManager } from "react-native-actions-sheet";
 import LottieView from 'lottie-react-native';
 import LocationSearch from '../components/LocationSearch';
 
@@ -38,7 +38,8 @@ export function Map() {
 
     const sendToTest = () => {
         setIsLoading(true);
-        actionSheetRef.current?.setModalVisible();
+        // actionSheetRef.current?.setModalVisible();
+        SheetManager.show("modal")
         setTimeout(() => {
             setIsLoading(false)
         }, 5000)
@@ -71,8 +72,8 @@ export function Map() {
                         longitudeDelta: 0.0421,
                     }} showsUserLocation={true} style={styles.map} />
                     <Div row mt="25%" mb="20%" justifyContent="space-around" position="absolute" style={{ zIndex: 1000 }}>
-                        {/* <LocationSearch /> */}
-                        {isLoading ? (
+                        <LocationSearch />
+                        {/* {isLoading ? (
                             <Input
                                 flex={6}
                                 placeholder="Searching..."
@@ -100,7 +101,8 @@ export function Map() {
                                 shadow="lg"
                                 shadowColor="black"
                                 focusBorderColor="blue700"
-                                prefix={<Icon name="search" color="black" fontFamily="Feather" fontSize="3xl" />} />)}
+                                prefix={<Icon name="search" color="black" fontFamily="Feather" fontSize="3xl" />} />)
+                        } */}
 
                         {isLoading ? null : (
                             <Button
@@ -126,6 +128,7 @@ export function Map() {
                             rounded="circle"
                             shadow="lg"
                             borderless
+                            onPress={() => sendToTest()}
                         >
                             <Icon name="location-arrow" color="blue" fontFamily="FontAwesome" fontSize="4xl" />
                         </Button>

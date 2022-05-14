@@ -7,4 +7,5 @@
     "strictFunctionTypes": true
   },
   "include": [ "**/*.ts", "**/*.tsx" ],
+  "typeRoots": ["./src/types"],
 }

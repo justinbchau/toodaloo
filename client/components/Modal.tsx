@@ -1,7 +1,8 @@
 import ActionSheet from "react-native-actions-sheet";
 import React, { forwardRef, useRef } from "react";
 import { TouchableOpacity, ScrollView, SafeAreaView } from "react-native";
-import { Div, Button, Tag, Text } from 'react-native-magnus'
+import { Div, Button, Tag, Text } from 'react-native-magnus';
+
 import { ModalItem } from "./ModalItem";
 import { FilterButton } from "./FilterButton";
 
@@ -30,17 +31,18 @@ const data = [
 
 export const Modal = forwardRef<ActionSheet>((props, ref) => {
 
-    const openModal = () => {
-        ref?.current?.snapToOffset(900)
-    }
+    // const openModal = () => {
+    //     ref?.current?.snapToOffset(900)
+    // }
 
-    const closeModal = () => {
-        ref?.current?.hide()
-    }
+    // const closeModal = () => {
+    //     ref?.current?.hide()
+    // }   
 
     return (
         <SafeAreaView>
             <ActionSheet
+                id="modal"
                 ref={ref}
                 gestureEnabled={true}
                 bounceOnOpen={true}
@@ -50,11 +52,11 @@ export const Modal = forwardRef<ActionSheet>((props, ref) => {
                 <Div row mt={20} mx={10}>
                     <ScrollView horizontal showsHorizontalScrollIndicator={false}
                     >
-                        <Tag onPress={openModal} rounded="circle" bg="white" borderWidth={1} borderColor="gray500" py="md" color="black" fontSize="xs" mr={10}>Open Modal</Tag>
+                        <Tag rounded="circle" bg="white" borderWidth={1} borderColor="gray500" py="md" color="black" fontSize="xs" mr={10}>Open Modal</Tag>
                         {/* Start of loop */}
                         {data.map((item, index) => (
                             <Div key={index} >
-                                <FilterButton onPress={closeModal} title={item.title} />
+                                <FilterButton title={item.title} />
                             </Div>
                         ))}
                         {/* End of loop */}
@@ -69,10 +71,10 @@ export const Modal = forwardRef<ActionSheet>((props, ref) => {
                     nestedScrollEnabled
                 >
                     <Div mb={70} >
-                        <ModalItem />
-                        <ModalItem />
-                        <ModalItem />
-                        <ModalItem />
+                        {Array.from({ length: 4 }).map((_, index) => (
+                            <ModalItem key={index} />
+                        ))}
+
                     </Div>
                 </ScrollView>
             </ActionSheet>

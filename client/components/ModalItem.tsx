@@ -3,6 +3,7 @@ import { ScrollView } from 'react-native'
 import { Image, Text, Div, Button, Icon, Tag } from 'react-native-magnus'
 import { AirbnbRating } from 'react-native-ratings'
 
+
 export function ModalItem() {
     const ratingCompleted = (rating: any) => {
         console.log("Rating is: " + rating)
@@ -12,8 +13,9 @@ export function ModalItem() {
             {/* Image Carousel */}
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                 <Div row>
-                    {Array.from({ length: 4 }).map(() => (
+                    {Array.from({ length: 4 }).map((_, index) => (
                         <Image
+                            key={index}
                             h={128}
                             w={160}
                             mt={16}

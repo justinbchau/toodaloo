@@ -35,7 +35,6 @@ import { Confirmation } from './pages/Confirmation';
 import { Username } from './pages/Username';
 import { Password } from './pages/Password';
 import { Map } from './pages/Map';
-import { ModalTest } from './pages/ModalTest';
 
 
 const theme = {
@@ -103,7 +102,6 @@ export default function App() {
             <Stack.Screen name='Username' component={Username} />
             <Stack.Screen name='Password' component={Password} />
             <Stack.Screen name='Map' component={Map} />
-            <Stack.Screen name='ModalTest' component={ModalTest} />
           </Stack.Navigator>
         </NavigationContainer>
       </ThemeProvider>
