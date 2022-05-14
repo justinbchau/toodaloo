@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react'
 import { StyleSheet, Dimensions, ActivityIndicator } from 'react-native';
 import MapView from 'react-native-maps';
-import { Div, Input, Text, Button, Icon } from 'react-native-magnus'
+import { Div, Input, Text, Button, Icon, Avatar } from 'react-native-magnus'
 import * as Location from 'expo-location';
 import { RootStackParamList } from '../RootStackParams';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -11,6 +11,8 @@ import { Modal } from '../components/Modal';
 import ActionSheet, { SheetManager } from "react-native-actions-sheet";
 import LottieView from 'lottie-react-native';
 import LocationSearch from '../components/LocationSearch';
+import { DrawerButton } from '../components/DrawerButton';
+import { DrawerContents } from '../components/DrawerContents';
 
 type mapScreenProp = StackNavigationProp<RootStackParamList, 'Map'>;
 
@@ -105,18 +107,15 @@ export function Map() {
                         } */}
 
                         {isLoading ? null : (
-                            <Button
-                                bg="white"
-                                h={50}
-                                w={50}
-                                ml="5%"
-                                mr="10%"
-                                rounded="circle"
-                                shadow="lg"
-                                borderless
-                            >
-                                <Icon name="menu" color="black" fontFamily="SimpleLineIcons" fontSize="3xl" />
-                            </Button>)}
+                            // Menu Button
+                            <DrawerButton
+                                children={
+                                    <>
+                                        <DrawerContents />
+                                    </>
+                                }
+                            />
+                        )}
                     </Div>
                     <Div row position='absolute' bottom={-660} right={-5}>
                         <Button
