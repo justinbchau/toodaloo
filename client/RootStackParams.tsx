@@ -8,4 +8,5 @@ export type RootStackParamList = {
     Username: undefined;
     Password: undefined;
     Map: undefined;
+    Profile: undefined;
 };

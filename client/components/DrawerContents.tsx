@@ -1,14 +1,22 @@
 import React from 'react'
-import { Div, Text, Avatar, Button } from 'react-native-magnus'
+import { RootStackParamList } from '../RootStackParams';
+import { StackNavigationProp } from '@react-navigation/stack';
+import { useNavigation } from '@react-navigation/native'
+import { Pressable } from 'react-native'
+import { Div, Text, Avatar } from 'react-native-magnus'
+
+type profileScreenProp = StackNavigationProp<RootStackParamList, 'Profile'>;
 
 export function DrawerContents() {
+    const navigation = useNavigation<profileScreenProp>()
+
     return (
         <Div>
             {/* Avatar container */}
             <Div
                 ml="10%"
                 mt="10%"
-                left="60%"
+                left={200}
             >
                 <Avatar
                     shadow={1}
@@ -21,7 +29,7 @@ export function DrawerContents() {
             {/* Account name container */}
             <Div
                 mt="5%"
-                left="55%"
+                left={180}
             >
                 <Text
                     fontSize="xl"
@@ -35,35 +43,51 @@ export function DrawerContents() {
                 </Text>
             </Div>
 
+            {/* Buttons Container */}
             <Div
-                mt="30%"
-                left="65%"
+                mt="20%"
+                left={180}
             >
-                <Text
-                    fontSize="2xl"
-                    textAlign='left'
-                >
-                    Profile
-                </Text>
-                <Text
-                    mt="10%"
 
-                    fontSize="2xl"
+                <Pressable
+                    onPress={() => navigation.navigate("Profile")}
                 >
-                    Favorites
-                </Text>
-                <Text
-                    mt="10%"
-                    fontSize="2xl"
-                >
-                    Profile
-                </Text>
-                <Text
-                    mt="10%"
-                    fontSize="2xl"
-                >
-                    Profile
-                </Text>
+                    <Text
+                        fontSize="2xl"
+                        textAlign='left'
+                    >
+                        Profile
+                    </Text>
+                </Pressable>
+
+                <Pressable>
+                    <Text
+                        mt="10%"
+
+                        fontSize="2xl"
+                    >
+                        Favorites
+                    </Text>
+                </Pressable>
+
+                <Pressable>
+                    <Text
+                        mt="10%"
+                        fontSize="2xl"
+                    >
+                        Profile
+                    </Text>
+                </Pressable>
+
+                <Pressable>
+                    <Text
+                        mt="10%"
+                        fontSize="2xl"
+                    >
+                        Profile
+                    </Text>
+                </Pressable>
+
             </Div>
 
         </Div>
