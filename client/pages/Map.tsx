@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react'
-import { StyleSheet, Dimensions, ActivityIndicator } from 'react-native';
+import { StyleSheet, Dimensions, ActivityIndicator, Pressable } from 'react-native';
 import MapView from 'react-native-maps';
-import { Div, Input, Text, Button, Icon, Avatar } from 'react-native-magnus'
+import { Div, Input, Text, Button, Icon, Avatar, Drawer } from 'react-native-magnus'
 import * as Location from 'expo-location';
 import { RootStackParamList } from '../RootStackParams';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -13,6 +13,7 @@ import LottieView from 'lottie-react-native';
 import LocationSearch from '../components/LocationSearch';
 import { DrawerButton } from '../components/DrawerButton';
 import { DrawerContents } from '../components/DrawerContents';
+import { DrawerRef } from 'react-native-magnus'
 
 type mapScreenProp = StackNavigationProp<RootStackParamList, 'Map'>;
 
@@ -24,6 +25,7 @@ export function Map() {
     const navigation = useNavigation<mapScreenProp>();
 
     const actionSheetRef = useRef<ActionSheet>(null);
+    const drawerRef = useRef<DrawerRef>(null)
 
     useEffect(() => {
         (async () => {
@@ -45,6 +47,11 @@ export function Map() {
         setTimeout(() => {
             setIsLoading(false)
         }, 5000)
+    }
+
+    const sendToProfile = () => {
+        navigation.navigate("Profile")
+        drawerRef.current?.close()
     }
 
     let text = 'Waiting..';
@@ -108,13 +115,162 @@ export function Map() {
 
                         {isLoading ? null : (
                             // Menu Button
-                            <DrawerButton
-                                children={
-                                    <>
-                                        <DrawerContents />
-                                    </>
-                                }
-                            />
+                            <>
+                                <Drawer
+                                    ref={drawerRef}
+                                    children={
+                                        <>
+                                            <Div
+                                                w="95%"
+                                                h="100%"
+                                            >
+                                                {/* Close Drawer Button Container */}
+                                                <Div
+                                                    ml="5%"
+                                                    mt="5%"
+                                                    left={160}
+                                                >
+                                                    <Button
+                                                        bg='transparent'
+                                                        onPress={() => {
+                                                            if (drawerRef.current) {
+                                                                drawerRef.current.close();
+                                                            }
+                                                        }}
+                                                    >
+                                                        <Icon name='close' color="black" fontFamily="AntDesign" fontSize="4xl" />
+                                                    </Button>
+                                                </Div>
+                                                <Div>
+                                                    {/* Avatar container */}
+
+                                                    <Div
+                                                        ml="10%"
+                                                        mt="5%"
+                                                        left={130}
+                                                    >
+                                                        <Pressable
+                                                            onPress={sendToProfile}
+                                                        >
+                                                            <Avatar
+                                                                shadow={1}
+                                                                bg="purp_primary"
+                                                                size={55}
+                                                            >
+                                                                <Icon name="toilet" color="white" fontFamily="FontAwesome5" fontSize="3xl" />
+                                                            </Avatar>
+                                                        </Pressable>
+                                                    </Div>
+                                                    {/* Account name container */}
+                                                    <Div
+                                                        mt="5%"
+                                                        left={110}
+                                                    >
+                                                        <Text
+                                                            fontSize="xl"
+                                                        >
+                                                            Justin Chau
+                                                        </Text>
+                                                        <Text
+                                                            color='gray500'
+                                                        >
+                                                            @chau_codes
+                                                        </Text>
+                                                    </Div>
+
+                                                    {/* Buttons Container */}
+                                                    <Div
+                                                        mt="20%"
+                                                        mr="10%"
+                                                        alignItems='flex-end'
+                                                    >
+
+                                                        <Pressable
+                                                            onPress={sendToProfile}
+                                                        >
+                                                            <Text
+                                                                fontSize="2xl"
+                                                                textAlign='left'
+                                                            >
+                                                                Profile
+                                                            </Text>
+                                                        </Pressable>
+
+                                                        <Pressable>
+                                                            <Text
+                                                                mt="10%"
+
+                                                                fontSize="2xl"
+                                                            >
+                                                                Favorites
+                                                            </Text>
+                                                        </Pressable>
+
+                                                        <Pressable>
+                                                            <Text
+                                                                mt="10%"
+                                                                fontSize="2xl"
+                                                            >
+                                                                Games
+                                                            </Text>
+                                                        </Pressable>
+
+                                                        <Pressable>
+                                                            <Text
+                                                                mt="10%"
+                                                                fontSize="2xl"
+                                                            >
+                                                                Friends
+                                                            </Text>
+                                                        </Pressable>
+
+                                                    </Div>
+
+                                                </Div>
+                                                {/* Bottom Buttons Container */}
+                                                <Div
+                                                    row
+                                                    bottom={-280}
+                                                    left={140}
+                                                >
+                                                    <Button
+                                                        bg='purp_primary'
+                                                        borderless
+                                                        shadow="3xl"
+                                                        onPress={() => console.log("Log user out")}
+                                                    >
+                                                        <Text
+                                                            color='white'
+                                                        >
+                                                            Logout
+                                                        </Text>
+                                                    </Button>
+                                                </Div>
+                                            </Div>
+                                        </>
+                                    }
+                                    direction="right"
+                                    animationTime={400}
+                                    drawerPercentage={60}
+                                />
+                                <Button
+                                    bg="white"
+                                    h={50}
+                                    w={50}
+                                    ml="5%"
+                                    mr="10%"
+                                    rounded="circle"
+                                    shadow="lg"
+                                    borderless
+                                    onPress={() => {
+                                        if (drawerRef.current) {
+                                            drawerRef.current.open();
+                                        }
+                                    }}
+                                >
+                                    <Icon name="menu" color="black" fontFamily="SimpleLineIcons" fontSize="3xl" />
+                                </Button>
+                            </>
                         )}
                     </Div>
                     <Div row position='absolute' bottom={-660} right={-5}>
@@ -180,7 +336,7 @@ export function Map() {
                 </Div>
             )
             }
-        </Div>
+        </Div >
     )
 }
 

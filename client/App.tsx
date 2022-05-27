@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { createDrawerNavigator } from '@react-navigation/drawer';
 import { ThemeProvider } from 'react-native-magnus';
 import AppLoading from 'expo-app-loading';
 import { RootStackParamList } from './RootStackParams';
@@ -36,6 +37,7 @@ import { Username } from './pages/Username';
 import { Password } from './pages/Password';
 import { Map } from './pages/Map';
 import { Profile } from './pages/Profile';
+import { Drawer } from './navigation/drawer';
 
 
 const theme = {

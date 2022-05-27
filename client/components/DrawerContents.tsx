@@ -1,14 +1,18 @@
-import React from 'react'
+import React, { forwardRef } from 'react';
 import { RootStackParamList } from '../RootStackParams';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { useNavigation } from '@react-navigation/native'
 import { Pressable } from 'react-native'
-import { Div, Text, Avatar } from 'react-native-magnus'
+import { Div, Text, Avatar, DrawerProps, DrawerRef } from 'react-native-magnus'
 
 type profileScreenProp = StackNavigationProp<RootStackParamList, 'Profile'>;
 
-export function DrawerContents() {
+export const DrawerContents = forwardRef<DrawerRef>((props, ref) => {
     const navigation = useNavigation<profileScreenProp>()
+
+    const sendToProfile = () => {
+        navigation.navigate("Profile")
+    }
 
     return (
         <Div>
@@ -92,4 +96,5 @@ export function DrawerContents() {
 
         </Div>
     )
-}
+
+})

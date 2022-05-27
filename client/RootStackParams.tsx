@@ -9,4 +9,5 @@ export type RootStackParamList = {
     Password: undefined;
     Map: undefined;
     Profile: undefined;
+    Drawer: undefined;
 };
