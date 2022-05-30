@@ -1,16 +1,19 @@
 import React from 'react';
-import { createDrawerNavigator } from '@react-navigation/drawer';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../RootStackParams';
-import { Profile } from '../pages/Profile';
-import { Map } from '../pages/Map';
+import { Profile, Settings, Billing } from '../pages'
 
-const DrawerNav = createDrawerNavigator<RootStackParamList>();
+
+const DrawerNav = createNativeStackNavigator<RootStackParamList>();
 
 export function Drawer() {
     return (
-        <DrawerNav.Navigator>
+        <DrawerNav.Navigator screenOptions={{
+            headerShown: false
+        }} >
             <DrawerNav.Screen name="Profile" component={Profile} />
-            <DrawerNav.Screen name="Map" component={Map} />
-        </DrawerNav.Navigator>
+            <DrawerNav.Screen name="Billing" component={Billing} />
+            <DrawerNav.Screen name="Settings" component={Settings} />
+        </DrawerNav.Navigator >
     )
 }

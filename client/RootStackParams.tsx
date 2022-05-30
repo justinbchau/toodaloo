@@ -2,6 +2,7 @@
 
 export type RootStackParamList = {
     ToodaLoo: undefined;
+    Auth: { screen: string } | undefined;
     Login: undefined;
     SignUp: { title: string, page: string } | undefined;
     Confirmation: undefined;
