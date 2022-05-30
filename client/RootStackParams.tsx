@@ -10,4 +10,6 @@ export type RootStackParamList = {
     Map: undefined;
     Profile: undefined;
     Drawer: undefined;
+    Settings: undefined;
+    Billing: undefined;
 };

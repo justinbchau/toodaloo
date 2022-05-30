@@ -38,6 +38,8 @@ import { Password } from './pages/Password';
 import { Map } from './pages/Map';
 import { Profile } from './pages/Profile';
 import { Drawer } from './navigation/drawer';
+import { Settings } from './pages/Settings';
+import { Billing } from './pages/Billing';
 
 
 const theme = {
@@ -106,6 +108,8 @@ export default function App() {
             <Stack.Screen name='Password' component={Password} />
             <Stack.Screen name='Map' component={Map} />
             <Stack.Screen name='Profile' component={Profile} />
+            <Stack.Screen name='Settings' component={Settings} />
+            <Stack.Screen name='Billing' component={Billing} />
           </Stack.Navigator>
         </NavigationContainer>
       </ThemeProvider>

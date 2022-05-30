@@ -3,10 +3,12 @@ import { RootStackParamList } from '../RootStackParams';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { useNavigation } from '@react-navigation/native';
 import { Page } from '../templates/Page'
-import { Text, Div, Avatar, Icon, Button } from 'react-native-magnus'
-import { Pressable } from 'react-native';
+import { Text, Div, Avatar, Icon } from 'react-native-magnus'
+import { StatBlock } from '../components/StatBlock';
+import { ProfileButton } from '../components/ProfileButton';
+import { Divider } from '../components/Divider';
 
-type profileScreenProp = StackNavigationProp<RootStackParamList, 'Map'>;
+type profileScreenProp = StackNavigationProp<RootStackParamList, 'Profile'>;
 
 export function Profile() {
     const navigation = useNavigation<profileScreenProp>()
@@ -40,10 +42,9 @@ export function Profile() {
                     </Text>
                 </Div>
 
-                {/* Divider Line */}
-                <Div alignItems="center" justifyContent="center" row mt="xl" w="80%">
-                    <Div h={1} flex={1} bg="gray400"></Div>
-                </Div>
+                {/* Divider */}
+                <Divider marginTop='xl' width='80%' />
+                {/* End of Divider */}
 
                 <Div
                     row
@@ -52,18 +53,9 @@ export function Profile() {
                     w="80%"
                     alignItems="center"
                 >
-                    <Div alignItems="center">
-                        <Text fontSize="xl" fontWeight="400">58</Text>
-                        <Text fontSize="xl" color='gray600'>Saved</Text>
-                    </Div>
-                    <Div alignItems="center">
-                        <Text fontSize="xl" fontWeight="400">58</Text>
-                        <Text fontSize="xl" color='gray600'>Saved</Text>
-                    </Div>
-                    <Div alignItems="center">
-                        <Text fontSize="xl" fontWeight="400">58</Text>
-                        <Text fontSize="xl" color='gray600'>Saved</Text>
-                    </Div>
+                    <StatBlock stat="58" label="Saved" />
+                    <StatBlock stat="69" label="Poops" />
+                    <StatBlock stat="69" label="Flushes" />
                 </Div>
 
                 {/* White Button Box Container */}
@@ -81,37 +73,29 @@ export function Profile() {
                         h="60%"
                         justifyContent="space-between"
                     >
-                        {/* Make these buttons reusable for cleaner code */}
-                        <Pressable
-                            onPress={() => console.log("Profile button pressed")}
-                        >
-                            <Div row alignItems="center">
-                                <Button bg='gray200' rounded="2xl">
-                                    <Icon name="settings" fontSize="6xl" fontFamily="Ionicons" color="black" />
-                                </Button>
-                                <Text ml="7%" fontSize="2xl" >Settings</Text>
-                                <Icon ml="auto" mr={18} name="chevron-right" fontFamily="Entypo" color="black" fontSize="5xl" />
-                            </Div>
-                        </Pressable>
-                        <Div row alignItems="center">
-                            <Button bg='gray200' rounded="2xl">
-                                <Icon name="credit-card" fontSize="6xl" fontFamily="MaterialCommunityIcons" color="black" />
-                            </Button>
-                            <Text ml="7%" fontSize="2xl" >Billing Details</Text>
-                            <Icon ml="auto" mr={18} name="chevron-right" fontFamily="Entypo" color="black" fontSize="5xl" />
-                        </Div>
+                        <ProfileButton
+                            buttonName='Settings'
+                            iconFontFamily='Ionicons'
+                            iconName='settings'
+                            onPress={() => navigation.navigate("Settings")}
+                        />
+                        <ProfileButton
+                            buttonName='Billing Details'
+                            iconFontFamily='MaterialCommunityIcons'
+                            iconName='credit-card'
+                            onPress={() => navigation.navigate("Billing")}
+                        />
 
-                        <Div alignItems="center" justifyContent="center" row mt="xl" w="90%">
-                            <Div h={1} flex={1} bg="gray400"></Div>
-                        </Div>
+                        {/* Divider */}
+                        <Divider marginTop='md' width='90%' />
+                        {/* End of Divider */}
 
-                        <Div row alignItems="center">
-                            <Button bg='gray200' rounded="2xl">
-                                <Icon name="logout" fontSize="6xl" fontFamily="MaterialIcons" color="black" />
-                            </Button>
-                            <Text ml="7%" fontSize="2xl" >Logout</Text>
-                            <Icon ml="auto" mr={18} name="chevron-right" fontFamily="Entypo" color="black" fontSize="5xl" />
-                        </Div>
+                        <ProfileButton
+                            buttonName='Logout'
+                            iconFontFamily='MaterialIcons'
+                            iconName='logout'
+                            onPress={() => console.log("Logout pressed")}
+                        />
                     </Div>
 
                 </Div>
