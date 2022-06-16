@@ -45,7 +45,7 @@ export function Home() {
           borderless
           fontSize="2xl"
           underlayColor='purp+primary'
-          onPress={() => navigation.navigate("SignUp")}
+          onPress={() => navigation.navigate('Auth', { screen: 'SignUp' })}
         >
           {Labels.signup}
         </Button>
@@ -62,7 +62,7 @@ export function Home() {
           borderWidth={2}
           mb={20}
           fontSize="2xl"
-          onPress={() => navigation.navigate("Login")}
+          onPress={() => navigation.navigate('Auth', { screen: 'Login' })}
         >
           {Labels.login}
         </Button>

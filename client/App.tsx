@@ -1,7 +1,6 @@
 import * as React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { createDrawerNavigator } from '@react-navigation/drawer';
 import { ThemeProvider } from 'react-native-magnus';
 import AppLoading from 'expo-app-loading';
 import { RootStackParamList } from './RootStackParams';
@@ -30,16 +29,9 @@ import {
 
 
 import { Home } from './pages/Home';
-import { SignUp } from './pages/SignUp';
-import { Login } from './pages/Login';
-import { Confirmation } from './pages/Confirmation';
-import { Username } from './pages/Username';
-import { Password } from './pages/Password';
 import { Map } from './pages/Map';
-import { Profile } from './pages/Profile';
 import { Drawer } from './navigation/drawer';
-import { Settings } from './pages/Settings';
-import { Billing } from './pages/Billing';
+import { Auth } from './navigation/auth';
 
 
 const theme = {
@@ -101,15 +93,9 @@ export default function App() {
             headerShown: false
           }}>
             <Stack.Screen name='ToodaLoo' component={Home} />
-            <Stack.Screen name='Login' component={Login} />
-            <Stack.Screen name='SignUp' component={SignUp} />
-            <Stack.Screen name='Confirmation' component={Confirmation} />
-            <Stack.Screen name='Username' component={Username} />
-            <Stack.Screen name='Password' component={Password} />
+            <Stack.Screen name='Auth' component={Auth} />
             <Stack.Screen name='Map' component={Map} />
-            <Stack.Screen name='Profile' component={Profile} />
-            <Stack.Screen name='Settings' component={Settings} />
-            <Stack.Screen name='Billing' component={Billing} />
+            <Stack.Screen name='Profile' component={Drawer} />
           </Stack.Navigator>
         </NavigationContainer>
       </ThemeProvider>
