@@ -1,12 +1,12 @@
-# TooDaLoo
+# toodaloo
 
 **Yelp for public bathrooms.** Find bathrooms near you, read and write reviews, and help others in need.
 
-TooDaLoo is a cross-platform mobile app built with Expo and React Native, backed by Supabase for auth and data.
+toodaloo is a cross-platform mobile app built with Expo and React Native, backed by Supabase for auth and data.
 
 ## Why
 
-When you're out in public and urgently need a bathroom, there's no reliable way to find one. TooDaLoo solves that with crowd-sourced, location-aware bathroom discovery.
+When you're out in public and urgently need a bathroom, there's no reliable way to find one. toodaloo solves that with crowd-sourced, location-aware bathroom discovery.
 
 ## Stack
 
