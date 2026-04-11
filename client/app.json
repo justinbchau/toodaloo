@@ -4,9 +4,7 @@
     "slug": "toodaloo",
     "version": "1.0.0",
     "sdkVersion": "55.0.0",
-    "runtimeVersion": {
-      "policy": "appVersion"
-    },
+    "runtimeVersion": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "icon": "./assets/icon.png",
