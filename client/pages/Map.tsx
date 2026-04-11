@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useContext, useEffect, useRef, useState } from 'react';
 import { StyleSheet, View, Text, TouchableOpacity, Linking } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
 import * as Location from 'expo-location';
@@ -37,6 +37,7 @@ export function Map() {
     const [location, setLocalLocation] = useState<LocationObject | null>(null);
     const [bathrooms, setBathrooms] = useState<BathroomCardData[]>([]);
     const [isFetchingBathrooms, setIsFetchingBathrooms] = useState(false);
+    const mapRef = useRef<MapView>(null);
 
     const navigation = useNavigation<MapNavProp>();
     const tabNavigation = useNavigation<TabNavProp>();
@@ -77,7 +78,7 @@ export function Map() {
                 const { data, error } = await supabase.rpc('bathrooms_nearby', {
                     user_lat: location.coords.latitude,
                     user_lng: location.coords.longitude,
-                    radius_km: 2.0,
+                    radius_km: 5.0,
                 });
 
                 if (error) throw error;
@@ -86,15 +87,17 @@ export function Map() {
                     id: b.id,
                     name: b.name,
                     emoji: ACCESS_EMOJI[b.access_type] ?? '🚽',
-                    sub: b.access_type === 'public'
-                        ? `Public${b.is_24_hours ? ' · Open 24h' : ''}`
-                        : b.access_type === 'key_required'
-                            ? 'Key Required'
-                            : 'Purchase Required',
+                    sub: b.access_type == null
+                        ? (b.address ?? 'Nearby')
+                        : b.access_type === 'public'
+                            ? `Public${b.is_24_hours ? ' · Open 24h' : ''}`
+                            : b.access_type === 'key_required'
+                                ? 'Key Required'
+                                : 'Purchase Required',
                     rating: Math.round(Number(b.rating_avg) || 0),
                     score: (Number(b.rating_avg) || 0).toFixed(1),
                     reviewCount: `(${b.review_count ?? 0})`,
-                    distance: formatDistance(b.distance_km ?? 0),
+                    distance: b.distance_km != null ? formatDistance(b.distance_km) : 'Nearby',
                     lat: b.lat,
                     lng: b.lng,
                 }));
@@ -181,6 +184,7 @@ export function Map() {
         <View style={[styles.container, { backgroundColor: colors.bg }]}>
             {/* MAP — fills entire screen */}
             <MapView
+                ref={mapRef}
                 initialRegion={{
                     latitude: location!.coords.latitude,
                     longitude: location!.coords.longitude,
@@ -280,7 +284,16 @@ export function Map() {
                             borderColor: colors.borderMed,
                         },
                     ]}
-                    onPress={() => console.log('center on user location')}
+                    onPress={() => {
+                        if (location) {
+                            mapRef.current?.animateToRegion({
+                                latitude: location.coords.latitude,
+                                longitude: location.coords.longitude,
+                                latitudeDelta: 0.01,
+                                longitudeDelta: 0.01,
+                            }, 500);
+                        }
+                    }}
                     activeOpacity={0.85}
                 >
                     <Text style={[styles.fabLocText, { color: colors.text2 }]}>◎</Text>
