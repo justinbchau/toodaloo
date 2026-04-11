@@ -3,7 +3,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { RootStackParamList } from '../RootStackParams';
+import { AuthStackParamList } from '../RootStackParams';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useNavigation } from '@react-navigation/native';
 import { SocialButtons } from '../components/SocialButtons';
@@ -13,11 +13,10 @@ import { PrimaryButton } from '../components/ui/PrimaryButton';
 import { FormInput } from '../components/ui/FormInput';
 import { supabase } from '../lib/supabase';
 
-type loginScreenProp = NativeStackNavigationProp<RootStackParamList>;
+type loginScreenProp = NativeStackNavigationProp<AuthStackParamList>;
 
 const schema = z.object({
     email: z.string().email('Please enter a valid email'),
-    password: z.string().min(1, 'Password is required'),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -30,19 +29,21 @@ export function Login() {
 
     const { control, handleSubmit } = useForm<FormValues>({
         resolver: zodResolver(schema),
-        defaultValues: { email: '', password: '' },
+        defaultValues: { email: '' },
     });
 
     const onSubmit = async (values: FormValues) => {
         setIsSubmitting(true);
         setAuthError(null);
         try {
-            const { error } = await supabase.auth.signInWithPassword({
+            const { error } = await supabase.auth.signInWithOtp({
                 email: values.email,
-                password: values.password,
             });
-            if (error) setAuthError(error.message);
-            // Success: UserContext.onAuthStateChange fires → AppNavigator routes to MainTabs
+            if (error) {
+                setAuthError(error.message);
+                return;
+            }
+            navigation.navigate('Confirmation', { email: values.email });
         } catch {
             setAuthError('Something went wrong. Please try again.');
         } finally {
@@ -54,7 +55,7 @@ export function Login() {
         <Page>
             <View style={styles.container}>
                 <Text style={[styles.title, { color: colors.text1 }]}>Welcome back</Text>
-                <Text style={[styles.subtitle, { color: colors.text2 }]}>Enter your credentials to log in</Text>
+                <Text style={[styles.subtitle, { color: colors.text2 }]}>Enter your email to receive a login code</Text>
 
                 <View style={styles.fields}>
                     <Controller<FormValues>
@@ -72,21 +73,6 @@ export function Login() {
                             />
                         )}
                     />
-
-                    <Controller<FormValues>
-                        control={control}
-                        name="password"
-                        render={({ field: { onChange, onBlur, value }, fieldState: { error } }) => (
-                            <FormInput
-                                label="Password"
-                                onChangeText={onChange}
-                                onBlur={onBlur}
-                                value={value}
-                                secureTextEntry
-                                error={error?.message}
-                            />
-                        )}
-                    />
                 </View>
 
                 {authError && (
@@ -96,7 +82,7 @@ export function Login() {
                 )}
 
                 <PrimaryButton
-                    title="Log in →"
+                    title="Send code →"
                     onPress={handleSubmit(onSubmit)}
                     style={styles.button}
                     disabled={isSubmitting}
