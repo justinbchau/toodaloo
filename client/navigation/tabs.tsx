@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, TouchableOpacity, Text } from 'react-native';
+import { View, Pressable, Text } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { MainTabParamList } from '../RootStackParams';
@@ -45,7 +45,11 @@ const CustomTabBar = ({ state, descriptors, navigation }: BottomTabBarProps) => 
         };
 
         return (
-          <TouchableOpacity key={route.key} style={{ flex: 1, alignItems: 'center', gap: 4 }} onPress={onPress} activeOpacity={0.7}>
+          <Pressable
+            key={route.key}
+            style={({ pressed }: { pressed: boolean }) => [{ flex: 1, alignItems: 'center', gap: 4, opacity: pressed ? 0.7 : 1 }]}
+            onPress={onPress}
+          >
             <Text style={{ fontSize: 18, fontFamily: undefined }}>{tab?.icon}</Text>
             <Text style={{
               fontSize: 10,
@@ -59,7 +63,7 @@ const CustomTabBar = ({ state, descriptors, navigation }: BottomTabBarProps) => 
             {isFocused && (
               <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: colors.purple, marginTop: 2 }} />
             )}
-          </TouchableOpacity>
+          </Pressable>
         );
       })}
     </View>

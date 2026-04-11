@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useContext } from 'react';
 import {
-  View, Text, ScrollView, TouchableOpacity, StyleSheet,
+  View, Text, ScrollView, Pressable, StyleSheet,
   Share, Linking, Alert, ActivityIndicator,
 } from 'react-native';
 import MapView from 'react-native-maps';
@@ -147,29 +147,31 @@ export function BathroomDetail() {
         <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 60, backgroundColor: colors.bg, opacity: 0.7 }} />
 
         {/* Back button */}
-        <TouchableOpacity
+        <Pressable
           onPress={() => navigation.goBack()}
-          style={{
+          style={({ pressed }: { pressed: boolean }) => ({
             position: 'absolute', top: 52, left: 16,
             width: 40, height: 40, borderRadius: 10,
             backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center',
-          }}
+            opacity: pressed ? 0.7 : 1,
+          })}
         >
           <Text style={{ color: colors.text1, fontSize: 22 }}>‹</Text>
-        </TouchableOpacity>
+        </Pressable>
 
         {/* Navigate pill */}
-        <TouchableOpacity
-          style={{
+        <Pressable
+          style={({ pressed }: { pressed: boolean }) => ({
             position: 'absolute', top: 52, right: 16,
             backgroundColor: colors.purple, paddingHorizontal: 16, paddingVertical: 8,
             borderRadius: 20, flexDirection: 'row', alignItems: 'center', gap: 6,
-          }}
+            opacity: pressed ? 0.85 : 1,
+          })}
         >
           <Text style={{ color: '#fff', fontSize: 13, fontFamily: 'PlusJakartaSans_600SemiBold' }}>
             Navigate ›
           </Text>
-        </TouchableOpacity>
+        </Pressable>
       </View>
 
       {/* Scrollable content */}
@@ -201,40 +203,40 @@ export function BathroomDetail() {
         {/* Action buttons row */}
         <View style={{ flexDirection: 'row', gap: 10, marginTop: 20 }}>
           {/* Save */}
-          <TouchableOpacity
+          <Pressable
             onPress={handleSave}
-            style={{ flex: 1, backgroundColor: isSaved ? colors.purpleDim : colors.surface2, borderRadius: 12, paddingVertical: 12, alignItems: 'center', gap: 4 }}
+            style={({ pressed }: { pressed: boolean }) => ({ flex: 1, backgroundColor: isSaved ? colors.purpleDim : colors.surface2, borderRadius: 12, paddingVertical: 12, alignItems: 'center', gap: 4, opacity: pressed ? 0.7 : 1 })}
           >
             <Text style={{ fontSize: 18, color: isSaved ? colors.yellow : undefined }}>⭐</Text>
             <Text style={{ color: colors.text2, fontSize: 11, fontFamily: 'PlusJakartaSans_500Medium' }}>Save</Text>
-          </TouchableOpacity>
+          </Pressable>
 
           {/* Review */}
-          <TouchableOpacity
+          <Pressable
             onPress={handleReview}
-            style={{ flex: 1, backgroundColor: colors.surface2, borderRadius: 12, paddingVertical: 12, alignItems: 'center', gap: 4 }}
+            style={({ pressed }: { pressed: boolean }) => ({ flex: 1, backgroundColor: colors.surface2, borderRadius: 12, paddingVertical: 12, alignItems: 'center', gap: 4, opacity: pressed ? 0.7 : 1 })}
           >
             <Text style={{ fontSize: 18 }}>📝</Text>
             <Text style={{ color: colors.text2, fontSize: 11, fontFamily: 'PlusJakartaSans_500Medium' }}>Review</Text>
-          </TouchableOpacity>
+          </Pressable>
 
           {/* Report */}
-          <TouchableOpacity
+          <Pressable
             onPress={handleReport}
-            style={{ flex: 1, backgroundColor: colors.surface2, borderRadius: 12, paddingVertical: 12, alignItems: 'center', gap: 4 }}
+            style={({ pressed }: { pressed: boolean }) => ({ flex: 1, backgroundColor: colors.surface2, borderRadius: 12, paddingVertical: 12, alignItems: 'center', gap: 4, opacity: pressed ? 0.7 : 1 })}
           >
             <Text style={{ fontSize: 18 }}>🚩</Text>
             <Text style={{ color: colors.text2, fontSize: 11, fontFamily: 'PlusJakartaSans_500Medium' }}>Report</Text>
-          </TouchableOpacity>
+          </Pressable>
 
           {/* Share */}
-          <TouchableOpacity
+          <Pressable
             onPress={handleShare}
-            style={{ flex: 1, backgroundColor: colors.surface2, borderRadius: 12, paddingVertical: 12, alignItems: 'center', gap: 4 }}
+            style={({ pressed }: { pressed: boolean }) => ({ flex: 1, backgroundColor: colors.surface2, borderRadius: 12, paddingVertical: 12, alignItems: 'center', gap: 4, opacity: pressed ? 0.7 : 1 })}
           >
             <Text style={{ fontSize: 18 }}>🔗</Text>
             <Text style={{ color: colors.text2, fontSize: 11, fontFamily: 'PlusJakartaSans_500Medium' }}>Share</Text>
-          </TouchableOpacity>
+          </Pressable>
         </View>
 
         {/* Amenities */}
@@ -265,17 +267,18 @@ export function BathroomDetail() {
             <Text style={{ color: colors.text2, fontFamily: 'PlusJakartaSans_400Regular', fontSize: 13, marginTop: 4 }}>
               Be the first!
             </Text>
-            <TouchableOpacity
+            <Pressable
               onPress={handleReview}
-              style={{
+              style={({ pressed }: { pressed: boolean }) => ({
                 marginTop: 16, backgroundColor: colors.purple,
                 borderRadius: 12, paddingHorizontal: 24, paddingVertical: 12,
-              }}
+                opacity: pressed ? 0.85 : 1,
+              })}
             >
               <Text style={{ color: '#fff', fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 14 }}>
                 Write First Review
               </Text>
-            </TouchableOpacity>
+            </Pressable>
           </View>
         ) : (
           reviews.map((review) => (

@@ -1,5 +1,5 @@
 import React from 'react';
-import { TouchableOpacity, Text, StyleSheet, ViewStyle } from 'react-native';
+import { Pressable, Text, StyleSheet, ViewStyle } from 'react-native';
 import { useThemeContext } from '../../context/ThemeContext';
 
 interface Props {
@@ -12,14 +12,13 @@ interface Props {
 export function PrimaryButton({ title, onPress, style, disabled }: Props) {
   const { colors } = useThemeContext();
   return (
-    <TouchableOpacity
+    <Pressable
       onPress={onPress}
       disabled={disabled}
-      activeOpacity={0.85}
-      style={[styles.btn, { backgroundColor: colors.purple, shadowColor: colors.purpleGlow, opacity: disabled ? 0.5 : 1 }, style]}
+      style={({ pressed }: { pressed: boolean }) => [styles.btn, { backgroundColor: colors.purple, shadowColor: colors.purpleGlow, opacity: disabled ? 0.5 : pressed ? 0.85 : 1 }, style]}
     >
       <Text style={[styles.label, { color: '#fff' }]}>{title}</Text>
-    </TouchableOpacity>
+    </Pressable>
   );
 }
 

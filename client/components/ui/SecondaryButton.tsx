@@ -1,5 +1,5 @@
 import React from 'react';
-import { TouchableOpacity, Text, StyleSheet, ViewStyle } from 'react-native';
+import { Pressable, Text, StyleSheet, ViewStyle } from 'react-native';
 import { useThemeContext } from '../../context/ThemeContext';
 
 interface Props {
@@ -11,13 +11,12 @@ interface Props {
 export function SecondaryButton({ title, onPress, style }: Props) {
   const { colors } = useThemeContext();
   return (
-    <TouchableOpacity
+    <Pressable
       onPress={onPress}
-      activeOpacity={0.8}
-      style={[styles.btn, { backgroundColor: colors.surface2, borderColor: colors.borderMed }, style]}
+      style={({ pressed }: { pressed: boolean }) => [styles.btn, { backgroundColor: colors.surface2, borderColor: colors.borderMed, opacity: pressed ? 0.8 : 1 }, style]}
     >
       <Text style={[styles.label, { color: colors.text2 }]}>{title}</Text>
-    </TouchableOpacity>
+    </Pressable>
   );
 }
 
