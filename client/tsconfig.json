@@ -4,8 +4,20 @@
     "strict": true,
     "noImplicitAny": true,
     "strictNullChecks": true,
-    "strictFunctionTypes": true
+    "strictFunctionTypes": true,
+    "moduleResolution": "bundler",
+    "module": "preserve",
+    "customConditions": [
+      "react-native"
+    ],
+    "typeRoots": [
+      "./node_modules/@types"
+    ],
+    "types": ["jest", "@testing-library/jest-native/extend-expect"]
   },
-  "include": [ "**/*.ts", "**/*.tsx" ],
-  "typeRoots": ["./src/types"],
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    "nativewind-env.d.ts"
+  ]
 }

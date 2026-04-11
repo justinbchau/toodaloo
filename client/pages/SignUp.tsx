@@ -1,73 +1,112 @@
-import React from 'react';
-import { Div, Input, Text, Button, Icon } from 'react-native-magnus'
-import { RootStackParamList } from '../RootStackParams';
-import { StackNavigationProp } from '@react-navigation/stack';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet } from 'react-native';
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { AuthStackParamList } from '../RootStackParams';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useNavigation } from '@react-navigation/native';
-
-
-import { Page } from '../templates/Page'
+import { Page } from '../templates/Page';
 import { SocialButtons } from '../components/SocialButtons';
+import { useThemeContext } from '../context/ThemeContext';
+import { PrimaryButton } from '../components/ui/PrimaryButton';
+import { FormInput } from '../components/ui/FormInput';
+import { supabase } from '../lib/supabase';
 
-type signUpScreenProp = StackNavigationProp<RootStackParamList, 'SignUp'>;
+type signUpScreenProp = NativeStackNavigationProp<AuthStackParamList>;
 
+const schema = z.object({
+    email: z.string().email('Please enter a valid email'),
+});
+
+type FormValues = z.infer<typeof schema>;
 
 export function SignUp() {
     const navigation = useNavigation<signUpScreenProp>();
+    const { colors } = useThemeContext();
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [authError, setAuthError] = useState<string | null>(null);
+
+    const { control, handleSubmit } = useForm<FormValues>({
+        resolver: zodResolver(schema),
+        defaultValues: { email: '' },
+    });
+
+    const onSubmit = async (values: FormValues) => {
+        setIsSubmitting(true);
+        setAuthError(null);
+        try {
+            const { error } = await supabase.auth.signInWithOtp({
+                email: values.email,
+            });
+            if (error) {
+                setAuthError(error.message);
+                return;
+            }
+            navigation.navigate('Confirmation', { email: values.email });
+        } catch {
+            setAuthError('Something went wrong. Please try again.');
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
 
     return (
         <Page>
-            <Div flex={1}>
-                <Text mt="2xl" mx="xl" w="70%" fontWeight="bold" fontSize="5xl">
-                    Get Started
-                </Text>
-                <Text mx="xl" fontSize="md" color="light_grey" mt="md" w="65%">
-                    Enter your mobile number to sign up
-                </Text>
-                <Text color="dark_grey" mx="xl" mt="2xl">
-                    Phone number
-                </Text>
-                <Input
-                    mx="xl"
-                    mt={4}
-                    px="md"
-                    py="lg"
-                    borderColor="gray400"
-                    borderWidth={2}
-                    keyboardType="phone-pad"
-                    focusBorderColor="blue700"
-                />
-                <Button
-                    block={true}
-                    mt={32}
-                    mx="xl"
-                    px='xl'
-                    py='lg'
-                    bg='purp_primary'
-                    color='white'
-                    shadow="3xl"
-                    borderless
-                    fontSize="2xl"
-                    underlayColor='purp+primary'
-                    onPress={() => navigation.navigate("Confirmation")}
-                >
-                    Send OTP
-                </Button>
+            <View style={styles.container}>
+                <Text style={[styles.title, { color: colors.text1 }]}>Get started</Text>
+                <Text style={[styles.subtitle, { color: colors.text2 }]}>Enter your email to sign up</Text>
 
-                <Div
-                    mx="xl"
-                    alignItems="center"
-                    justifyContent="center"
-                    flexDir="row"
-                    mt="2xl">
-                    <Div h={1} flex={1} bg="gray200" />
-                    <Text px="lg" fontSize="sm" color="gray500">
-                        Or sign up with
+                <View style={styles.fields}>
+                    <Controller<FormValues>
+                        control={control}
+                        name="email"
+                        render={({ field: { onChange, onBlur, value }, fieldState: { error } }) => (
+                            <FormInput
+                                label="Email"
+                                onChangeText={onChange}
+                                onBlur={onBlur}
+                                value={value}
+                                keyboardType="email-address"
+                                autoCapitalize="none"
+                                error={error?.message}
+                            />
+                        )}
+                    />
+                </View>
+
+                {authError && (
+                    <Text style={[styles.errorText, { color: colors.red }]}>
+                        {authError}
                     </Text>
-                    <Div h={1} flex={1} bg="gray200" />
-                </Div>
-                <SocialButtons />
-            </Div>
+                )}
 
+                <PrimaryButton
+                    title="Send OTP →"
+                    onPress={handleSubmit(onSubmit)}
+                    style={styles.button}
+                    disabled={isSubmitting}
+                />
+
+                <View style={styles.dividerRow}>
+                    <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
+                    <Text style={[styles.dividerText, { color: colors.text3 }]}>Or sign up with</Text>
+                    <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
+                </View>
+                <SocialButtons />
+            </View>
         </Page>
-    )
+    );
 }
+
+const styles = StyleSheet.create({
+    container: { flex: 1, paddingHorizontal: 24 },
+    title: { marginTop: 32, fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 28 },
+    subtitle: { fontSize: 14, fontFamily: 'PlusJakartaSans_400Regular', marginTop: 8 },
+    fields: { marginTop: 28, gap: 16 },
+    errorText: { fontSize: 13, fontFamily: 'PlusJakartaSans_400Regular', textAlign: 'center', marginTop: 12 },
+    button: { marginTop: 16 },
+    dividerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 32 },
+    dividerLine: { height: 1, flex: 1 },
+    dividerText: { paddingHorizontal: 12, fontSize: 12, fontFamily: 'PlusJakartaSans_400Regular' },
+});

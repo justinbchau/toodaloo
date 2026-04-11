@@ -1,56 +1,37 @@
-import React from 'react'
-import { Div, Button, Text, Icon } from 'react-native-magnus'
-import { RootStackParamList } from '../RootStackParams';
-import { StackNavigationProp } from '@react-navigation/stack';
+import React from 'react';
+import { View, TouchableOpacity, Text, StyleSheet } from 'react-native';
+import { AuthStackParamList } from '../RootStackParams';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useNavigation } from '@react-navigation/native';
+import { useThemeContext } from '../context/ThemeContext';
 
-import Google from '../assets/icons8-google.svg'
-
-type loginScreenProp = StackNavigationProp<RootStackParamList, 'Login'>;
+type loginScreenProp = NativeStackNavigationProp<AuthStackParamList>;
 
 export function SocialButtons() {
     const navigation = useNavigation<loginScreenProp>();
+    const { colors } = useThemeContext();
 
     return (
-        <Div
-            flex={1}
-        >
-            <Button
-                block={true}
-                mt={32}
-                mx="xl"
-                px='xl'
-                py='lg'
-                bg='black'
-                color='white'
-                shadow="3xl"
-                borderless
-                fontSize="2xl"
-                underlayColor='purp+primary'
-                onPress={() => navigation.navigate("SignUp")}
+        <View style={styles.container}>
+            <TouchableOpacity
+                style={[styles.button, { backgroundColor: colors.surface3, borderRadius: 14 }]}
+                onPress={() => navigation.navigate('SignUp')}
             >
-                <Icon
-                    name="apple1"
-                    fontSize="3xl"
-                    color="white"
-                    fontFamily="AntDesign"
-                />
-            </Button>
-            <Button
-                block={true}
-                mt={16}
-                mx="xl"
-                px='xl'
-                py='lg'
-                bg='transparent'
-                shadow="3xl"
-                borderColor="black"
-                borderWidth={2}
-                onPress={() => navigation.navigate("SignUp")}
+                <Text style={styles.appleIcon}></Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+                style={[styles.button, { backgroundColor: 'transparent', borderColor: colors.borderMed, borderWidth: 1, borderRadius: 14 }]}
+                onPress={() => navigation.navigate('SignUp')}
             >
-                <Google />
-            </Button>
-        </Div>
-    )
+                <Text style={[styles.googleIcon, { color: colors.purple }]}>G</Text>
+            </TouchableOpacity>
+        </View>
+    );
 }
 
+const styles = StyleSheet.create({
+    container: { flexDirection: 'row', gap: 10, marginTop: 8 },
+    button: { flex: 1, paddingVertical: 14, alignItems: 'center', justifyContent: 'center' },
+    appleIcon: { fontSize: 22, fontFamily: undefined },
+    googleIcon: { fontSize: 18, fontFamily: 'PlusJakartaSans_700Bold' },
+});

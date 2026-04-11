@@ -1,104 +1,97 @@
-import * as React from 'react';
+import './global.css';
+import React, { useEffect } from 'react';
+import { ActivityIndicator, View } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { ThemeProvider } from 'react-native-magnus';
-import AppLoading from 'expo-app-loading';
-import { RootStackParamList } from './RootStackParams';
-
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import * as SplashScreen from 'expo-splash-screen';
 import {
   useFonts,
-  Poppins_100Thin,
-  Poppins_100Thin_Italic,
-  Poppins_200ExtraLight,
-  Poppins_200ExtraLight_Italic,
-  Poppins_300Light,
-  Poppins_300Light_Italic,
-  Poppins_400Regular,
-  Poppins_400Regular_Italic,
-  Poppins_500Medium,
-  Poppins_500Medium_Italic,
-  Poppins_600SemiBold,
-  Poppins_600SemiBold_Italic,
-  Poppins_700Bold,
-  Poppins_700Bold_Italic,
-  Poppins_800ExtraBold,
-  Poppins_800ExtraBold_Italic,
-  Poppins_900Black,
-  Poppins_900Black_Italic,
-} from '@expo-google-fonts/poppins';
-
-
+  PlusJakartaSans_400Regular,
+  PlusJakartaSans_500Medium,
+  PlusJakartaSans_600SemiBold,
+  PlusJakartaSans_700Bold,
+  PlusJakartaSans_800ExtraBold,
+} from '@expo-google-fonts/plus-jakarta-sans';
+import { ContextStore } from './context/context';
+import { ThemeProvider, useThemeContext } from './context/ThemeContext';
+import { UserProvider, useUser } from './context/UserContext';
+import { RootStackParamList } from './RootStackParams';
 import { Home } from './pages/Home';
-import { Map } from './pages/Map';
-import { Drawer } from './navigation/drawer';
 import { Auth } from './navigation/auth';
+import { MainTabs } from './navigation/tabs';
+import { Success } from './pages/Success';
+import { BathroomDetail } from './pages/BathroomDetail';
+import { WriteReview } from './pages/WriteReview';
 
-
-const theme = {
-  fontSize: {
-    xs: 10,
-    "7xl": 48,
-  },
-  colors: {
-    purp_primary: "#6C63FF",
-    white: "#fff",
-    light_grey: "#B8B8B8",
-    dark_grey: "#6c6c6c",
-    text_black: "#525252"
-  },
-  components: {
-    Text: {
-      fontFamily: "Poppins_600SemiBold"
-    },
-    Button: {
-      fontFamily: "Poppins_600SemiBold"
-    },
-    Tag: {
-      fontFamily: "Poppins_400Regular"
-    }
-  }
-};
+SplashScreen.preventAutoHideAsync();
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
-export default function App() {
-  let [fontsLoaded] = useFonts({
-    Poppins_100Thin,
-    Poppins_100Thin_Italic,
-    Poppins_200ExtraLight,
-    Poppins_200ExtraLight_Italic,
-    Poppins_300Light,
-    Poppins_300Light_Italic,
-    Poppins_400Regular,
-    Poppins_400Regular_Italic,
-    Poppins_500Medium,
-    Poppins_500Medium_Italic,
-    Poppins_600SemiBold,
-    Poppins_600SemiBold_Italic,
-    Poppins_700Bold,
-    Poppins_700Bold_Italic,
-    Poppins_800ExtraBold,
-    Poppins_800ExtraBold_Italic,
-    Poppins_900Black,
-    Poppins_900Black_Italic,
-  });
+function AppNavigator() {
+  const { session, loading } = useUser();
+  const { colors } = useThemeContext();
 
-  if (!fontsLoaded) {
-    return <AppLoading />
-  } else {
+  if (loading) {
     return (
-      <ThemeProvider theme={theme}>
-        <NavigationContainer>
-          <Stack.Navigator screenOptions={{
-            headerShown: false
-          }}>
-            <Stack.Screen name='ToodaLoo' component={Home} />
-            <Stack.Screen name='Auth' component={Auth} />
-            <Stack.Screen name='Map' component={Map} />
-            <Stack.Screen name='Profile' component={Drawer} />
-          </Stack.Navigator>
-        </NavigationContainer>
-      </ThemeProvider>
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: colors.bg,
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <ActivityIndicator color={colors.purple} size="large" />
+      </View>
     );
   }
+
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      {session ? (
+        <>
+          <Stack.Screen name="MainTabs" component={MainTabs} />
+          <Stack.Screen name="Success" component={Success} />
+          <Stack.Screen name="BathroomDetail" component={BathroomDetail} />
+          <Stack.Screen name="WriteReview" component={WriteReview} />
+        </>
+      ) : (
+        <>
+          <Stack.Screen name="ToodaLoo" component={Home} />
+          <Stack.Screen name="Auth" component={Auth} />
+        </>
+      )}
+    </Stack.Navigator>
+  );
+}
+
+export default function App() {
+  const [fontsLoaded] = useFonts({
+    PlusJakartaSans_400Regular,
+    PlusJakartaSans_500Medium,
+    PlusJakartaSans_600SemiBold,
+    PlusJakartaSans_700Bold,
+    PlusJakartaSans_800ExtraBold,
+  });
+
+  useEffect(() => {
+    if (fontsLoaded) SplashScreen.hideAsync();
+  }, [fontsLoaded]);
+
+  if (!fontsLoaded) return null;
+
+  return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <ThemeProvider>
+        <UserProvider>
+          <ContextStore>
+            <NavigationContainer>
+              <AppNavigator />
+            </NavigationContainer>
+          </ContextStore>
+        </UserProvider>
+      </ThemeProvider>
+    </GestureHandlerRootView>
+  );
 }

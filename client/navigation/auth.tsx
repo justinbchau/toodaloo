@@ -1,9 +1,9 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { RootStackParamList } from '../RootStackParams';
+import { AuthStackParamList } from '../RootStackParams';
 import { Login, Password, Username, SignUp, Confirmation } from '../pages';
 
-const AuthNav = createNativeStackNavigator<RootStackParamList>();
+const AuthNav = createNativeStackNavigator<AuthStackParamList>();
 
 export function Auth() {
     return (

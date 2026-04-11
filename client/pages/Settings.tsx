@@ -1,35 +1,51 @@
-import React, { useState } from 'react'
-import { Page } from '../templates/Page'
-import { Div, Text, Toggle } from 'react-native-magnus'
+import React from 'react';
+import { View, Text, Switch } from 'react-native';
+import { Page } from '../templates/Page';
+import { useThemeContext } from '../context/ThemeContext';
+import { SectionLabel } from '../components/ui/SectionLabel';
 
 export function Settings() {
-    const [on, toggle] = useState(false);
+  const { colors, isDark, toggleTheme } = useThemeContext();
 
-    return (
-        <Page>
-            <Div flex={1} alignItems="center">
-                <Div>
-                    <Text fontSize="4xl">Settings</Text>
-                </Div>
+  return (
+    <Page>
+      <View style={{ flex: 1, paddingHorizontal: 20, paddingTop: 16 }}>
+        <Text style={{ fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 24, color: colors.text1, marginBottom: 24 }}>
+          Settings
+        </Text>
 
-                <Div justifyContent="space-between" w="90%" alignItems="center" mt="2xl" row>
-                    <Div>
-                        <Text fontSize="lg">Dark mode toggle</Text>
-                    </Div>
-                    <Toggle
-                        ml="auto"
-                        mr={18}
-                        on={on}
-                        onPress={() => toggle(!on)}
-                        bg="gray400"
-                        circleBg="purp_primary"
-                        activeBg="purp_primary"
-                        h={30}
-                        w={60}
-                    />
-                </Div>
-            </Div>
-
-        </Page>
-    )
+        <SectionLabel label="Appearance" />
+        <View style={{
+          marginTop: 10,
+          backgroundColor: colors.surface1,
+          borderRadius: 16,
+          paddingHorizontal: 16,
+          borderWidth: 1,
+          borderColor: colors.border,
+        }}>
+          <View style={{
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            paddingVertical: 14,
+          }}>
+            <View>
+              <Text style={{ fontFamily: 'PlusJakartaSans_500Medium', fontSize: 15, color: colors.text1 }}>
+                Dark mode
+              </Text>
+              <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12, color: colors.text3, marginTop: 2 }}>
+                {isDark ? 'Currently dark' : 'Currently light'}
+              </Text>
+            </View>
+            <Switch
+              value={isDark}
+              onValueChange={toggleTheme}
+              thumbColor={isDark ? colors.purple : '#ccc'}
+              trackColor={{ false: colors.surface3, true: colors.purpleDim }}
+            />
+          </View>
+        </View>
+      </View>
+    </Page>
+  );
 }
