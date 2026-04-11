@@ -113,6 +113,7 @@ export function BathroomSheet({ bathrooms = [], onCardPress, isLoading = false }
             horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.scroll}
+            contentInsetAdjustmentBehavior="automatic"
           >
             <SkeletonBathroomCard />
             <SkeletonBathroomCard />
@@ -143,6 +144,7 @@ export function BathroomSheet({ bathrooms = [], onCardPress, isLoading = false }
             horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.scroll}
+            contentInsetAdjustmentBehavior="automatic"
           >
             {bathrooms.map((b, i) => (
               <BathroomCard

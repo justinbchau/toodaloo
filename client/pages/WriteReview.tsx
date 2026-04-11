@@ -67,7 +67,7 @@ export function WriteReview() {
           <Text style={[styles.headerTitle, { color: colors.text1 }]}>Write a Review</Text>
         </View>
 
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20, paddingBottom: 20 }}>
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20, paddingBottom: 20 }} contentInsetAdjustmentBehavior="automatic">
 
           {/* Bathroom name */}
           <Text style={[styles.bathroomName, { color: colors.text1 }]}>{bathroomName}</Text>

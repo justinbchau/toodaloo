@@ -119,6 +119,7 @@ export function Saved() {
         data={bathrooms}
         keyExtractor={(item) => item.id}
         contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 32, gap: 12 }}
+        contentInsetAdjustmentBehavior="automatic"
         renderItem={({ item }) => (
           <BathroomCard
             data={item}
