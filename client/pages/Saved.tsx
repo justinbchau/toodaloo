@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, FlatList, RefreshControl, ActivityIndicator } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, RefreshControl, ActivityIndicator, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -8,6 +8,11 @@ import { useUser } from '../context/UserContext';
 import { supabase } from '../lib/supabase';
 import { BathroomCard, BathroomCardData } from '../components/BathroomCard';
 import { RootStackParamList } from '../RootStackParams';
+import { FlashList } from '@shopify/flash-list';
+
+const listStyles = StyleSheet.create({
+  contentContainer: { paddingHorizontal: 16, paddingBottom: 32, gap: 12 },
+});
 
 const ACCESS_EMOJI: Record<string, string> = {
   public: '🚽',
@@ -23,6 +28,25 @@ export function Saved() {
   const [bathrooms, setBathrooms] = useState<BathroomCardData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const keyExtractor = useCallback((item: BathroomCardData) => item.id, []);
+
+  const renderItem = useCallback(
+    ({ item }: { item: BathroomCardData }) => (
+      <BathroomCard
+        data={item}
+        onPress={() =>
+          navigation.navigate('BathroomDetail', {
+            id: item.id,
+            name: item.name,
+            lat: item.lat,
+            lng: item.lng,
+          })
+        }
+      />
+    ),
+    [navigation]
+  );
 
   const fetchSaved = async () => {
     if (!user) return;
@@ -115,24 +139,13 @@ export function Saved() {
           {bathrooms.length} saved {bathrooms.length === 1 ? 'bathroom' : 'bathrooms'}
         </Text>
       </View>
-      <FlatList
+      <FlashList
         data={bathrooms}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 32, gap: 12 }}
+        keyExtractor={keyExtractor}
+        renderItem={renderItem}
+        estimatedItemSize={120}
+        contentContainerStyle={listStyles.contentContainer}
         contentInsetAdjustmentBehavior="automatic"
-        renderItem={({ item }) => (
-          <BathroomCard
-            data={item}
-            onPress={() =>
-              navigation.navigate('BathroomDetail', {
-                id: item.id,
-                name: item.name,
-                lat: item.lat,
-                lng: item.lng,
-              })
-            }
-          />
-        )}
         refreshControl={
           <RefreshControl
             refreshing={isRefreshing}
