@@ -1,5 +1,5 @@
 import React from 'react';
-import { TouchableOpacity, View, Text, StyleSheet } from 'react-native';
+import { Pressable, View, Text, StyleSheet } from 'react-native';
 import { useThemeContext } from '../context/ThemeContext';
 
 export interface BathroomCardData {
@@ -27,14 +27,14 @@ export function BathroomCard({ data, onPress, highlighted }: Props) {
   const stars = '★'.repeat(filled) + '☆'.repeat(5 - filled);
 
   return (
-    <TouchableOpacity
+    <Pressable
       onPress={onPress}
-      activeOpacity={0.8}
-      style={[
+      style={({ pressed }: { pressed: boolean }) => [
         styles.card,
         {
           backgroundColor: highlighted ? colors.purpleDim : colors.surface2,
           borderColor: highlighted ? 'rgba(123,110,246,0.28)' : colors.border,
+          opacity: pressed ? 0.8 : 1,
         },
       ]}
     >
@@ -62,7 +62,7 @@ export function BathroomCard({ data, onPress, highlighted }: Props) {
       <Text style={[styles.distance, { color: colors.purpleText }]}>
         {data.distance}
       </Text>
-    </TouchableOpacity>
+    </Pressable>
   );
 }
 

@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, TouchableOpacity, Text, StyleSheet } from 'react-native';
+import { View, Pressable, Text, StyleSheet } from 'react-native';
 import { AuthStackParamList } from '../RootStackParams';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useNavigation } from '@react-navigation/native';
@@ -13,18 +13,18 @@ export function SocialButtons() {
 
     return (
         <View style={styles.container}>
-            <TouchableOpacity
-                style={[styles.button, { backgroundColor: colors.surface3, borderRadius: 14 }]}
+            <Pressable
+                style={({ pressed }: { pressed: boolean }) => [styles.button, { backgroundColor: colors.surface3, borderRadius: 14, opacity: pressed ? 0.7 : 1 }]}
                 onPress={() => navigation.navigate('SignUp')}
             >
                 <Text style={styles.appleIcon}></Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-                style={[styles.button, { backgroundColor: 'transparent', borderColor: colors.borderMed, borderWidth: 1, borderRadius: 14 }]}
+            </Pressable>
+            <Pressable
+                style={({ pressed }: { pressed: boolean }) => [styles.button, { backgroundColor: 'transparent', borderColor: colors.borderMed, borderWidth: 1, borderRadius: 14, opacity: pressed ? 0.7 : 1 }]}
                 onPress={() => navigation.navigate('SignUp')}
             >
                 <Text style={[styles.googleIcon, { color: colors.purple }]}>G</Text>
-            </TouchableOpacity>
+            </Pressable>
         </View>
     );
 }

@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useRef, useState } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, Linking } from 'react-native';
+import { StyleSheet, View, Text, Pressable, Linking } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { LocationObject } from 'expo-location';
@@ -148,33 +148,32 @@ export function Map() {
                 }}>
                     TooDaLoo uses your location to find bathrooms nearby.
                 </Text>
-                <TouchableOpacity
+                <Pressable
                     onPress={() => Linking.openSettings()}
-                    style={{
+                    style={({ pressed }: { pressed: boolean }) => ({
                         marginTop: 28, backgroundColor: colors.purple,
                         borderRadius: 14, paddingHorizontal: 28, paddingVertical: 14,
                         width: '100%', alignItems: 'center',
-                    }}
-                    activeOpacity={0.85}
+                        opacity: pressed ? 0.85 : 1,
+                    })}
                 >
                     <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 15, color: '#fff' }}>
                         Open Settings
                     </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
+                </Pressable>
+                <Pressable
                     onPress={() => {
                         // Fallback: show NYC as default region, let user browse
                         const fallback = { coords: { latitude: 40.7128, longitude: -74.0060, altitude: 0, accuracy: 0, altitudeAccuracy: 0, heading: 0, speed: 0 }, timestamp: Date.now() } as LocationObject;
                         setLocation(fallback);
                         setLocationStatus('granted');
                     }}
-                    style={{ marginTop: 14, paddingVertical: 10 }}
-                    activeOpacity={0.7}
+                    style={({ pressed }: { pressed: boolean }) => ({ marginTop: 14, paddingVertical: 10, opacity: pressed ? 0.7 : 1 })}
                 >
                     <Text style={{ fontFamily: 'PlusJakartaSans_500Medium', fontSize: 14, color: colors.text2 }}>
                         Maybe later
                     </Text>
-                </TouchableOpacity>
+                </Pressable>
             </View>
         );
     }
@@ -229,7 +228,7 @@ export function Map() {
             ]}>
                 <View style={styles.topBarInner}>
                     <LocationSearch />
-                    <TouchableOpacity style={{
+                    <Pressable style={({ pressed }: { pressed: boolean }) => ({
                         width: 42,
                         height: 42,
                         backgroundColor: colors.surface2,
@@ -238,7 +237,8 @@ export function Map() {
                         borderRadius: 12,
                         alignItems: 'center',
                         justifyContent: 'center',
-                    }}>
+                        opacity: pressed ? 0.7 : 1,
+                    })}>
                         <View style={{ gap: 3.5, width: 16 }}>
                             {[1, 2, 3].map((_, i) => (
                                 <View
@@ -252,36 +252,37 @@ export function Map() {
                                 />
                             ))}
                         </View>
-                    </TouchableOpacity>
+                    </Pressable>
                 </View>
             </View>
 
             {/* FABs — absolute, right 14, bottom 260 */}
             <View style={styles.fabContainer}>
                 {/* Add FAB (purple) */}
-                <TouchableOpacity
-                    style={[styles.fab, {
+                <Pressable
+                    style={({ pressed }: { pressed: boolean }) => [styles.fab, {
                         backgroundColor: colors.purple,
                         shadowColor: colors.purpleGlow ?? 'rgba(123,110,246,0.35)',
                         shadowOffset: { width: 0, height: 4 },
                         shadowOpacity: 1,
                         shadowRadius: 18,
                         elevation: 8,
+                        opacity: pressed ? 0.85 : 1,
                     }]}
                     onPress={() => tabNavigation.navigate('Add')}
-                    activeOpacity={0.85}
                 >
                     <Text style={styles.fabAddText}>+</Text>
-                </TouchableOpacity>
+                </Pressable>
 
                 {/* Location FAB (surface) */}
-                <TouchableOpacity
-                    style={[
+                <Pressable
+                    style={({ pressed }: { pressed: boolean }) => [
                         styles.fab,
                         {
                             backgroundColor: colors.surface1,
                             borderWidth: 1,
                             borderColor: colors.borderMed,
+                            opacity: pressed ? 0.85 : 1,
                         },
                     ]}
                     onPress={() => {
@@ -294,10 +295,9 @@ export function Map() {
                             }, 500);
                         }
                     }}
-                    activeOpacity={0.85}
                 >
                     <Text style={[styles.fabLocText, { color: colors.text2 }]}>◎</Text>
-                </TouchableOpacity>
+                </Pressable>
             </View>
 
             {/* BATHROOM SHEET */}

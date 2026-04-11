@@ -1,5 +1,5 @@
 import React from 'react';
-import { TouchableOpacity, View, Text, StyleSheet } from 'react-native';
+import { Pressable, View, Text, StyleSheet } from 'react-native';
 import { useThemeContext } from '../../context/ThemeContext';
 
 interface Props {
@@ -13,10 +13,9 @@ interface Props {
 export function MenuItem({ icon, label, sublabel, onPress, destructive }: Props) {
   const { colors } = useThemeContext();
   return (
-    <TouchableOpacity
+    <Pressable
       onPress={onPress}
-      activeOpacity={0.7}
-      style={[styles.row, { borderBottomColor: colors.border }]}
+      style={({ pressed }: { pressed: boolean }) => [styles.row, { borderBottomColor: colors.border, opacity: pressed ? 0.7 : 1 }]}
     >
       <View style={[styles.iconWrap, { backgroundColor: destructive ? 'rgba(240,90,90,0.12)' : colors.surface2 }]}>
         <Text style={styles.icon}>{icon}</Text>
@@ -26,7 +25,7 @@ export function MenuItem({ icon, label, sublabel, onPress, destructive }: Props)
         {sublabel ? <Text style={[styles.sublabel, { color: colors.text3 }]}>{sublabel}</Text> : null}
       </View>
       <Text style={[styles.chevron, { color: colors.text3 }]}>›</Text>
-    </TouchableOpacity>
+    </Pressable>
   );
 }
 

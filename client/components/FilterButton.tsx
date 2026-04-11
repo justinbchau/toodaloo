@@ -1,5 +1,5 @@
 import React from 'react';
-import { TouchableOpacity, Text, StyleSheet } from 'react-native';
+import { Pressable, Text, StyleSheet } from 'react-native';
 
 interface FilterButtonProps {
     title: string;
@@ -8,9 +8,12 @@ interface FilterButtonProps {
 
 export function FilterButton(props: FilterButtonProps) {
     return (
-        <TouchableOpacity style={styles.tag} onPress={props.onPress}>
+        <Pressable
+            style={({ pressed }: { pressed: boolean }) => [styles.tag, { opacity: pressed ? 0.75 : 1 }]}
+            onPress={props.onPress}
+        >
             <Text style={styles.text}>{props.title}</Text>
-        </TouchableOpacity>
+        </Pressable>
     );
 }
 

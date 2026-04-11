@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, StyleSheet,
+  View, Text, TextInput, Pressable, StyleSheet,
   SafeAreaView, ScrollView, Alert, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
@@ -58,13 +58,16 @@ export function WriteReview() {
 
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+          <Pressable
+            onPress={() => navigation.goBack()}
+            style={({ pressed }: { pressed: boolean }) => [styles.backBtn, { opacity: pressed ? 0.7 : 1 }]}
+          >
             <Text style={{ color: colors.text1, fontSize: 22 }}>‹</Text>
-          </TouchableOpacity>
+          </Pressable>
           <Text style={[styles.headerTitle, { color: colors.text1 }]}>Write a Review</Text>
         </View>
 
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20, paddingBottom: 20 }}>
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20, paddingBottom: 20 }} contentInsetAdjustmentBehavior="automatic">
 
           {/* Bathroom name */}
           <Text style={[styles.bathroomName, { color: colors.text1 }]}>{bathroomName}</Text>
@@ -73,10 +76,10 @@ export function WriteReview() {
           <Text style={[styles.label, { color: colors.text3 }]}>How would you rate it?</Text>
           <View style={styles.starsRow}>
             {[1, 2, 3, 4, 5].map((star) => (
-              <TouchableOpacity
+              <Pressable
                 key={star}
                 onPress={() => setRating(star)}
-                activeOpacity={0.7}
+                style={({ pressed }: { pressed: boolean }) => ({ opacity: pressed ? 0.7 : 1 })}
               >
                 <Text style={[
                   styles.star,
@@ -84,7 +87,7 @@ export function WriteReview() {
                 ]}>
                   {star <= rating ? '★' : '☆'}
                 </Text>
-              </TouchableOpacity>
+              </Pressable>
             ))}
           </View>
 

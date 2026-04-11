@@ -1,5 +1,5 @@
 import React from 'react';
-import { TouchableOpacity, View, Text, StyleSheet } from 'react-native';
+import { Pressable, View, Text, StyleSheet } from 'react-native';
 import { useThemeContext } from '../context/ThemeContext';
 
 interface Props {
@@ -11,14 +11,14 @@ interface Props {
 export function AmenityToggle({ label, active, onToggle }: Props) {
   const { colors } = useThemeContext();
   return (
-    <TouchableOpacity
+    <Pressable
       onPress={onToggle}
-      activeOpacity={0.75}
-      style={[
+      style={({ pressed }: { pressed: boolean }) => [
         styles.item,
         {
           backgroundColor: active ? colors.purpleDim : colors.surface2,
           borderColor: active ? colors.purple : colors.borderMed,
+          opacity: pressed ? 0.75 : 1,
         },
       ]}
     >
@@ -26,7 +26,7 @@ export function AmenityToggle({ label, active, onToggle }: Props) {
       <Text style={[styles.label, { color: active ? colors.purpleText : colors.text2 }]}>
         {label}
       </Text>
-    </TouchableOpacity>
+    </Pressable>
   );
 }
 

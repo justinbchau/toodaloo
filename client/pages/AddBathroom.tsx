@@ -139,6 +139,7 @@ export function AddBathroom() {
           style={{ flex: 1 }}
           contentContainerStyle={{ padding: 20, gap: 20, paddingBottom: 20 }}
           keyboardShouldPersistTaps="handled"
+          contentInsetAdjustmentBehavior="automatic"
         >
           {/* Name field */}
           <Controller<FormValues>
