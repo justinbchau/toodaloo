@@ -1,48 +1,33 @@
-import React from 'react'
-import { Div, Icon, Input } from 'react-native-magnus'
-import { GooglePlacesAutocomplete } from 'react-native-google-places-autocomplete';
-import { GOOGLE_PLACES_API_KEY } from '@env'
+import React, { useState } from 'react';
+import { TextInput, View } from 'react-native';
+import { useThemeContext } from '../context/ThemeContext';
 
 export default function LocationSearch() {
+    const { colors } = useThemeContext();
+    const [value, setValue] = useState('');
 
     return (
-        <GooglePlacesAutocomplete
-            placeholder='Search location'
-            styles={{
-                textInputContainer: {
-                    borderRadius: 5,
-                    marginLeft: 40,
-                    paddingLeft: 10,
-                    backgroundColor: '#fff',
-                    shadowColor: '#000',
-                    shadowOffset: { width: -2, height: 4 },
-                    shadowOpacity: 0.2,
-                    shadowRadius: 3,
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    paddingTop: 2
-                },
-                textInput: {
+        <View style={{
+            flex: 1,
+            backgroundColor: colors.surface2,
+            borderRadius: 14,
+            borderWidth: 1,
+            borderColor: colors.borderMed,
+            paddingHorizontal: 12,
+            justifyContent: 'center',
+        }}>
+            <TextInput
+                placeholder="Search location"
+                placeholderTextColor={colors.text3}
+                value={value}
+                onChangeText={setValue}
+                style={{
+                    color: colors.text1,
+                    fontFamily: 'PlusJakartaSans_400Regular',
+                    fontSize: 14,
                     height: 44,
-                    backgroundColor: '#fff',
-                    paddingTop: 10
-                },
-                listView: {
-                    marginLeft: 40,
-                },
-                description: {
-                    fontSize: 12
-                }
-            }}
-            enablePoweredByContainer={false}
-            renderLeftButton={() => <Icon name="search" color="black" fontFamily="Feather" fontSize="3xl" />}
-            query={{
-                key: GOOGLE_PLACES_API_KEY,
-                language: 'en', // language of the results
-            }}
-            onPress={(data, details) => console.log(data, details)}
-            onFail={(error) => console.error(error)}
-        />
-    )
+                }}
+            />
+        </View>
+    );
 }
-

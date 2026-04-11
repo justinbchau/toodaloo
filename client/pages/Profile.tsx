@@ -1,108 +1,179 @@
-import React from 'react'
-import { RootStackParamList } from '../RootStackParams';
-import { StackNavigationProp } from '@react-navigation/stack';
+import React, { useState, useEffect } from 'react';
+import { View, Text, ScrollView, Alert } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { ProfileStackParamList } from '../RootStackParams';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useNavigation } from '@react-navigation/native';
-import { Page } from '../templates/Page'
-import { Text, Div, Avatar, Icon } from 'react-native-magnus'
-import { StatBlock } from '../components/StatBlock';
-import { ProfileButton } from '../components/ProfileButton';
-import { Divider } from '../components/Divider';
+import { useIsFocused } from '@react-navigation/native';
+import { useThemeContext } from '../context/ThemeContext';
+import { useUser } from '../context/UserContext';
+import { supabase } from '../lib/supabase';
+import { SkeletonProfileHero } from '../components/SkeletonProfileHero';
+import { MenuItem } from '../components/ui/MenuItem';
+import { SectionLabel } from '../components/ui/SectionLabel';
 
-type profileScreenProp = StackNavigationProp<RootStackParamList, 'Profile'>;
+type profileScreenProp = NativeStackNavigationProp<ProfileStackParamList>;
 
 export function Profile() {
-    const navigation = useNavigation<profileScreenProp>()
+  const navigation = useNavigation<profileScreenProp>();
+  const { colors } = useThemeContext();
+  const { user, signOut } = useUser();
+  const isFocused = useIsFocused();
+  const [stats, setStats] = useState({ saved: 0, reviews: 0, added: 0 });
+  const [isLoadingStats, setIsLoadingStats] = useState(true);
 
-    return (
-        <Page>
-            <Div flex={1} alignItems="center">
+  useEffect(() => {
+    if (!isFocused || !user) return;
 
-                <Div>
-                    <Text fontSize="4xl">Profile</Text>
-                </Div>
+    const fetchStats = async () => {
+      setIsLoadingStats(true);
+      try {
+        const [savedRes, reviewsRes, addedRes] = await Promise.all([
+          supabase.from('saved_bathrooms').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
+          supabase.from('reviews').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
+          supabase.from('bathrooms').select('*', { count: 'exact', head: true }).eq('created_by', user.id),
+        ]);
+        setStats({
+          saved: savedRes.count ?? 0,
+          reviews: reviewsRes.count ?? 0,
+          added: addedRes.count ?? 0,
+        });
+      } finally {
+        setIsLoadingStats(false);
+      }
+    };
 
-                <Div
-                    mt="10%"
-                >
-                    <Avatar
-                        shadow={3}
-                        bg="purp_primary"
-                        size={115}
-                    >
-                        <Icon name="toilet" color="white" fontFamily="FontAwesome5" fontSize="7xl" />
-                    </Avatar>
-                </Div>
+    fetchStats();
+  }, [isFocused, user?.id]);
 
-                <Div mt="5%">
-                    <Text fontSize="3xl" textAlign='center'>
-                        Justin Chau
-                    </Text>
-                    <Text fontSize="md" textAlign='center' color='gray500'>
-                        @chau_codes
-                    </Text>
-                </Div>
+  const handleLogOut = async () => {
+    try {
+      await signOut();
+      // UserContext.onAuthStateChange fires SIGNED_OUT → AppNavigator routes to ToodaLoo
+    } catch {
+      Alert.alert('Error', 'Failed to log out. Please try again.');
+    }
+  };
 
-                {/* Divider */}
-                <Divider marginTop='xl' width='80%' />
-                {/* End of Divider */}
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
+      <ScrollView contentContainerStyle={{ paddingBottom: 40 }}>
 
-                <Div
-                    row
-                    mt="xl"
-                    justifyContent="space-between"
-                    w="80%"
-                    alignItems="center"
-                >
-                    <StatBlock stat="58" label="Saved" />
-                    <StatBlock stat="69" label="Poops" />
-                    <StatBlock stat="69" label="Flushes" />
-                </Div>
+        {/* Hero section */}
+        {isLoadingStats ? (
+          <SkeletonProfileHero />
+        ) : (
+          <View style={{
+            backgroundColor: colors.surface1,
+            alignItems: 'center',
+            paddingTop: 40,
+            paddingBottom: 28,
+            borderBottomWidth: 1,
+            borderBottomColor: colors.border,
+          }}>
+            {/* Purple glow behind avatar */}
+            <View style={{
+              position: 'absolute', top: 20, width: 120, height: 120,
+              borderRadius: 60, backgroundColor: colors.purpleDim,
+            }} />
 
-                {/* White Button Box Container */}
-                <Div
-                    mt="2xl"
-                    bg='white'
-                    w="95%"
-                    h="60%"
-                    shadow="lg"
-                    roundedTop="2xl"
-                >
-                    <Div
-                        mt="2xl"
-                        ml="xl"
-                        h="60%"
-                        justifyContent="space-between"
-                    >
-                        <ProfileButton
-                            buttonName='Settings'
-                            iconFontFamily='Ionicons'
-                            iconName='settings'
-                            onPress={() => navigation.navigate("Settings")}
-                        />
-                        <ProfileButton
-                            buttonName='Billing Details'
-                            iconFontFamily='MaterialCommunityIcons'
-                            iconName='credit-card'
-                            onPress={() => navigation.navigate("Billing")}
-                        />
+            {/* Avatar */}
+            <View style={{
+              width: 72, height: 72, borderRadius: 22,
+              backgroundColor: colors.purple,
+              alignItems: 'center', justifyContent: 'center',
+              marginBottom: 12,
+              shadowColor: colors.purpleGlow ?? 'rgba(123,110,246,0.35)',
+              shadowOffset: { width: 0, height: 8 },
+              shadowOpacity: 1,
+              shadowRadius: 22,
+              elevation: 8,
+            }}>
+              <Text style={{ fontSize: 32, fontFamily: undefined }}>🚽</Text>
+            </View>
 
-                        {/* Divider */}
-                        <Divider marginTop='md' width='90%' />
-                        {/* End of Divider */}
+            <Text style={{ fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 20, color: colors.text1 }}>
+              {user?.email?.split('@')[0] ?? 'User'}
+            </Text>
+            <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 14, color: colors.text2, marginTop: 2 }}>
+              {user?.email ?? ''}
+            </Text>
 
-                        <ProfileButton
-                            buttonName='Logout'
-                            iconFontFamily='MaterialIcons'
-                            iconName='logout'
-                            onPress={() => console.log("Logout pressed")}
-                        />
-                    </Div>
+            {/* Stats row */}
+            <View style={{ flexDirection: 'row', marginTop: 18, paddingTop: 16, borderTopWidth: 1, borderTopColor: colors.border, alignSelf: 'stretch', marginHorizontal: 24 }}>
+              {[
+                { stat: String(stats.saved), label: 'SAVED' },
+                { stat: String(stats.reviews), label: 'REVIEWS' },
+                { stat: String(stats.added), label: 'ADDED' },
+              ].map((item, i) => (
+                <View key={item.label} style={{
+                  flex: 1,
+                  alignItems: 'center',
+                  borderRightWidth: i < 2 ? 1 : 0,
+                  borderRightColor: colors.border,
+                }}>
+                  <Text style={{ fontSize: 20, fontFamily: 'PlusJakartaSans_800ExtraBold', color: colors.text1, letterSpacing: -0.8 }}>
+                    {item.stat}
+                  </Text>
+                  <Text style={{ fontSize: 10, fontFamily: 'PlusJakartaSans_600SemiBold', color: colors.text3, letterSpacing: 1.2, marginTop: 2 }}>
+                    {item.label}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
 
-                </Div>
+        {/* Menu sections */}
+        <View style={{ paddingHorizontal: 20, paddingTop: 24 }}>
 
+          {/* Account */}
+          <SectionLabel label="Account" />
+          <View style={{ marginTop: 8, backgroundColor: colors.surface1, borderRadius: 16, overflow: 'hidden', marginBottom: 20, borderWidth: 1, borderColor: colors.border }}>
+            <MenuItem
+              icon="⚙️"
+              label="Settings"
+              sublabel="Theme, notifications"
+              onPress={() => navigation.navigate('Settings')}
+            />
+            <MenuItem
+              icon="💳"
+              label="Billing"
+              sublabel="Subscription & payments"
+              onPress={() => navigation.navigate('Billing')}
+            />
+          </View>
 
-            </Div>
-        </Page>
+          {/* Activity */}
+          <SectionLabel label="Activity" />
+          <View style={{ marginTop: 8, backgroundColor: colors.surface1, borderRadius: 16, overflow: 'hidden', marginBottom: 20, borderWidth: 1, borderColor: colors.border }}>
+            <MenuItem
+              icon="🔖"
+              label="Saved Places"
+              onPress={() => {
+                (navigation as any).getParent()?.navigate('Saved');
+              }}
+            />
+            <MenuItem
+              icon="📝"
+              label="My Reviews"
+              onPress={() => Alert.alert('Coming soon', 'My Reviews is coming in a future update!')}
+            />
+            <MenuItem
+              icon="📍"
+              label="Submitted"
+              onPress={() => Alert.alert('Coming soon', 'Submitted is coming in a future update!')}
+            />
+          </View>
 
-    )
+          {/* More */}
+          <SectionLabel label="More" />
+          <View style={{ marginTop: 8, backgroundColor: colors.surface1, borderRadius: 16, overflow: 'hidden', borderWidth: 1, borderColor: colors.border }}>
+            <MenuItem icon="🚪" label="Log Out" onPress={handleLogOut} destructive />
+          </View>
+
+        </View>
+      </ScrollView>
+    </SafeAreaView>
+  );
 }

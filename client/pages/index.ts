@@ -8,3 +8,5 @@ export * from './Profile';
 export * from './Settings';
 export * from './SignUp';
 export * from './Username';
+export * from './BathroomDetail';
+export * from './Saved';

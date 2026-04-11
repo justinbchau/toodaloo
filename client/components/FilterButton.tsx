@@ -1,17 +1,20 @@
-import React from 'react'
-import { Tag } from 'react-native-magnus'
+import React from 'react';
+import { TouchableOpacity, Text, StyleSheet } from 'react-native';
 
 interface FilterButtonProps {
     title: string;
-    onPress?: () => void
+    onPress?: () => void;
 }
-
 
 export function FilterButton(props: FilterButtonProps) {
-
     return (
-        <>
-            <Tag onPress={props.onPress} rounded="circle" bg="white" borderWidth={1} borderColor="gray500" py="md" color="black" fontSize="xs" mr={10}>{props.title}</Tag>
-        </>
-    )
+        <TouchableOpacity style={styles.tag} onPress={props.onPress}>
+            <Text style={styles.text}>{props.title}</Text>
+        </TouchableOpacity>
+    );
 }
+
+const styles = StyleSheet.create({
+    tag: { borderWidth: 1, borderColor: '#888', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6, marginRight: 10, backgroundColor: '#fff' },
+    text: { fontSize: 12, color: '#000' },
+});

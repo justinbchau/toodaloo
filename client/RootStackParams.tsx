@@ -1,16 +1,31 @@
-// import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-
 export type RootStackParamList = {
-    ToodaLoo: undefined;
-    Auth: { screen: string } | undefined;
-    Login: undefined;
-    SignUp: { title: string, page: string } | undefined;
-    Confirmation: undefined;
-    Username: undefined;
-    Password: undefined;
-    Map: undefined;
-    Profile: undefined;
-    Drawer: undefined;
-    Settings: undefined;
-    Billing: undefined;
+  ToodaLoo: undefined;
+  Auth: { screen: string } | undefined;
+  // Accepts an optional screen param so callers can land on a specific tab.
+  // e.g. navigation.navigate('MainTabs', { screen: 'Map' })
+  MainTabs: { screen?: keyof MainTabParamList } | undefined;
+  BathroomDetail: { id: string; name: string; lat: number; lng: number };
+  WriteReview: { bathroomId: string; bathroomName: string };
+  Success: undefined;
+};
+
+export type MainTabParamList = {
+  Map: undefined;
+  Saved: undefined;
+  Add: undefined;
+  Profile: undefined;
+};
+
+export type ProfileStackParamList = {
+  ProfileMain: undefined;
+  Settings: undefined;
+  Billing: undefined;
+};
+
+export type AuthStackParamList = {
+  Login: undefined;
+  SignUp: { title: string; page: string } | undefined;
+  Confirmation: { email: string } | undefined;
+  Username: undefined;
+  Password: undefined;
 };

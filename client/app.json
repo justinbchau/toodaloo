@@ -3,7 +3,9 @@
     "name": "toodaloo",
     "slug": "toodaloo",
     "version": "1.0.0",
+    "sdkVersion": "55.0.0",
     "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
     "icon": "./assets/icon.png",
     "splash": {
       "image": "./assets/splash.png",
@@ -44,6 +46,19 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-font",
+        {
+          "fonts": []
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "2d1c0223-c462-462d-85cc-d8a63e7ddbad"
+      }
     }
   }
 }

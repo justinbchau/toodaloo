@@ -1,118 +1,126 @@
 import React, { useState } from 'react';
-import { Div, Input, Text, Button, Icon } from 'react-native-magnus'
+import { View, Text, StyleSheet } from 'react-native';
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import { RootStackParamList } from '../RootStackParams';
-import { StackNavigationProp } from '@react-navigation/stack';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useNavigation } from '@react-navigation/native';
-import { Formik, FormikProps } from "formik";
-
-import { Labels } from '../constants/labels';
-
-import { SocialButtons } from '../components/SocialButtons'
+import { SocialButtons } from '../components/SocialButtons';
 import { Page } from '../templates/Page';
+import { useThemeContext } from '../context/ThemeContext';
+import { PrimaryButton } from '../components/ui/PrimaryButton';
+import { FormInput } from '../components/ui/FormInput';
+import { supabase } from '../lib/supabase';
 
-type loginScreenProp = StackNavigationProp<RootStackParamList, 'Login'>;
+type loginScreenProp = NativeStackNavigationProp<RootStackParamList>;
 
-interface FormValues {
-    username: string;
-    password: string;
-}
+const schema = z.object({
+    email: z.string().email('Please enter a valid email'),
+    password: z.string().min(1, 'Password is required'),
+});
 
+type FormValues = z.infer<typeof schema>;
 
 export function Login() {
     const navigation = useNavigation<loginScreenProp>();
+    const { colors } = useThemeContext();
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [authError, setAuthError] = useState<string | null>(null);
+
+    const { control, handleSubmit } = useForm<FormValues>({
+        resolver: zodResolver(schema),
+        defaultValues: { email: '', password: '' },
+    });
+
+    const onSubmit = async (values: FormValues) => {
+        setIsSubmitting(true);
+        setAuthError(null);
+        try {
+            const { error } = await supabase.auth.signInWithPassword({
+                email: values.email,
+                password: values.password,
+            });
+            if (error) setAuthError(error.message);
+            // Success: UserContext.onAuthStateChange fires → AppNavigator routes to MainTabs
+        } catch {
+            setAuthError('Something went wrong. Please try again.');
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
     return (
         <Page>
-            <Div flex={1}>
-                <Formik
-                    initialValues={{
-                        username: '',
-                        password: ''
-                    }}
-                    onSubmit={() => { }}
-                >
-                    {({ handleChange, handleBlur, handleSubmit, values }) => {
-                        const handleOnPress = () => {
-                            handleSubmit();
-                            console.log(values.username);
-                            console.log(values.password);
-                            navigation.navigate("Map")
-                        }
+            <View style={styles.container}>
+                <Text style={[styles.title, { color: colors.text1 }]}>Welcome back</Text>
+                <Text style={[styles.subtitle, { color: colors.text2 }]}>Enter your credentials to log in</Text>
 
-                        return (
-                            <>
-                                <Text mt="2xl" mx="xl" w="70%" fontWeight="bold" fontSize="5xl">
-                                    {Labels.login}
-                                </Text>
-                                <Text mx="xl" fontSize="md" color="light_grey" mt="md" w="60%">
-                                    Enter your credentials to log in
-                                </Text>
-                                <Text color="dark_grey" mx="xl" mt="2xl">
-                                    Username
-                                </Text>
-                                <Input
-                                    mx="xl"
-                                    mt={4}
-                                    px="md"
-                                    py="lg"
-                                    borderColor="gray400"
-                                    borderWidth={2}
-                                    focusBorderColor="blue700"
-                                    onChangeText={handleChange('username')}
-                                    onBlur={handleBlur('username')}
-                                    value={values.username}
-                                />
-                                <Text color="dark_grey" mx="xl" mt="lg">
-                                    Password
-                                </Text>
-                                <Input
-                                    mx="xl"
-                                    mt={4}
-                                    px="md"
-                                    py="lg"
-                                    borderColor="gray400"
-                                    borderWidth={2}
-                                    secureTextEntry
-                                    focusBorderColor="blue700"
-                                    onChangeText={handleChange('password')}
-                                    onBlur={handleBlur('password')}
-                                    value={values.password}
-                                />
-                                <Button
-                                    block={true}
-                                    mt={32}
-                                    mx="xl"
-                                    px='xl'
-                                    py='lg'
-                                    bg='purp_primary'
-                                    color='white'
-                                    shadow="3xl"
-                                    borderless
-                                    fontSize="2xl"
-                                    underlayColor='purp+primary'
-                                    onPress={handleOnPress}
-                                >
-                                    {Labels.login}
-                                </Button>
+                <View style={styles.fields}>
+                    <Controller<FormValues>
+                        control={control}
+                        name="email"
+                        render={({ field: { onChange, onBlur, value }, fieldState: { error } }) => (
+                            <FormInput
+                                label="Email"
+                                onChangeText={onChange}
+                                onBlur={onBlur}
+                                value={value}
+                                autoCapitalize="none"
+                                keyboardType="email-address"
+                                error={error?.message}
+                            />
+                        )}
+                    />
 
-                                <Div
-                                    mx="xl"
-                                    alignItems="center"
-                                    justifyContent="center"
-                                    flexDir="row"
-                                    mt="xl">
-                                    <Div h={1} flex={1} bg="gray200" />
-                                    <Text px="lg" fontSize="sm" color="light_grey">
-                                        Or continue with
-                                    </Text>
-                                    <Div h={1} flex={1} bg="gray200" />
-                                </Div>
-                                <SocialButtons />
-                            </>
-                        )
-                    }}
-                </Formik>
-            </Div>
+                    <Controller<FormValues>
+                        control={control}
+                        name="password"
+                        render={({ field: { onChange, onBlur, value }, fieldState: { error } }) => (
+                            <FormInput
+                                label="Password"
+                                onChangeText={onChange}
+                                onBlur={onBlur}
+                                value={value}
+                                secureTextEntry
+                                error={error?.message}
+                            />
+                        )}
+                    />
+                </View>
 
+                {authError && (
+                    <Text style={[styles.errorText, { color: colors.red }]}>
+                        {authError}
+                    </Text>
+                )}
+
+                <PrimaryButton
+                    title="Log in →"
+                    onPress={handleSubmit(onSubmit)}
+                    style={styles.button}
+                    disabled={isSubmitting}
+                />
+
+                <View style={styles.dividerRow}>
+                    <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
+                    <Text style={[styles.dividerText, { color: colors.text3 }]}>Or continue with</Text>
+                    <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
+                </View>
+                <SocialButtons />
+            </View>
         </Page>
-    )
+    );
 }
+
+const styles = StyleSheet.create({
+    container: { flex: 1, paddingHorizontal: 24 },
+    title: { marginTop: 32, fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 28 },
+    subtitle: { fontSize: 14, fontFamily: 'PlusJakartaSans_400Regular', marginTop: 8 },
+    fields: { marginTop: 28, gap: 16 },
+    errorText: { fontSize: 13, fontFamily: 'PlusJakartaSans_400Regular', textAlign: 'center', marginTop: 12 },
+    button: { marginTop: 16 },
+    dividerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 24 },
+    dividerLine: { height: 1, flex: 1 },
+    dividerText: { paddingHorizontal: 12, fontSize: 12, fontFamily: 'PlusJakartaSans_400Regular' },
+});
