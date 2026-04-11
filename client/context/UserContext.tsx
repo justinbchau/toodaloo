@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Session, User, AuthChangeEvent } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
+import { migrateAuthStorageIfNeeded } from '../lib/secureStorageAdapter';
 
 type UserContextType = {
   session: Session | null;
@@ -22,11 +23,14 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // 1. Get current session on mount
-    supabase.auth.getSession().then(({ data: { session } }: { data: { session: Session | null } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
+    // 1. Migrate auth storage from AsyncStorage → SecureStore (one-time, non-fatal)
+    // then get current session on mount
+    migrateAuthStorageIfNeeded(process.env.EXPO_PUBLIC_SUPABASE_URL!).finally(() => {
+      supabase.auth.getSession().then(({ data: { session } }: { data: { session: Session | null } }) => {
+        setSession(session);
+        setUser(session?.user ?? null);
+        setLoading(false);
+      });
     });
 
     // 2. Subscribe to auth state changes
