@@ -21,7 +21,7 @@ interface Props {
   highlighted?: boolean;
 }
 
-export function BathroomCard({ data, onPress, highlighted }: Props) {
+export const BathroomCard = React.memo(function BathroomCard({ data, onPress, highlighted }: Props) {
   const { colors } = useThemeContext();
   const filled = Math.round(data.rating);
   const stars = '★'.repeat(filled) + '☆'.repeat(5 - filled);
@@ -64,7 +64,7 @@ export function BathroomCard({ data, onPress, highlighted }: Props) {
       </Text>
     </Pressable>
   );
-}
+});
 
 const styles = StyleSheet.create({
   card: {
