@@ -24,6 +24,15 @@ jest.mock('../../lib/supabase', () => ({
   },
 }));
 
+jest.mock('../../lib/secureStorageAdapter', () => ({
+  migrateAuthStorageIfNeeded: jest.fn().mockResolvedValue(undefined),
+  secureStorageAdapter: {
+    getItem: jest.fn(),
+    setItem: jest.fn(),
+    removeItem: jest.fn(),
+  },
+}));
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
