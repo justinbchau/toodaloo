@@ -1,19 +1,12 @@
-import React, { useEffect, useRef } from 'react';
-import { Animated, View, StyleSheet } from 'react-native';
+import React from 'react';
+import { View, StyleSheet } from 'react-native';
+import Animated from 'react-native-reanimated';
 import { useThemeContext } from '../context/ThemeContext';
+import { useSkeletonOpacity } from '../hooks/useSkeletonOpacity';
 
 export function SkeletonProfileHero() {
   const { colors } = useThemeContext();
-  const opacity = useRef(new Animated.Value(0.4)).current;
-
-  useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(opacity, { toValue: 0.9, duration: 800, useNativeDriver: true }),
-        Animated.timing(opacity, { toValue: 0.4, duration: 800, useNativeDriver: true }),
-      ]),
-    ).start();
-  }, [opacity]);
+  const animatedStyle = useSkeletonOpacity();
 
   const shimmer = { backgroundColor: colors.surface3, borderRadius: 6 };
 
@@ -25,8 +18,8 @@ export function SkeletonProfileHero() {
           backgroundColor: colors.surface1,
           borderBottomWidth: 1,
           borderBottomColor: colors.border,
-          opacity,
         },
+        animatedStyle,
       ]}
     >
       {/* Avatar circle */}

@@ -1,19 +1,12 @@
-import React, { useEffect, useRef } from 'react';
-import { Animated, View, StyleSheet } from 'react-native';
+import React from 'react';
+import { View, StyleSheet } from 'react-native';
+import Animated from 'react-native-reanimated';
 import { useThemeContext } from '../context/ThemeContext';
+import { useSkeletonOpacity } from '../hooks/useSkeletonOpacity';
 
 export function SkeletonReviewCard() {
   const { colors } = useThemeContext();
-  const opacity = useRef(new Animated.Value(0.4)).current;
-
-  useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(opacity, { toValue: 0.9, duration: 800, useNativeDriver: true }),
-        Animated.timing(opacity, { toValue: 0.4, duration: 800, useNativeDriver: true }),
-      ]),
-    ).start();
-  }, [opacity]);
+  const animatedStyle = useSkeletonOpacity();
 
   const shimmer = { backgroundColor: colors.surface3, borderRadius: 4 };
 
@@ -21,7 +14,8 @@ export function SkeletonReviewCard() {
     <Animated.View
       style={[
         styles.card,
-        { backgroundColor: colors.surface2, borderRadius: 14, opacity },
+        { backgroundColor: colors.surface2, borderRadius: 14 },
+        animatedStyle,
       ]}
     >
       {/* Header row: author + date */}
