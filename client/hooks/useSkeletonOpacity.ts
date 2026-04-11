@@ -24,7 +24,7 @@ export function useSkeletonOpacity({
 
   useEffect(() => {
     if (reducedMotion) {
-      opacity.value = (minOpacity + maxOpacity) / 2;
+      opacity.value = maxOpacity;
       return;
     }
     opacity.value = withRepeat(
