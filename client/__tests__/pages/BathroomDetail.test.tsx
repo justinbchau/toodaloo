@@ -230,6 +230,21 @@ describe('BathroomDetail — action buttons', () => {
     shareSpy.mockRestore();
   });
 
+  it('opens maps directions to the bathroom coords when Navigate is pressed', async () => {
+    const canOpenSpy = jest.spyOn(Linking, 'canOpenURL').mockResolvedValue(true);
+    const openSpy = jest.spyOn(Linking, 'openURL').mockResolvedValue(undefined);
+    render(<BathroomDetail />);
+    await waitFor(() => expect(screen.getByText('Test Bathroom')).toBeTruthy());
+
+    await act(async () => {
+      fireEvent.press(screen.getByText('Navigate ›'));
+    });
+
+    expect(openSpy).toHaveBeenCalledWith(expect.stringContaining('40.7128,-74.006'));
+    canOpenSpy.mockRestore();
+    openSpy.mockRestore();
+  });
+
   it('calls Linking.openURL with mailto when Report is pressed', async () => {
     const linkingSpy = jest.spyOn(Linking, 'openURL').mockResolvedValue(undefined);
     render(<BathroomDetail />);
