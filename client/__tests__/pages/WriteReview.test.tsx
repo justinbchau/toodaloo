@@ -3,6 +3,7 @@
  * character counter, and Supabase insert on successful submission.
  */
 import React from 'react';
+import { Alert } from 'react-native';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react-native';
 import { WriteReview } from '../../pages/WriteReview';
 import { mockColors, mockUser } from '../helpers/mocks';
@@ -26,19 +27,34 @@ jest.mock('../../context/UserContext', () => ({
   useUser: () => ({ user: mockUser, session: null, loading: false, signOut: jest.fn() }),
 }));
 
-const mockInsert = jest.fn();
+const mockUpsert = jest.fn();
+const mockMaybeSingle = jest.fn();
+// Result the awaitable chain resolves to (used by the delete path).
+let mockMutationResult: { error: any } = { error: null };
 
-jest.mock('../../lib/supabase', () => ({
-  supabase: {
-    from: jest.fn(() => ({
-      insert: (...args: any[]) => mockInsert(...args),
-    })),
-  },
-}));
+jest.mock('../../lib/supabase', () => {
+  const makeChain = () => {
+    const chain: any = {
+      select: jest.fn(() => chain),
+      eq: jest.fn(() => chain),
+      delete: jest.fn(() => chain),
+      maybeSingle: (...args: any[]) => mockMaybeSingle(...args),
+      upsert: (...args: any[]) => mockUpsert(...args),
+      then: (res: any, rej?: any) => Promise.resolve(mockMutationResult).then(res, rej),
+      catch: (rej: any) => Promise.resolve(mockMutationResult).catch(rej),
+      finally: (f: any) => Promise.resolve(mockMutationResult).finally(f),
+    };
+    return chain;
+  };
+  return { supabase: { from: jest.fn(() => makeChain()) } };
+});
 
 beforeEach(() => {
   jest.clearAllMocks();
-  mockInsert.mockResolvedValue({ error: null });
+  mockUpsert.mockResolvedValue({ error: null });
+  // Default: user has no existing review for this bathroom.
+  mockMaybeSingle.mockResolvedValue({ data: null, error: null });
+  mockMutationResult = { error: null };
 });
 
 // ---------------------------------------------------------------------------
@@ -90,9 +106,9 @@ describe('WriteReview — submit button disabled state', () => {
   });
 
   it('submit button is disabled while submitting', async () => {
-    let resolveInsert!: (val: any) => void;
-    mockInsert.mockReturnValueOnce(
-      new Promise((res) => { resolveInsert = res; }),
+    let resolveUpsert!: (val: any) => void;
+    mockUpsert.mockReturnValueOnce(
+      new Promise((res) => { resolveUpsert = res; }),
     );
 
     renderWriteReview();
@@ -106,7 +122,7 @@ describe('WriteReview — submit button disabled state', () => {
     // While pending: label changes and button is disabled
     expect(screen.getByText('Submitting...')).toBeDisabled();
 
-    await act(async () => { resolveInsert({ error: null }); });
+    await act(async () => { resolveUpsert({ error: null }); });
   });
 });
 
@@ -194,7 +210,7 @@ describe('WriteReview — character counter', () => {
 });
 
 describe('WriteReview — Supabase submission', () => {
-  it('calls supabase.from("reviews").insert() with correct data', async () => {
+  it('upserts the review with correct data and conflict target', async () => {
     renderWriteReview();
 
     const emptyStars = screen.getAllByText('☆');
@@ -208,12 +224,15 @@ describe('WriteReview — Supabase submission', () => {
     });
 
     await waitFor(() => {
-      expect(mockInsert).toHaveBeenCalledWith({
-        bathroom_id: 'bath-1',
-        user_id: mockUser.id,
-        rating: 4,
-        body: 'Very clean!',
-      });
+      expect(mockUpsert).toHaveBeenCalledWith(
+        {
+          bathroom_id: 'bath-1',
+          user_id: mockUser.id,
+          rating: 4,
+          body: 'Very clean!',
+        },
+        { onConflict: 'user_id,bathroom_id' },
+      );
     });
   });
 
@@ -228,8 +247,9 @@ describe('WriteReview — Supabase submission', () => {
     });
 
     await waitFor(() => {
-      expect(mockInsert).toHaveBeenCalledWith(
+      expect(mockUpsert).toHaveBeenCalledWith(
         expect.objectContaining({ body: '(no comment)' }),
+        expect.objectContaining({ onConflict: 'user_id,bathroom_id' }),
       );
     });
   });
@@ -248,8 +268,9 @@ describe('WriteReview — Supabase submission', () => {
     });
 
     await waitFor(() => {
-      expect(mockInsert).toHaveBeenCalledWith(
+      expect(mockUpsert).toHaveBeenCalledWith(
         expect.objectContaining({ body: '(no comment)' }),
+        expect.anything(),
       );
     });
   });
@@ -266,8 +287,8 @@ describe('WriteReview — Supabase submission', () => {
     await waitFor(() => expect(mockGoBack).toHaveBeenCalledTimes(1));
   });
 
-  it('does NOT call goBack() when insert returns an error', async () => {
-    mockInsert.mockResolvedValueOnce({ error: { message: 'DB error' } });
+  it('does NOT call goBack() when upsert returns an error', async () => {
+    mockUpsert.mockResolvedValueOnce({ error: { message: 'DB error' } });
 
     renderWriteReview();
     const emptyStars = screen.getAllByText('☆');
@@ -278,7 +299,7 @@ describe('WriteReview — Supabase submission', () => {
     });
 
     await waitFor(() => {
-      expect(mockInsert).toHaveBeenCalled();
+      expect(mockUpsert).toHaveBeenCalled();
       expect(mockGoBack).not.toHaveBeenCalled();
     });
   });
@@ -289,9 +310,60 @@ describe('WriteReview — Supabase submission', () => {
 
     await act(async () => {
       // Manually try to call submit — button is disabled so this won't fire
-      // but even if it did, the guard should prevent insert
+      // but even if it did, the guard should prevent upsert
     });
 
-    expect(mockInsert).not.toHaveBeenCalled();
+    expect(mockUpsert).not.toHaveBeenCalled();
+  });
+});
+
+describe('WriteReview — editing an existing review', () => {
+  it('prefills rating + body and shows edit affordances when a review exists', async () => {
+    mockMaybeSingle.mockResolvedValue({
+      data: { rating: 4, body: 'Old thoughts' },
+      error: null,
+    });
+
+    renderWriteReview();
+
+    // Prefilled title, button label, star rating, body, and delete affordance.
+    await waitFor(() => expect(screen.getByText('Edit Your Review')).toBeTruthy());
+    expect(screen.getByText('Update Review')).toBeTruthy();
+    expect(screen.getAllByText('★')).toHaveLength(4);
+    expect(screen.getByDisplayValue('Old thoughts')).toBeTruthy();
+    expect(screen.getByText('Delete review')).toBeTruthy();
+  });
+
+  it('does not prefill "(no comment)" placeholder body', async () => {
+    mockMaybeSingle.mockResolvedValue({
+      data: { rating: 3, body: '(no comment)' },
+      error: null,
+    });
+
+    renderWriteReview();
+
+    await waitFor(() => expect(screen.getByText('Update Review')).toBeTruthy());
+    expect(screen.getByText('0/280')).toBeTruthy();
+  });
+
+  it('deletes the review and navigates back when confirmed', async () => {
+    mockMaybeSingle.mockResolvedValue({
+      data: { rating: 5, body: 'Old thoughts' },
+      error: null,
+    });
+    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation((_t, _m, buttons) => {
+      const del = (buttons ?? []).find((b: any) => b.text === 'Delete');
+      del?.onPress?.();
+    });
+
+    renderWriteReview();
+    await waitFor(() => expect(screen.getByText('Delete review')).toBeTruthy());
+
+    await act(async () => {
+      fireEvent.press(screen.getByText('Delete review'));
+    });
+
+    await waitFor(() => expect(mockGoBack).toHaveBeenCalledTimes(1));
+    alertSpy.mockRestore();
   });
 });

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View, Text, TextInput, Pressable, StyleSheet,
   SafeAreaView, ScrollView, Alert, KeyboardAvoidingView, Platform,
@@ -12,6 +12,8 @@ import { PrimaryButton } from '../components/ui/PrimaryButton';
 
 type WriteReviewRoute = RouteProp<RootStackParamList, 'WriteReview'>;
 
+const NO_COMMENT = '(no comment)';
+
 export function WriteReview() {
   const navigation = useNavigation();
   const route = useRoute<WriteReviewRoute>();
@@ -22,6 +24,35 @@ export function WriteReview() {
   const [rating, setRating] = useState(0);
   const [body, setBody] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  // Load the user's existing review (if any) so this screen edits it in place
+  // rather than failing on the unique (user_id, bathroom_id) constraint. The
+  // form renders immediately and prefills in the background if a review exists.
+  useEffect(() => {
+    let active = true;
+    const loadExisting = async () => {
+      if (!user) return;
+      const { data } = await supabase
+        .from('reviews')
+        .select('rating, body')
+        .eq('bathroom_id', bathroomId)
+        .eq('user_id', user.id)
+        .maybeSingle();
+      if (active && data) {
+        setIsEditing(true);
+        setRating(data.rating ?? 0);
+        setBody(data.body && data.body !== NO_COMMENT ? data.body : '');
+      }
+    };
+    loadExisting().catch(() => {
+      // Non-fatal: fall back to a blank (create) form.
+    });
+    return () => {
+      active = false;
+    };
+  }, [bathroomId, user?.id]);
 
   const handleSubmit = async () => {
     if (rating === 0) return;
@@ -32,12 +63,15 @@ export function WriteReview() {
 
     setIsSubmitting(true);
     try {
-      const { error } = await supabase.from('reviews').insert({
-        bathroom_id: bathroomId,
-        user_id: user.id,
-        rating,
-        body: body.trim() || '(no comment)',
-      });
+      const { error } = await supabase.from('reviews').upsert(
+        {
+          bathroom_id: bathroomId,
+          user_id: user.id,
+          rating,
+          body: body.trim() || NO_COMMENT,
+        },
+        { onConflict: 'user_id,bathroom_id' }
+      );
 
       if (error) {
         Alert.alert('Error', 'Failed to submit your review. Please try again.');
@@ -52,6 +86,38 @@ export function WriteReview() {
     }
   };
 
+  const handleDelete = () => {
+    if (!user) return;
+    Alert.alert('Delete review', 'Are you sure you want to delete your review?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          setIsDeleting(true);
+          try {
+            const { error } = await supabase
+              .from('reviews')
+              .delete()
+              .eq('bathroom_id', bathroomId)
+              .eq('user_id', user.id);
+            if (error) {
+              Alert.alert('Error', 'Failed to delete your review. Please try again.');
+              return;
+            }
+            navigation.goBack();
+          } catch {
+            Alert.alert('Error', 'Something went wrong. Please try again.');
+          } finally {
+            setIsDeleting(false);
+          }
+        },
+      },
+    ]);
+  };
+
+  const busy = isSubmitting || isDeleting;
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -64,7 +130,9 @@ export function WriteReview() {
           >
             <Text style={{ color: colors.text1, fontSize: 22 }}>‹</Text>
           </Pressable>
-          <Text style={[styles.headerTitle, { color: colors.text1 }]}>Write a Review</Text>
+          <Text style={[styles.headerTitle, { color: colors.text1 }]}>
+            {isEditing ? 'Edit Your Review' : 'Write a Review'}
+          </Text>
         </View>
 
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20, paddingBottom: 20 }} contentInsetAdjustmentBehavior="automatic">
@@ -109,14 +177,26 @@ export function WriteReview() {
             />
             <Text style={[styles.charCount, { color: colors.text3 }]}>{body.length}/280</Text>
           </View>
+
+          {isEditing && (
+            <Pressable
+              onPress={handleDelete}
+              disabled={busy}
+              style={({ pressed }: { pressed: boolean }) => ({ marginTop: 24, alignItems: 'center', opacity: pressed ? 0.6 : 1 })}
+            >
+              <Text style={{ color: colors.red, fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 14 }}>
+                {isDeleting ? 'Deleting...' : 'Delete review'}
+              </Text>
+            </Pressable>
+          )}
         </ScrollView>
 
         {/* Sticky submit */}
         <View style={[styles.footer, { backgroundColor: colors.bg, borderTopColor: colors.border }]}>
           <PrimaryButton
-            title={isSubmitting ? 'Submitting...' : 'Submit Review'}
+            title={isSubmitting ? 'Submitting...' : isEditing ? 'Update Review' : 'Submit Review'}
             onPress={handleSubmit}
-            disabled={rating === 0 || isSubmitting}
+            disabled={rating === 0 || busy}
           />
         </View>
 
