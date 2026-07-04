@@ -19,6 +19,8 @@ export type MainTabParamList = {
 export type ProfileStackParamList = {
   ProfileMain: undefined;
   Settings: undefined;
+  MyReviews: undefined;
+  Submitted: undefined;
 };
 
 export type AuthStackParamList = {

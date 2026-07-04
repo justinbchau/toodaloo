@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -19,10 +19,15 @@ type FormValues = z.infer<typeof schema>;
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Confirmation'>;
 
+const RESEND_COOLDOWN_SECONDS = 30;
+
 export function Confirmation({ route }: Props) {
     const { colors } = useThemeContext();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [authError, setAuthError] = useState<string | null>(null);
+    const [cooldown, setCooldown] = useState(0);
+    const [resendNotice, setResendNotice] = useState<string | null>(null);
+    const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
     const { control, handleSubmit } = useForm<FormValues>({
         resolver: zodResolver(schema),
@@ -31,6 +36,39 @@ export function Confirmation({ route }: Props) {
 
     // Email is passed as a route param from SignUp
     const email = (route?.params as any)?.email ?? '';
+
+    const startCooldown = () => {
+        setCooldown(RESEND_COOLDOWN_SECONDS);
+        if (intervalRef.current) clearInterval(intervalRef.current);
+        intervalRef.current = setInterval(() => {
+            setCooldown((prev) => {
+                if (prev <= 1) {
+                    if (intervalRef.current) clearInterval(intervalRef.current);
+                    return 0;
+                }
+                return prev - 1;
+            });
+        }, 1000);
+    };
+
+    useEffect(() => {
+        return () => {
+            if (intervalRef.current) clearInterval(intervalRef.current);
+        };
+    }, []);
+
+    const handleResend = async () => {
+        if (cooldown > 0 || !email) return;
+        setAuthError(null);
+        setResendNotice(null);
+        const { error } = await supabase.auth.signInWithOtp({ email });
+        if (error) {
+            setAuthError(error.message);
+            return;
+        }
+        setResendNotice('A new code is on its way.');
+        startCooldown();
+    };
 
     const onSubmit = async (values: FormValues) => {
         setIsSubmitting(true);
@@ -83,6 +121,12 @@ export function Confirmation({ route }: Props) {
                     </Text>
                 )}
 
+                {resendNotice && !authError && (
+                    <Text style={[styles.errorText, { color: colors.green }]}>
+                        {resendNotice}
+                    </Text>
+                )}
+
                 <PrimaryButton
                     title="Verify →"
                     onPress={handleSubmit(onSubmit)}
@@ -90,7 +134,15 @@ export function Confirmation({ route }: Props) {
                     disabled={isSubmitting}
                 />
 
-                <Text style={[styles.resend, { color: colors.purpleText }]}>Resend code</Text>
+                <Pressable
+                    onPress={handleResend}
+                    disabled={cooldown > 0}
+                    style={({ pressed }: { pressed: boolean }) => ({ opacity: pressed ? 0.6 : 1 })}
+                >
+                    <Text style={[styles.resend, { color: cooldown > 0 ? colors.text3 : colors.purpleText }]}>
+                        {cooldown > 0 ? `Resend code in ${cooldown}s` : 'Resend code'}
+                    </Text>
+                </Pressable>
             </View>
         </Page>
     );

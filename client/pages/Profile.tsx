@@ -151,12 +151,12 @@ export function Profile() {
             <MenuItem
               icon="📝"
               label="My Reviews"
-              onPress={() => Alert.alert('Coming soon', 'My Reviews is coming in a future update!')}
+              onPress={() => navigation.navigate('MyReviews')}
             />
             <MenuItem
               icon="📍"
               label="Submitted"
-              onPress={() => Alert.alert('Coming soon', 'Submitted is coming in a future update!')}
+              onPress={() => navigation.navigate('Submitted')}
             />
           </View>
 

@@ -7,3 +7,5 @@ export * from './Settings';
 export * from './SignUp';
 export * from './BathroomDetail';
 export * from './Saved';
+export * from './MyReviews';
+export * from './Submitted';
