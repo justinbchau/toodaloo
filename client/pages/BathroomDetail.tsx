@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useCallback, useContext } from 'react';
 import {
   View, Text, ScrollView, Pressable, StyleSheet,
-  Share, Linking, Alert, ActivityIndicator,
+  Share, Linking, Alert, ActivityIndicator, Platform,
 } from 'react-native';
 import MapView from 'react-native-maps';
-import { useRoute, RouteProp, useNavigation } from '@react-navigation/native';
+import { useRoute, RouteProp, useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../RootStackParams';
 import { useThemeContext } from '../context/ThemeContext';
@@ -38,44 +38,48 @@ export function BathroomDetail() {
     ? formatDistance(haversine(userLocation.coords.latitude, userLocation.coords.longitude, lat, lng))
     : '— mi';
 
-  useEffect(() => {
-    const fetchBathroom = async () => {
-      setIsLoading(true);
-      const { data } = await supabase
-        .from('bathrooms')
-        .select('*')
-        .eq('id', id)
-        .single();
-      setBathroomData(data);
-      setIsLoading(false);
-    };
+  // Refetch on focus so a newly written review (and its effect on the rating)
+  // shows immediately when returning from the WriteReview screen.
+  useFocusEffect(
+    useCallback(() => {
+      const fetchBathroom = async () => {
+        setIsLoading(true);
+        const { data } = await supabase
+          .from('bathrooms')
+          .select('*')
+          .eq('id', id)
+          .single();
+        setBathroomData(data);
+        setIsLoading(false);
+      };
 
-    const fetchReviews = async () => {
-      setIsLoadingReviews(true);
-      const { data } = await supabase
-        .from('reviews_with_authors')
-        .select('*')
-        .eq('bathroom_id', id)
-        .order('created_at', { ascending: false });
-      setReviews(data ?? []);
-      setIsLoadingReviews(false);
-    };
+      const fetchReviews = async () => {
+        setIsLoadingReviews(true);
+        const { data } = await supabase
+          .from('reviews_with_authors')
+          .select('*')
+          .eq('bathroom_id', id)
+          .order('created_at', { ascending: false });
+        setReviews(data ?? []);
+        setIsLoadingReviews(false);
+      };
 
-    const checkSaved = async () => {
-      if (!user) return;
-      const { data } = await supabase
-        .from('saved_bathrooms')
-        .select('bathroom_id')
-        .eq('user_id', user.id)
-        .eq('bathroom_id', id)
-        .maybeSingle();
-      setIsSaved(!!data);
-    };
+      const checkSaved = async () => {
+        if (!user) return;
+        const { data } = await supabase
+          .from('saved_bathrooms')
+          .select('bathroom_id')
+          .eq('user_id', user.id)
+          .eq('bathroom_id', id)
+          .maybeSingle();
+        setIsSaved(!!data);
+      };
 
-    fetchBathroom();
-    fetchReviews();
-    checkSaved();
-  }, [id, user?.id]);
+      fetchBathroom();
+      fetchReviews();
+      checkSaved();
+    }, [id, user?.id])
+  );
 
   const handleSave = async () => {
     if (!user || isSaving) return;
@@ -107,6 +111,27 @@ export function BathroomDetail() {
 
   const handleShare = async () => {
     await Share.share({ message: `Check out ${name} on TooDaLoo!` });
+  };
+
+  const handleNavigate = async () => {
+    const label = encodeURIComponent(name);
+    // Apple Maps on iOS, Google Maps elsewhere; fall back to a universal URL.
+    const primary = Platform.select({
+      ios: `maps://?daddr=${lat},${lng}&q=${label}`,
+      android: `geo:${lat},${lng}?q=${lat},${lng}(${label})`,
+      default: `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`,
+    })!;
+    const webFallback = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+    try {
+      const canOpen = await Linking.canOpenURL(primary);
+      await Linking.openURL(canOpen ? primary : webFallback);
+    } catch {
+      try {
+        await Linking.openURL(webFallback);
+      } catch {
+        Alert.alert('Error', 'Could not open maps.');
+      }
+    }
   };
 
   const handleReport = () => {
@@ -161,6 +186,7 @@ export function BathroomDetail() {
 
         {/* Navigate pill */}
         <Pressable
+          onPress={handleNavigate}
           style={({ pressed }: { pressed: boolean }) => ({
             position: 'absolute', top: 52, right: 16,
             backgroundColor: colors.purple, paddingHorizontal: 16, paddingVertical: 8,

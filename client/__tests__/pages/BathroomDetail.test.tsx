@@ -16,12 +16,17 @@ import { mockColors, mockBathroomData, mockReview, createQueryMock } from '../he
 const mockGoBack = jest.fn();
 const mockNavigate = jest.fn();
 
-jest.mock('@react-navigation/native', () => ({
-  useNavigation: () => ({ goBack: mockGoBack, navigate: mockNavigate }),
-  useRoute: () => ({
-    params: { id: 'bathroom-1', name: 'Test Bathroom', lat: 40.7128, lng: -74.006 },
-  }),
-}));
+jest.mock('@react-navigation/native', () => {
+  const ReactActual = require('react');
+  return {
+    useNavigation: () => ({ goBack: mockGoBack, navigate: mockNavigate }),
+    useRoute: () => ({
+      params: { id: 'bathroom-1', name: 'Test Bathroom', lat: 40.7128, lng: -74.006 },
+    }),
+    // Run the focus callback once on mount, mirroring initial-focus behavior.
+    useFocusEffect: (cb: () => void) => ReactActual.useEffect(cb, []),
+  };
+});
 
 jest.mock('../../context/ThemeContext', () => ({
   useThemeContext: () => ({
