@@ -147,6 +147,8 @@ To build Android locally without EAS you need **JDK 17** and the **Android SDK**
 cd client && npm run android
 ```
 
+> **JDK 17 is required.** Building with JDK 21 fails during Gradle configuration with `JvmVendorSpec ... IBM_SEMERU` (Gradle 9's toolchain resolver hits an API removed for that JDK). Point `JAVA_HOME` at a JDK 17 install. A `./gradlew :app:help` configuration check passes on JDK 17.
+
 iOS local builds require macOS + Xcode (`npm run ios`).
 
 ### Updates
