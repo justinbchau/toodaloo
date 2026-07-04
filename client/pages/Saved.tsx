@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import { View, Text, RefreshControl, ActivityIndicator, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useThemeContext } from '../context/ThemeContext';
 import { useUser } from '../context/UserContext';
@@ -84,10 +84,16 @@ export function Saved() {
     }
   };
 
-  useEffect(() => {
-    setIsLoading(true);
-    fetchSaved().finally(() => setIsLoading(false));
-  }, [user]);
+  // Refetch on focus so newly saved/unsaved bathrooms are reflected when the
+  // user returns to this tab.
+  useFocusEffect(
+    useCallback(() => {
+      setIsLoading(true);
+      fetchSaved().finally(() => setIsLoading(false));
+      // fetchSaved reads user + supabase (stable module ref); user.id is the key input.
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [user?.id])
+  );
 
   // Loading state
   if (isLoading) {
@@ -143,7 +149,6 @@ export function Saved() {
         data={bathrooms}
         keyExtractor={keyExtractor}
         renderItem={renderItem}
-        estimatedItemSize={120}
         contentContainerStyle={listStyles.contentContainer}
         contentInsetAdjustmentBehavior="automatic"
         refreshControl={

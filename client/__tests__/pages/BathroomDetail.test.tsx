@@ -16,12 +16,17 @@ import { mockColors, mockBathroomData, mockReview, createQueryMock } from '../he
 const mockGoBack = jest.fn();
 const mockNavigate = jest.fn();
 
-jest.mock('@react-navigation/native', () => ({
-  useNavigation: () => ({ goBack: mockGoBack, navigate: mockNavigate }),
-  useRoute: () => ({
-    params: { id: 'bathroom-1', name: 'Test Bathroom', lat: 40.7128, lng: -74.006 },
-  }),
-}));
+jest.mock('@react-navigation/native', () => {
+  const ReactActual = require('react');
+  return {
+    useNavigation: () => ({ goBack: mockGoBack, navigate: mockNavigate }),
+    useRoute: () => ({
+      params: { id: 'bathroom-1', name: 'Test Bathroom', lat: 40.7128, lng: -74.006 },
+    }),
+    // Run the focus callback once on mount, mirroring initial-focus behavior.
+    useFocusEffect: (cb: () => void) => ReactActual.useEffect(cb, []),
+  };
+});
 
 jest.mock('../../context/ThemeContext', () => ({
   useThemeContext: () => ({
@@ -108,7 +113,7 @@ function setupDefaultMocks(overrides: { bathroom?: any; reviews?: any[]; saved?:
 
   mockFrom.mockImplementation((table: string) => {
     if (table === 'bathrooms') return createQueryMock({ data: bathroom, error: null });
-    if (table === 'reviews') return createQueryMock({ data: reviews, error: null });
+    if (table === 'reviews_with_authors') return createQueryMock({ data: reviews, error: null });
     if (table === 'saved_bathrooms') return createQueryMock({ data: saved, error: null });
     return createQueryMock({ data: null, error: null });
   });
@@ -225,6 +230,21 @@ describe('BathroomDetail — action buttons', () => {
     shareSpy.mockRestore();
   });
 
+  it('opens maps directions to the bathroom coords when Navigate is pressed', async () => {
+    const canOpenSpy = jest.spyOn(Linking, 'canOpenURL').mockResolvedValue(true);
+    const openSpy = jest.spyOn(Linking, 'openURL').mockResolvedValue(undefined);
+    render(<BathroomDetail />);
+    await waitFor(() => expect(screen.getByText('Test Bathroom')).toBeTruthy());
+
+    await act(async () => {
+      fireEvent.press(screen.getByText('Navigate ›'));
+    });
+
+    expect(openSpy).toHaveBeenCalledWith(expect.stringContaining('40.7128,-74.006'));
+    canOpenSpy.mockRestore();
+    openSpy.mockRestore();
+  });
+
   it('calls Linking.openURL with mailto when Report is pressed', async () => {
     const linkingSpy = jest.spyOn(Linking, 'openURL').mockResolvedValue(undefined);
     render(<BathroomDetail />);
@@ -261,7 +281,7 @@ describe('BathroomDetail — save toggle', () => {
 
     mockFrom.mockImplementation((table: string) => {
       if (table === 'bathrooms') return createQueryMock({ data: mockBathroomData, error: null });
-      if (table === 'reviews') return createQueryMock({ data: [], error: null });
+      if (table === 'reviews_with_authors') return createQueryMock({ data: [], error: null });
       if (table === 'saved_bathrooms') {
         // For checkSaved (maybeSingle) — not saved
         // For insert — track call
