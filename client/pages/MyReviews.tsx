@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, ActivityIndicator, Pressable, StyleSheet } from 'react-native';
+import { View, Text, ActivityIndicator, Pressable, StyleSheet, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -64,6 +64,43 @@ export function MyReviews() {
     }, [user?.id])
   );
 
+  const handleEdit = useCallback(
+    (item: MyReview) => {
+      if (!item.bathroom) return;
+      // WriteReview detects the existing review and opens in edit mode.
+      navigation.navigate('WriteReview', {
+        bathroomId: item.bathroom.id,
+        bathroomName: item.bathroom.name,
+      });
+    },
+    [navigation]
+  );
+
+  const handleDelete = useCallback(
+    (item: MyReview) => {
+      Alert.alert(
+        'Delete review?',
+        `Your review of ${item.bathroom?.name ?? 'this bathroom'} will be removed permanently.`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Delete',
+            style: 'destructive',
+            onPress: async () => {
+              const { error } = await supabase.from('reviews').delete().eq('id', item.id);
+              if (error) {
+                Alert.alert('Error', 'Could not delete your review. Please try again.');
+                return;
+              }
+              setReviews((prev) => prev.filter((r) => r.id !== item.id));
+            },
+          },
+        ]
+      );
+    },
+    []
+  );
+
   const renderItem = useCallback(
     ({ item }: { item: MyReview }) => (
       <Pressable
@@ -98,9 +135,39 @@ export function MyReviews() {
             {item.body}
           </Text>
         ) : null}
+        <View style={styles.actionsRow}>
+          {item.bathroom ? (
+            <Pressable
+              onPress={() => handleEdit(item)}
+              accessibilityRole="button"
+              accessibilityLabel={`Edit review of ${item.bathroom.name}`}
+              style={({ pressed }: { pressed: boolean }) => [
+                styles.actionBtn,
+                { borderColor: colors.borderMed, opacity: pressed ? 0.7 : 1 },
+              ]}
+            >
+              <Text style={{ color: colors.text2, fontSize: 12, fontFamily: 'PlusJakartaSans_600SemiBold' }}>
+                Edit
+              </Text>
+            </Pressable>
+          ) : null}
+          <Pressable
+            onPress={() => handleDelete(item)}
+            accessibilityRole="button"
+            accessibilityLabel={`Delete review of ${item.bathroom?.name ?? 'unknown bathroom'}`}
+            style={({ pressed }: { pressed: boolean }) => [
+              styles.actionBtn,
+              { borderColor: colors.borderMed, opacity: pressed ? 0.7 : 1 },
+            ]}
+          >
+            <Text style={{ color: colors.red, fontSize: 12, fontFamily: 'PlusJakartaSans_600SemiBold' }}>
+              Delete
+            </Text>
+          </Pressable>
+        </View>
       </Pressable>
     ),
-    [colors, navigation]
+    [colors, navigation, handleEdit, handleDelete]
   );
 
   return (
@@ -157,6 +224,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 8,
+  },
+  actionsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 10,
+  },
+  actionBtn: {
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
   },
   empty: {
     flex: 1,
