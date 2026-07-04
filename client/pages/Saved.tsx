@@ -143,7 +143,6 @@ export function Saved() {
         data={bathrooms}
         keyExtractor={keyExtractor}
         renderItem={renderItem}
-        estimatedItemSize={120}
         contentContainerStyle={listStyles.contentContainer}
         contentInsetAdjustmentBehavior="automatic"
         refreshControl={

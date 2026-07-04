@@ -53,7 +53,7 @@ export function BathroomDetail() {
     const fetchReviews = async () => {
       setIsLoadingReviews(true);
       const { data } = await supabase
-        .from('reviews')
+        .from('reviews_with_authors')
         .select('*')
         .eq('bathroom_id', id)
         .order('created_at', { ascending: false });
@@ -285,7 +285,7 @@ export function BathroomDetail() {
             <View key={review.id} style={{ backgroundColor: colors.surface2, borderRadius: 14, padding: 14, marginBottom: 10 }}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                 <Text style={{ color: colors.text1, fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 14 }}>
-                  {review.user_id?.slice(0, 8) ?? 'Anonymous'}
+                  {review.author_username ?? 'Anonymous'}
                 </Text>
                 <Text style={{ color: colors.text3, fontSize: 12, fontFamily: 'PlusJakartaSans_400Regular' }}>
                   {new Date(review.created_at).toLocaleDateString()}

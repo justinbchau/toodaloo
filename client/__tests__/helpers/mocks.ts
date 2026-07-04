@@ -127,5 +127,6 @@ export const mockReview = {
   bathroom_id: 'bathroom-1',
   rating: 4,
   body: 'Clean and accessible.',
+  author_username: 'testuser',
   created_at: '2024-01-15T12:00:00.000Z',
 };

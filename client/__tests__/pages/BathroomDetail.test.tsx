@@ -108,7 +108,7 @@ function setupDefaultMocks(overrides: { bathroom?: any; reviews?: any[]; saved?:
 
   mockFrom.mockImplementation((table: string) => {
     if (table === 'bathrooms') return createQueryMock({ data: bathroom, error: null });
-    if (table === 'reviews') return createQueryMock({ data: reviews, error: null });
+    if (table === 'reviews_with_authors') return createQueryMock({ data: reviews, error: null });
     if (table === 'saved_bathrooms') return createQueryMock({ data: saved, error: null });
     return createQueryMock({ data: null, error: null });
   });
@@ -261,7 +261,7 @@ describe('BathroomDetail — save toggle', () => {
 
     mockFrom.mockImplementation((table: string) => {
       if (table === 'bathrooms') return createQueryMock({ data: mockBathroomData, error: null });
-      if (table === 'reviews') return createQueryMock({ data: [], error: null });
+      if (table === 'reviews_with_authors') return createQueryMock({ data: [], error: null });
       if (table === 'saved_bathrooms') {
         // For checkSaved (maybeSingle) — not saved
         // For insert — track call

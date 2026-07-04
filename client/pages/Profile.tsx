@@ -17,7 +17,7 @@ type profileScreenProp = NativeStackNavigationProp<ProfileStackParamList>;
 export function Profile() {
   const navigation = useNavigation<profileScreenProp>();
   const { colors } = useThemeContext();
-  const { user, signOut } = useUser();
+  const { user, profile, signOut } = useUser();
   const isFocused = useIsFocused();
   const [stats, setStats] = useState({ saved: 0, reviews: 0, added: 0 });
   const [isLoadingStats, setIsLoadingStats] = useState(true);
@@ -93,7 +93,7 @@ export function Profile() {
             </View>
 
             <Text style={{ fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 20, color: colors.text1 }}>
-              {user?.email?.split('@')[0] ?? 'User'}
+              {profile?.username ?? user?.email?.split('@')[0] ?? 'User'}
             </Text>
             <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 14, color: colors.text2, marginTop: 2 }}>
               {user?.email ?? ''}
