@@ -19,13 +19,10 @@ export type MainTabParamList = {
 export type ProfileStackParamList = {
   ProfileMain: undefined;
   Settings: undefined;
-  Billing: undefined;
 };
 
 export type AuthStackParamList = {
   Login: undefined;
   SignUp: { title: string; page: string } | undefined;
   Confirmation: { email: string } | undefined;
-  Username: undefined;
-  Password: undefined;
 };

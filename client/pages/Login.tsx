@@ -6,7 +6,6 @@ import { z } from 'zod';
 import { AuthStackParamList } from '../RootStackParams';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useNavigation } from '@react-navigation/native';
-import { SocialButtons } from '../components/SocialButtons';
 import { Page } from '../templates/Page';
 import { useThemeContext } from '../context/ThemeContext';
 import { PrimaryButton } from '../components/ui/PrimaryButton';
@@ -87,13 +86,6 @@ export function Login() {
                     style={styles.button}
                     disabled={isSubmitting}
                 />
-
-                <View style={styles.dividerRow}>
-                    <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
-                    <Text style={[styles.dividerText, { color: colors.text3 }]}>Or continue with</Text>
-                    <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
-                </View>
-                <SocialButtons />
             </View>
         </Page>
     );
@@ -106,7 +98,4 @@ const styles = StyleSheet.create({
     fields: { marginTop: 28, gap: 16 },
     errorText: { fontSize: 13, fontFamily: 'PlusJakartaSans_400Regular', textAlign: 'center', marginTop: 12 },
     button: { marginTop: 16 },
-    dividerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 24 },
-    dividerLine: { height: 1, flex: 1 },
-    dividerText: { paddingHorizontal: 12, fontSize: 12, fontFamily: 'PlusJakartaSans_400Regular' },
 });

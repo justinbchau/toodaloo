@@ -133,14 +133,8 @@ export function Profile() {
             <MenuItem
               icon="⚙️"
               label="Settings"
-              sublabel="Theme, notifications"
+              sublabel="Username, theme"
               onPress={() => navigation.navigate('Settings')}
-            />
-            <MenuItem
-              icon="💳"
-              label="Billing"
-              sublabel="Subscription & payments"
-              onPress={() => navigation.navigate('Billing')}
             />
           </View>
 
