@@ -5,7 +5,8 @@ import { useThemeContext } from '../../context/ThemeContext';
 interface Props {
   label: string;
   active: boolean;
-  onPress: () => void;
+  /** Omit to render a purely informational (non-tappable) chip. */
+  onPress?: () => void;
   style?: ViewStyle;
 }
 
@@ -14,6 +15,8 @@ export function Chip({ label, active, onPress, style }: Props) {
   return (
     <Pressable
       onPress={onPress}
+      disabled={!onPress}
+      accessibilityRole={onPress ? 'button' : 'text'}
       style={({ pressed }: { pressed: boolean }) => [
         styles.chip,
         {
