@@ -68,6 +68,30 @@ npm start         # Metro bundler only
 
 > **Note:** This is a bare-workflow Expo project (`client/ios/` exists). `npm run ios` runs a native build via `expo run:ios`. Expo Go is not supported.
 
+## Working in Conductor worktrees
+
+This repo is set up for [Conductor](https://www.conductor.build), which runs coding agents in isolated git worktrees. Config lives in `.conductor/settings.toml` and `.worktreeinclude` and is shared with everyone who uses the project.
+
+What Conductor does automatically for each new workspace:
+
+- **Setup** (`scripts.setup`): copies `client/.env` from your main checkout into the worktree, then runs `npm install` inside `client/`.
+- **Files to copy** (`.worktreeinclude`): copies the gitignored `client/.env` into new local (Mac) workspaces. (Cloud workspaces don't run this step — the setup script handles the copy there.)
+- **Run** (`scripts.run`): a menu of commands, each launched from the workspace and given a unique `$CONDUCTOR_PORT` so parallel workspaces don't collide:
+  - `metro` (default) — `expo start --dev-client`
+  - `test` — `jest --watch`
+  - `typecheck` — `tsc --noEmit`
+  - `ios` / `android` — native builds (local only)
+- **Run mode** is `concurrent`, so multiple workspaces can run Metro at the same time.
+
+Host prerequisites Conductor can't provision (install these once on the machine running the workspaces):
+
+- **Node 20+** — for `npm install` and Metro.
+- **`client/.env`** in your main checkout — with the Supabase and Google Maps keys (see [Getting started](#getting-started)). This is the file that gets copied into every worktree.
+- **Xcode** (macOS) — only for the `ios` run script.
+- **JDK 17 + Android SDK** — only for the `android` run script. **JDK 21 is not supported** (Gradle 9 fails with an `IBM_SEMERU` toolchain error); point `JAVA_HOME` at a JDK 17 install.
+
+If you'd rather not commit these files, paste the `scripts.setup` command and the run commands above into Conductor's **Settings → project** UI instead.
+
 ## Testing
 
 ```bash

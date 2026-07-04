@@ -1,0 +1,11 @@
+# Conductor "Files to copy" — https://www.conductor.build/docs/guides/use-files-to-copy
+#
+# Gitignored files that each new (local Mac) worktree needs. Only files that Git
+# already ignores are copied. Cloud workspaces don't run Files to copy; the setup
+# script in .conductor/settings.toml copies .env there instead.
+#
+# Adding this file replaces Conductor's default `.env*` pattern, so list every
+# env file explicitly.
+client/.env
+client/.env.local
+.env

@@ -1,0 +1,58 @@
+# Conductor project settings — https://www.conductor.build/docs/reference/scripts
+#
+# Toodaloo is an Expo / React Native app that lives in the `client/` subdirectory,
+# so every script cd's into `client` first. Each Conductor workspace is its own git
+# worktree with its own node_modules, so setup installs dependencies per workspace
+# and run scripts use $CONDUCTOR_PORT to avoid clashing across parallel workspaces.
+"$schema" = "https://conductor.build/schemas/settings.repo.schema.json"
+
+[scripts]
+run_mode = "concurrent"
+
+# Runs once, right after Conductor checks out the new worktree.
+setup = """
+set -e
+cd "$CONDUCTOR_WORKSPACE_PATH/client"
+
+# The app needs client/.env (Supabase + Google Maps keys). It's gitignored, so it
+# won't come along with the worktree. `.worktreeinclude` copies it on local Mac
+# workspaces; this fallback also covers cloud workspaces and first-time setups.
+if [ ! -f .env ] && [ -f "$CONDUCTOR_ROOT_PATH/client/.env" ]; then
+  cp "$CONDUCTOR_ROOT_PATH/client/.env" .env
+fi
+
+# Install JS dependencies for this worktree.
+npm install
+"""
+
+# Metro / Expo dev server. Default Run action; safe to run in many workspaces at
+# once because each gets a unique port.
+[scripts.run.metro]
+command = "cd client && npx expo start --dev-client --port $CONDUCTOR_PORT"
+default = true
+icon = "play"
+available_in = ["local", "cloud"]
+
+# Jest in watch mode.
+[scripts.run.test]
+command = "cd client && npx jest --watch"
+icon = "test-tube"
+available_in = ["local", "cloud"]
+
+# TypeScript type-check (one-shot).
+[scripts.run.typecheck]
+command = "cd client && npx tsc --noEmit"
+icon = "code"
+available_in = ["local", "cloud"]
+
+# Native iOS build + run (macOS + Xcode only). Runs a local simulator build.
+[scripts.run.ios]
+command = "cd client && npm run ios"
+icon = "monitor"
+available_in = ["local"]
+
+# Native Android build + run (requires JDK 17 + Android SDK; JDK 21 is NOT supported).
+[scripts.run.android]
+command = "cd client && npm run android"
+icon = "smartphone"
+available_in = ["local"]
