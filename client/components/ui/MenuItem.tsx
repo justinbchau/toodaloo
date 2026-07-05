@@ -1,9 +1,10 @@
 import React from 'react';
 import { Pressable, View, Text, StyleSheet } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useThemeContext } from '../../context/ThemeContext';
 
 interface Props {
-  icon: string;       // emoji or character
+  icon: keyof typeof MaterialCommunityIcons.glyphMap;
   label: string;
   sublabel?: string;
   onPress?: () => void;
@@ -18,7 +19,7 @@ export function MenuItem({ icon, label, sublabel, onPress, destructive }: Props)
       style={({ pressed }: { pressed: boolean }) => [styles.row, { borderBottomColor: colors.border, opacity: pressed ? 0.7 : 1 }]}
     >
       <View style={[styles.iconWrap, { backgroundColor: destructive ? 'rgba(240,90,90,0.12)' : colors.surface2 }]}>
-        <Text style={styles.icon}>{icon}</Text>
+        <MaterialCommunityIcons name={icon} size={19} color={destructive ? colors.red : colors.text2} />
       </View>
       <View style={styles.text}>
         <Text style={[styles.label, { color: destructive ? colors.red : colors.text1 }]}>{label}</Text>

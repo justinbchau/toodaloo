@@ -1,6 +1,8 @@
 import React, { useContext, useEffect, useRef, useState } from 'react';
 import { StyleSheet, View, Text, Pressable, Linking } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { ACCESS_ICON, DEFAULT_ACCESS_ICON } from '../lib/accessIcons';
 import * as Location from 'expo-location';
 import { LocationObject } from 'expo-location';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -19,12 +21,6 @@ import { LocationCtx } from '../context/context';
 type LocationStatus = 'requesting' | 'denied' | 'granted';
 type MapNavProp = NativeStackNavigationProp<RootStackParamList>;
 type TabNavProp = BottomTabNavigationProp<MainTabParamList>;
-
-const ACCESS_EMOJI: Record<string, string> = {
-    public: '🚽',
-    key_required: '🔑',
-    purchase_required: '🛒',
-};
 
 const formatDistance = (km: number): string => {
     const miles = km * 0.621371;
@@ -86,7 +82,7 @@ export function Map() {
                 const transformed: BathroomCardData[] = (data ?? []).map((b: any) => ({
                     id: b.id,
                     name: b.name,
-                    emoji: ACCESS_EMOJI[b.access_type] ?? '🚽',
+                    icon: ACCESS_ICON[b.access_type] ?? DEFAULT_ACCESS_ICON,
                     sub: b.access_type == null
                         ? (b.address ?? 'Nearby')
                         : b.access_type === 'public'
@@ -133,7 +129,7 @@ export function Map() {
     if (locationStatus === 'denied') {
         return (
             <View style={{ flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 }}>
-                <Text style={{ fontSize: 48 }}>📍</Text>
+                <MaterialCommunityIcons name="map-marker-radius" size={56} color={colors.purple} />
                 <Text style={{
                     fontFamily: 'PlusJakartaSans_800ExtraBold',
                     fontSize: 20, color: colors.text1,
@@ -210,7 +206,7 @@ export function Map() {
                             shadowOpacity: 1, shadowRadius: 10,
                             elevation: 6,
                         }}>
-                            <Text style={{ fontSize: 20 }}>🚻</Text>
+                            <MaterialCommunityIcons name="toilet" size={22} color="#fff" />
                         </View>
                     </Marker>
                 ))}

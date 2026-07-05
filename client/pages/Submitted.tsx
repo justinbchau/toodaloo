@@ -1,5 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -9,15 +10,10 @@ import { useUser } from '../context/UserContext';
 import { supabase } from '../lib/supabase';
 import { RootStackParamList } from '../RootStackParams';
 import { BathroomCard, BathroomCardData } from '../components/BathroomCard';
+import { ACCESS_ICON, DEFAULT_ACCESS_ICON } from '../lib/accessIcons';
 import BackButton from '../components/BackButton';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
-
-const ACCESS_EMOJI: Record<string, string> = {
-  public: '🚽',
-  key_required: '🔑',
-  purchase_required: '🛒',
-};
 
 export function Submitted() {
   const { colors } = useThemeContext();
@@ -43,7 +39,7 @@ export function Submitted() {
           const transformed: BathroomCardData[] = (data ?? []).map((b: any) => ({
             id: b.id,
             name: b.name,
-            emoji: ACCESS_EMOJI[b.access_type] ?? '🚽',
+            icon: ACCESS_ICON[b.access_type] ?? DEFAULT_ACCESS_ICON,
             sub:
               b.access_type === 'public'
                 ? `Public${b.is_24_hours ? ' · Open 24h' : ''}`
@@ -102,7 +98,7 @@ export function Submitted() {
         <ActivityIndicator color={colors.purple} style={{ marginTop: 40 }} />
       ) : bathrooms.length === 0 ? (
         <View style={styles.empty}>
-          <Text style={{ fontSize: 48 }}>📍</Text>
+          <MaterialCommunityIcons name="map-marker-outline" size={48} color={colors.text3} />
           <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 16, color: colors.text2, marginTop: 12 }}>
             Nothing submitted yet
           </Text>

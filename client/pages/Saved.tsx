@@ -1,5 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { View, Text, RefreshControl, ActivityIndicator, StyleSheet } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -7,18 +8,13 @@ import { useThemeContext } from '../context/ThemeContext';
 import { useUser } from '../context/UserContext';
 import { supabase } from '../lib/supabase';
 import { BathroomCard, BathroomCardData } from '../components/BathroomCard';
+import { ACCESS_ICON, DEFAULT_ACCESS_ICON } from '../lib/accessIcons';
 import { RootStackParamList } from '../RootStackParams';
 import { FlashList } from '@shopify/flash-list';
 
 const listStyles = StyleSheet.create({
   contentContainer: { paddingHorizontal: 16, paddingBottom: 32, gap: 12 },
 });
-
-const ACCESS_EMOJI: Record<string, string> = {
-  public: '🚽',
-  key_required: '🔑',
-  purchase_required: '🛒',
-};
 
 export function Saved() {
   const { colors } = useThemeContext();
@@ -63,7 +59,7 @@ export function Saved() {
         .map((b: any) => ({
           id: b.id,
           name: b.name,
-          emoji: ACCESS_EMOJI[b.access_type] ?? '🚽',
+          icon: ACCESS_ICON[b.access_type] ?? DEFAULT_ACCESS_ICON,
           sub:
             b.access_type === 'public'
               ? `Public${b.is_24_hours ? ' · Open 24h' : ''}`
@@ -122,7 +118,7 @@ export function Saved() {
           </Text>
         </View>
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <Text style={{ fontSize: 48, fontFamily: undefined }}>🔖</Text>
+          <MaterialCommunityIcons name="bookmark-outline" size={48} color={colors.text3} />
           <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 16, color: colors.text2, marginTop: 12 }}>
             Nothing saved yet
           </Text>

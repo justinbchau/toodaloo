@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useContext } from 'react';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import {
   View, Text, ScrollView, Pressable, StyleSheet,
   Share, Linking, Alert, ActivityIndicator, Platform,
@@ -242,7 +243,7 @@ export function BathroomDetail() {
             onPress={handleReview}
             style={({ pressed }: { pressed: boolean }) => ({ flex: 1, backgroundColor: colors.surface2, borderRadius: 12, paddingVertical: 12, alignItems: 'center', gap: 4, opacity: pressed ? 0.7 : 1 })}
           >
-            <Text style={{ fontSize: 18 }}>📝</Text>
+            <MaterialCommunityIcons name="pencil" size={18} color={colors.text2} />
             <Text style={{ color: colors.text2, fontSize: 11, fontFamily: 'PlusJakartaSans_500Medium' }}>Review</Text>
           </Pressable>
 
@@ -251,7 +252,7 @@ export function BathroomDetail() {
             onPress={handleReport}
             style={({ pressed }: { pressed: boolean }) => ({ flex: 1, backgroundColor: colors.surface2, borderRadius: 12, paddingVertical: 12, alignItems: 'center', gap: 4, opacity: pressed ? 0.7 : 1 })}
           >
-            <Text style={{ fontSize: 18 }}>🚩</Text>
+            <MaterialCommunityIcons name="flag" size={18} color={colors.text2} />
             <Text style={{ color: colors.text2, fontSize: 11, fontFamily: 'PlusJakartaSans_500Medium' }}>Report</Text>
           </Pressable>
 
@@ -260,7 +261,7 @@ export function BathroomDetail() {
             onPress={handleShare}
             style={({ pressed }: { pressed: boolean }) => ({ flex: 1, backgroundColor: colors.surface2, borderRadius: 12, paddingVertical: 12, alignItems: 'center', gap: 4, opacity: pressed ? 0.7 : 1 })}
           >
-            <Text style={{ fontSize: 18 }}>🔗</Text>
+            <MaterialCommunityIcons name="share-variant" size={18} color={colors.text2} />
             <Text style={{ color: colors.text2, fontSize: 11, fontFamily: 'PlusJakartaSans_500Medium' }}>Share</Text>
           </Pressable>
         </View>
@@ -286,7 +287,7 @@ export function BathroomDetail() {
           </>
         ) : reviews.length === 0 ? (
           <View style={{ alignItems: 'center', paddingVertical: 32 }}>
-            <Text style={{ fontSize: 40 }}>📝</Text>
+            <MaterialCommunityIcons name="note-text-outline" size={40} color={colors.text3} />
             <Text style={{ color: colors.text1, fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 16, marginTop: 12 }}>
               No reviews yet.
             </Text>

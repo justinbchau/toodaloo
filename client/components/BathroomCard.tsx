@@ -1,11 +1,12 @@
 import React from 'react';
 import { Pressable, View, Text, StyleSheet } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useThemeContext } from '../context/ThemeContext';
 
 export interface BathroomCardData {
   id: string;
   name: string;
-  emoji: string;        // e.g. '🏨'
+  icon: string;         // MaterialCommunityIcons glyph name, e.g. 'toilet'
   sub: string;          // e.g. 'Public · Open 24h'
   rating: number;       // 1-5
   score: string;        // e.g. '4.8'
@@ -38,8 +39,14 @@ export const BathroomCard = React.memo(function BathroomCard({ data, onPress, hi
         },
       ]}
     >
-      {/* 1. Emoji */}
-      <Text style={styles.emoji}>{data.emoji}</Text>
+      {/* 1. Access-type icon */}
+      <MaterialCommunityIcons
+        testID="bathroom-card-icon"
+        name={data.icon as keyof typeof MaterialCommunityIcons.glyphMap}
+        size={22}
+        color={colors.purpleText}
+        style={styles.icon}
+      />
 
       {/* 2. Name */}
       <Text style={[styles.name, { color: colors.text1 }]} numberOfLines={2}>
@@ -74,8 +81,7 @@ const styles = StyleSheet.create({
     padding: 14,
     marginRight: 12,
   },
-  emoji: {
-    fontSize: 20,
+  icon: {
     marginBottom: 7,
   },
   name: {

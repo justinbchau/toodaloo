@@ -1,5 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { View, Text, ActivityIndicator, Pressable, StyleSheet, Alert } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -183,7 +184,7 @@ export function MyReviews() {
         <ActivityIndicator color={colors.purple} style={{ marginTop: 40 }} />
       ) : reviews.length === 0 ? (
         <View style={styles.empty}>
-          <Text style={{ fontSize: 48 }}>📝</Text>
+          <MaterialCommunityIcons name="note-text-outline" size={48} color={colors.text3} />
           <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 16, color: colors.text2, marginTop: 12 }}>
             No reviews yet
           </Text>

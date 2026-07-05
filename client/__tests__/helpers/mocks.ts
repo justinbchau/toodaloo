@@ -100,7 +100,7 @@ export const mockNavigation = {
 export const mockBathroomCard = {
   id: 'bathroom-1',
   name: 'Test Bathroom',
-  emoji: '🚽',
+  icon: 'toilet',
   sub: 'Public · Open 24h',
   rating: 4,
   score: '4.2',
