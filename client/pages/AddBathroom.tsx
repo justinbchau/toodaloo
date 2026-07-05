@@ -64,31 +64,12 @@ export function AddBathroom() {
     );
   };
 
-  const onSubmit = async (values: FormValues) => {
-    if (!user?.id) {
-      Alert.alert('Session expired', 'Please sign in again.');
-      return;
-    }
+  // Radius (km) within which an existing bathroom is treated as a likely duplicate.
+  const DUPLICATE_RADIUS_KM = 0.05; // ~50 meters
 
+  const insertBathroom = async (values: FormValues, lat: number, lng: number) => {
     setIsSubmitting(true);
-    setGeocodeError(null);
-
-    let geocodeTimerId: ReturnType<typeof setTimeout> | undefined;
     try {
-      const geocodeTimeout = new Promise<never>((_, reject) => {
-        geocodeTimerId = setTimeout(() => reject(new Error('Geocode timeout')), 10000);
-      });
-      const results = await Promise.race([
-        Location.geocodeAsync(values.address),
-        geocodeTimeout,
-      ]);
-      if (!results || results.length === 0) {
-        setGeocodeError("Couldn't find that address. Try being more specific.");
-        return;
-      }
-
-      const { latitude: lat, longitude: lng } = results[0];
-
       const { error } = await supabase.from('bathrooms').insert({
         name: values.title,
         address: values.address,
@@ -113,11 +94,88 @@ export function AddBathroom() {
 
       rootNavigation.navigate('Success');
     } catch (err) {
-      console.error('AddBathroom submit error:', err);
+      console.error('AddBathroom insert error:', err);
       Alert.alert('Error', 'Something went wrong. Please try again.');
     } finally {
-      clearTimeout(geocodeTimerId);
       setIsSubmitting(false);
+    }
+  };
+
+  const onSubmit = async (values: FormValues) => {
+    if (!user?.id) {
+      Alert.alert('Session expired', 'Please sign in again.');
+      return;
+    }
+
+    setIsSubmitting(true);
+    setGeocodeError(null);
+
+    let geocodeTimerId: ReturnType<typeof setTimeout> | undefined;
+    try {
+      const geocodeTimeout = new Promise<never>((_, reject) => {
+        geocodeTimerId = setTimeout(() => reject(new Error('Geocode timeout')), 10000);
+      });
+      const results = await Promise.race([
+        Location.geocodeAsync(values.address),
+        geocodeTimeout,
+      ]);
+      if (!results || results.length === 0) {
+        setGeocodeError("Couldn't find that address. Try being more specific.");
+        setIsSubmitting(false);
+        return;
+      }
+
+      const { latitude: lat, longitude: lng } = results[0];
+
+      // Warn if a bathroom already exists at essentially the same spot.
+      let nearby: any[] = [];
+      try {
+        const { data } = await supabase.rpc('bathrooms_nearby', {
+          user_lat: lat,
+          user_lng: lng,
+          radius_km: DUPLICATE_RADIUS_KM,
+        });
+        nearby = data ?? [];
+      } catch (err) {
+        // Duplicate check is best-effort; proceed if it fails.
+        console.error('AddBathroom duplicate check failed:', err);
+      }
+
+      if (nearby.length > 0) {
+        const nearest = nearby[0];
+        setIsSubmitting(false);
+        Alert.alert(
+          'Possible duplicate',
+          `"${nearest.name}" is already listed near this address. Add this one anyway?`,
+          [
+            { text: 'Cancel', style: 'cancel' },
+            {
+              text: 'View existing',
+              onPress: () =>
+                rootNavigation.navigate('BathroomDetail', {
+                  id: nearest.id,
+                  name: nearest.name,
+                  lat: nearest.lat,
+                  lng: nearest.lng,
+                }),
+            },
+            {
+              text: 'Add anyway',
+              style: 'destructive',
+              onPress: () => insertBathroom(values, lat, lng),
+            },
+          ]
+        );
+        return;
+      }
+
+      await insertBathroom(values, lat, lng);
+    } catch (err) {
+      console.error('AddBathroom submit error:', err);
+      Alert.alert('Error', 'Something went wrong. Please try again.');
+      setIsSubmitting(false);
+    } finally {
+      clearTimeout(geocodeTimerId);
     }
   };
 

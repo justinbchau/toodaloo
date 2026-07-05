@@ -3,6 +3,7 @@
  * Supabase insert payload, success navigation, form reset, and amenity/access state.
  */
 import React from 'react';
+import { Alert } from 'react-native';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react-native';
 import { AddBathroom } from '../../pages/AddBathroom';
 import { mockColors, mockUser } from '../helpers/mocks';
@@ -34,12 +35,14 @@ jest.mock('expo-location', () => ({
 }));
 
 const mockInsert = jest.fn();
+const mockRpc = jest.fn();
 
 jest.mock('../../lib/supabase', () => ({
   supabase: {
     from: jest.fn(() => ({
       insert: (...args: any[]) => mockInsert(...args),
     })),
+    rpc: (...args: any[]) => mockRpc(...args),
   },
 }));
 
@@ -50,6 +53,8 @@ beforeEach(() => {
   mockGeocodeAsync.mockResolvedValue([{ latitude: 40.7128, longitude: -74.006 }]);
   // Default: insert succeeds
   mockInsert.mockResolvedValue({ error: null });
+  // Default: no nearby bathrooms (no duplicate)
+  mockRpc.mockResolvedValue({ data: [], error: null });
 });
 
 // ---------------------------------------------------------------------------
@@ -175,6 +180,60 @@ describe('AddBathroom — geocode failure', () => {
     await waitFor(() => {
       expect(screen.queryByText("Couldn't find that address. Try being more specific.")).toBeNull();
     });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Duplicate detection
+// ---------------------------------------------------------------------------
+describe('AddBathroom — duplicate detection', () => {
+  it('checks for nearby bathrooms via the bathrooms_nearby RPC before inserting', async () => {
+    renderAddBathroom();
+    await fillAndSubmit();
+
+    await waitFor(() => {
+      expect(mockRpc).toHaveBeenCalledWith(
+        'bathrooms_nearby',
+        expect.objectContaining({ user_lat: 40.7128, user_lng: -74.006 }),
+      );
+    });
+  });
+
+  it('does NOT insert immediately when a duplicate is found (prompts instead)', async () => {
+    mockRpc.mockResolvedValueOnce({
+      data: [{ id: 'dupe-1', name: 'Existing Loo', lat: 40.7128, lng: -74.006 }],
+      error: null,
+    });
+    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+
+    renderAddBathroom();
+    await fillAndSubmit();
+
+    await waitFor(() => expect(alertSpy).toHaveBeenCalled());
+    expect(alertSpy.mock.calls[0][0]).toBe('Possible duplicate');
+    expect(mockInsert).not.toHaveBeenCalled();
+
+    alertSpy.mockRestore();
+  });
+
+  it('inserts when the user chooses "Add anyway" in the duplicate prompt', async () => {
+    mockRpc.mockResolvedValueOnce({
+      data: [{ id: 'dupe-1', name: 'Existing Loo', lat: 40.7128, lng: -74.006 }],
+      error: null,
+    });
+    // Auto-press the "Add anyway" button when the alert is shown.
+    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation((_title, _msg, buttons) => {
+      const addAnyway = (buttons ?? []).find((b: any) => b.text === 'Add anyway');
+      addAnyway?.onPress?.();
+    });
+
+    renderAddBathroom();
+    await act(async () => {
+      await fillAndSubmit();
+    });
+
+    await waitFor(() => expect(mockInsert).toHaveBeenCalled());
+    alertSpy.mockRestore();
   });
 });
 
