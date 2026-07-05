@@ -9,6 +9,7 @@ export type Profile = {
 };
 
 type UpdateUsernameResult = { error: string | null };
+type DeleteAccountResult = { error: string | null };
 
 type UserContextType = {
   session: Session | null;
@@ -18,6 +19,7 @@ type UserContextType = {
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
   updateUsername: (username: string) => Promise<UpdateUsernameResult>;
+  deleteAccount: () => Promise<DeleteAccountResult>;
 };
 
 const UserContext = createContext<UserContextType>({
@@ -28,6 +30,7 @@ const UserContext = createContext<UserContextType>({
   signOut: async () => {},
   refreshProfile: async () => {},
   updateUsername: async () => ({ error: null }),
+  deleteAccount: async () => ({ error: null }),
 });
 
 export function UserProvider({ children }: { children: React.ReactNode }) {
@@ -106,9 +109,22 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     await supabase.auth.signOut();
   };
 
+  const deleteAccount = useCallback(async (): Promise<DeleteAccountResult> => {
+    if (!user?.id) return { error: 'You must be signed in.' };
+
+    const { error } = await supabase.rpc('delete_own_account');
+    if (error) {
+      return { error: 'Could not delete your account. Please try again.' };
+    }
+
+    // Clear the local session even though the auth row is gone server-side.
+    await supabase.auth.signOut();
+    return { error: null };
+  }, [user?.id]);
+
   return (
     <UserContext.Provider
-      value={{ session, user, profile, loading, signOut, refreshProfile, updateUsername }}
+      value={{ session, user, profile, loading, signOut, refreshProfile, updateUsername, deleteAccount }}
     >
       {children}
     </UserContext.Provider>

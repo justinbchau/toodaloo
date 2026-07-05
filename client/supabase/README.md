@@ -11,6 +11,8 @@ was not reproducible from the repo — these files fix that.
 | `migrations/0001_init.sql` | Baseline: `bathrooms`, `reviews`, `saved_bathrooms`, RLS policies, the `bathrooms_nearby` RPC (pure-SQL haversine, **returns kilometers**), and the trigger that keeps `rating_avg` / `review_count` in sync. |
 | `migrations/0002_profiles.sql` | `profiles` table, auto-create trigger on signup, backfill for existing users, and the `reviews_with_authors` view (reviews joined with usernames, no email exposure). |
 | `migrations/0003_reviews_unique.sql` | One review per user per bathroom (`unique (user_id, bathroom_id)`), after de-duplicating existing rows. |
+| `migrations/0004_grants.sql` | Grants table/function privileges to the `anon` / `authenticated` API roles (RLS decides which rows; a role still needs a table-level grant to touch the table at all). Makes the schema reproducible on a fresh database. |
+| `migrations/0005_delete_own_account.sql` | `delete_own_account()` RPC — lets a signed-in user permanently delete their auth row (cascades profiles, reviews, saved places). |
 
 Every migration is idempotent (`if not exists` / `create or replace` /
 `drop policy if exists`), so it is safe to run against the existing production
