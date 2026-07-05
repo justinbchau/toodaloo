@@ -8,6 +8,7 @@ import {
   PanResponder,
   Dimensions,
 } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useThemeContext } from '../context/ThemeContext';
 import { BathroomCard, BathroomCardData } from './BathroomCard';
 import { SkeletonBathroomCard } from './SkeletonBathroomCard';
@@ -122,7 +123,7 @@ export function BathroomSheet({ bathrooms = [], onCardPress, isLoading = false }
         ) : bathrooms.length === 0 ? (
           /* Empty state */
           <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingBottom: 16 }}>
-            <Text style={{ fontSize: 40 }}>🚽</Text>
+            <MaterialCommunityIcons testID="empty-state-icon" name="toilet" size={40} color={colors.text3} />
             <Text style={{
               fontFamily: 'PlusJakartaSans_600SemiBold',
               fontSize: 15, color: colors.text1,

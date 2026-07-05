@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 interface Props {
     iconName: string;
@@ -12,7 +13,7 @@ export function ProfileButton(props: Props) {
         <Pressable onPress={props.onPress}>
             <View style={styles.row}>
                 <View style={styles.iconBox}>
-                    <Text style={styles.iconText}>{iconEmoji(props.iconName)}</Text>
+                    <MaterialCommunityIcons name={iconName(props.iconName)} size={24} color="#555" />
                 </View>
                 <Text style={styles.label}>{props.buttonName}</Text>
                 <Text style={styles.chevron}>›</Text>
@@ -21,13 +22,13 @@ export function ProfileButton(props: Props) {
     );
 }
 
-function iconEmoji(name: string): string {
-    const map: Record<string, string> = {
-        settings: '⚙️',
-        'credit-card': '💳',
-        logout: '🚪',
+function iconName(name: string): keyof typeof MaterialCommunityIcons.glyphMap {
+    const map: Record<string, keyof typeof MaterialCommunityIcons.glyphMap> = {
+        settings: 'cog',
+        'credit-card': 'credit-card',
+        logout: 'logout',
     };
-    return map[name] ?? '•';
+    return map[name] ?? 'circle-small';
 }
 
 const styles = StyleSheet.create({

@@ -71,11 +71,11 @@ describe('BathroomSheet — empty state', () => {
     expect(screen.getByText('Add the first one!')).toBeTruthy();
   });
 
-  it('shows the toilet emoji in empty state', () => {
+  it('shows the access icon in empty state', () => {
     render(
       <BathroomSheet bathrooms={[]} isLoading={false} onCardPress={noop} />,
     );
-    expect(screen.getByText('🚽')).toBeTruthy();
+    expect(screen.getByTestId('empty-state-icon')).toBeTruthy();
   });
 
   it('does not render skeleton cards in empty state', () => {

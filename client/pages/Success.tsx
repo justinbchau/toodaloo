@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useNavigation } from '@react-navigation/native';
@@ -16,7 +17,7 @@ export function Success() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
       <View style={styles.container}>
-        <Text style={[styles.emoji]}>🚽</Text>
+        <MaterialCommunityIcons name="check-circle" size={64} color={colors.purple} />
         <Text style={[styles.heading, { color: colors.text1 }]}>
           Bathroom added!
         </Text>

@@ -24,9 +24,9 @@ describe('BathroomCard — content rendering', () => {
     expect(screen.getByText('Test Bathroom')).toBeTruthy();
   });
 
-  it('renders the emoji', () => {
-    renderCard({ emoji: '🔑' });
-    expect(screen.getByText('🔑')).toBeTruthy();
+  it('renders the access icon', () => {
+    renderCard({ icon: 'key' });
+    expect(screen.getByTestId('bathroom-card-icon')).toBeTruthy();
   });
 
   it('renders the sub-text', () => {

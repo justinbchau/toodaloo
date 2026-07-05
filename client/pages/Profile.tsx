@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, Alert } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ProfileStackParamList } from '../RootStackParams';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -89,7 +90,7 @@ export function Profile() {
               shadowRadius: 22,
               elevation: 8,
             }}>
-              <Text style={{ fontSize: 32, fontFamily: undefined }}>🚽</Text>
+              <MaterialCommunityIcons name="toilet" size={34} color="#fff" />
             </View>
 
             <Text style={{ fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 20, color: colors.text1 }}>
@@ -131,7 +132,7 @@ export function Profile() {
           <SectionLabel label="Account" />
           <View style={{ marginTop: 8, backgroundColor: colors.surface1, borderRadius: 16, overflow: 'hidden', marginBottom: 20, borderWidth: 1, borderColor: colors.border }}>
             <MenuItem
-              icon="⚙️"
+              icon="cog"
               label="Settings"
               sublabel="Username, theme"
               onPress={() => navigation.navigate('Settings')}
@@ -142,19 +143,19 @@ export function Profile() {
           <SectionLabel label="Activity" />
           <View style={{ marginTop: 8, backgroundColor: colors.surface1, borderRadius: 16, overflow: 'hidden', marginBottom: 20, borderWidth: 1, borderColor: colors.border }}>
             <MenuItem
-              icon="🔖"
+              icon="bookmark"
               label="Saved Places"
               onPress={() => {
                 (navigation as any).getParent()?.navigate('Saved');
               }}
             />
             <MenuItem
-              icon="📝"
+              icon="note-text"
               label="My Reviews"
               onPress={() => navigation.navigate('MyReviews')}
             />
             <MenuItem
-              icon="📍"
+              icon="map-marker"
               label="Submitted"
               onPress={() => navigation.navigate('Submitted')}
             />
@@ -163,7 +164,7 @@ export function Profile() {
           {/* More */}
           <SectionLabel label="More" />
           <View style={{ marginTop: 8, backgroundColor: colors.surface1, borderRadius: 16, overflow: 'hidden', borderWidth: 1, borderColor: colors.border }}>
-            <MenuItem icon="🚪" label="Log Out" onPress={handleLogOut} destructive />
+            <MenuItem icon="logout" label="Log Out" onPress={handleLogOut} destructive />
           </View>
 
         </View>

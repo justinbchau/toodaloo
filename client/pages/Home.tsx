@@ -1,5 +1,6 @@
 import React from 'react';
 import { Text, View } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { RootStackParamList } from '../RootStackParams';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -63,7 +64,7 @@ export function Home() {
             elevation: 8,
           }}
         >
-          <Text style={{ fontSize: 18 }}>🚾</Text>
+          <MaterialCommunityIcons name="toilet" size={18} color="#fff" />
         </View>
         <Text
           style={{

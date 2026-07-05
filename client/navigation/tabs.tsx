@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Pressable, Text } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { MainTabParamList } from '../RootStackParams';
@@ -16,11 +17,11 @@ const CustomTabBar = ({ state, descriptors, navigation }: BottomTabBarProps) => 
   const { colors } = useThemeContext();
 
   const tabs = [
-    { name: 'Map', icon: '🗺️' },
-    { name: 'Saved', icon: '🔖' },
-    { name: 'Add', icon: '➕' },
-    { name: 'Profile', icon: '👤' },
-  ];
+    { name: 'Map', icon: 'map' },
+    { name: 'Saved', icon: 'bookmark' },
+    { name: 'Add', icon: 'plus' },
+    { name: 'Profile', icon: 'account' },
+  ] as const;
 
   return (
     <View style={{
@@ -50,7 +51,11 @@ const CustomTabBar = ({ state, descriptors, navigation }: BottomTabBarProps) => 
             style={({ pressed }: { pressed: boolean }) => [{ flex: 1, alignItems: 'center', gap: 4, opacity: pressed ? 0.7 : 1 }]}
             onPress={onPress}
           >
-            <Text style={{ fontSize: 18, fontFamily: undefined }}>{tab?.icon}</Text>
+            <MaterialCommunityIcons
+              name={tab?.icon ?? 'circle'}
+              size={22}
+              color={isFocused ? colors.purpleText : colors.text3}
+            />
             <Text style={{
               fontSize: 10,
               color: isFocused ? colors.purpleText : colors.text3,
