@@ -3,7 +3,7 @@
  * review states, action button navigation/sharing.
  */
 import React from 'react';
-import { Share, Linking } from 'react-native';
+import { Share, Linking, Alert } from 'react-native';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react-native';
 import { BathroomDetail } from '../../pages/BathroomDetail';
 import { mockColors, mockBathroomData, mockReview, createQueryMock } from '../helpers/mocks';
@@ -23,8 +23,10 @@ jest.mock('@react-navigation/native', () => {
     useRoute: () => ({
       params: { id: 'bathroom-1', name: 'Test Bathroom', lat: 40.7128, lng: -74.006 },
     }),
-    // Run the focus callback once on mount, mirroring initial-focus behavior.
-    useFocusEffect: (cb: () => void) => ReactActual.useEffect(cb, []),
+    // Run the focus callback on mount and whenever its identity changes
+    // (the component memoizes it with useCallback, so a retryKey bump
+    // produces a new callback — mirroring a refetch).
+    useFocusEffect: (cb: () => void) => ReactActual.useEffect(cb, [cb]),
   };
 });
 
@@ -106,14 +108,30 @@ jest.mock('../../lib/supabase', () => ({
 // ---------------------------------------------------------------------------
 // Default mock setup
 // ---------------------------------------------------------------------------
-function setupDefaultMocks(overrides: { bathroom?: any; reviews?: any[]; saved?: any } = {}) {
+function setupDefaultMocks(
+  overrides: {
+    bathroom?: any;
+    bathroomError?: any;
+    reviews?: any[];
+    reviewsError?: any;
+    saved?: any;
+  } = {},
+) {
   const bathroom = overrides.bathroom ?? mockBathroomData;
   const reviews = overrides.reviews ?? [mockReview];
   const saved = overrides.saved ?? null;
 
   mockFrom.mockImplementation((table: string) => {
-    if (table === 'bathrooms') return createQueryMock({ data: bathroom, error: null });
-    if (table === 'reviews_with_authors') return createQueryMock({ data: reviews, error: null });
+    if (table === 'bathrooms') {
+      return overrides.bathroomError
+        ? createQueryMock({ data: null, error: overrides.bathroomError })
+        : createQueryMock({ data: bathroom, error: null });
+    }
+    if (table === 'reviews_with_authors') {
+      return overrides.reviewsError
+        ? createQueryMock({ data: null, error: overrides.reviewsError })
+        : createQueryMock({ data: reviews, error: null });
+    }
     if (table === 'saved_bathrooms') return createQueryMock({ data: saved, error: null });
     return createQueryMock({ data: null, error: null });
   });
@@ -317,5 +335,129 @@ describe('BathroomDetail — save toggle', () => {
       user_id: 'test-user-id-123',
       bathroom_id: 'bathroom-1',
     });
+  });
+
+  it('does NOT mark as saved and alerts when the insert fails', async () => {
+    const alertSpy = jest.spyOn(Alert, 'alert');
+    const mockInsert = jest.fn().mockResolvedValue({ error: { message: 'RLS violation' } });
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'bathrooms') return createQueryMock({ data: mockBathroomData, error: null });
+      if (table === 'reviews_with_authors') return createQueryMock({ data: [], error: null });
+      if (table === 'saved_bathrooms') {
+        const chain = createQueryMock({ data: null, error: null });
+        chain.insert = mockInsert;
+        return chain;
+      }
+      return createQueryMock({ data: null, error: null });
+    });
+
+    render(<BathroomDetail />);
+    await waitFor(() => expect(screen.getByText('Test Bathroom')).toBeTruthy());
+
+    await act(async () => {
+      fireEvent.press(screen.getByText('Save'));
+    });
+
+    expect(mockInsert).toHaveBeenCalled();
+    expect(alertSpy).toHaveBeenCalledWith('Error', 'Could not update saved status.');
+    // UI must not claim the bathroom is saved when the write failed.
+    expect(screen.getByLabelText('Save this bathroom')).toBeTruthy();
+    expect(screen.queryByLabelText('Remove from saved bathrooms')).toBeNull();
+    alertSpy.mockRestore();
+  });
+
+  it('does NOT mark as unsaved and alerts when the delete fails', async () => {
+    const alertSpy = jest.spyOn(Alert, 'alert');
+    const failingDelete = jest.fn(() => {
+      const resolved = Promise.resolve({ data: null, error: { message: 'network error' } });
+      const chain: any = {
+        eq: jest.fn().mockReturnThis(),
+        then: (r: any, j?: any) => resolved.then(r, j),
+        catch: (r: any) => resolved.catch(r),
+        finally: (r: any) => resolved.finally(r),
+      };
+      return chain;
+    });
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'bathrooms') return createQueryMock({ data: mockBathroomData, error: null });
+      if (table === 'reviews_with_authors') return createQueryMock({ data: [], error: null });
+      if (table === 'saved_bathrooms') {
+        // checkSaved finds an existing row → starts in the saved state.
+        const chain = createQueryMock({ data: { bathroom_id: 'bathroom-1' }, error: null });
+        chain.delete = failingDelete;
+        return chain;
+      }
+      return createQueryMock({ data: null, error: null });
+    });
+
+    render(<BathroomDetail />);
+    await waitFor(() => expect(screen.getByLabelText('Remove from saved bathrooms')).toBeTruthy());
+
+    await act(async () => {
+      fireEvent.press(screen.getByText('Save'));
+    });
+
+    expect(failingDelete).toHaveBeenCalled();
+    expect(alertSpy).toHaveBeenCalledWith('Error', 'Could not update saved status.');
+    expect(screen.getByLabelText('Remove from saved bathrooms')).toBeTruthy();
+    alertSpy.mockRestore();
+  });
+});
+
+describe('BathroomDetail — fetch error states', () => {
+  it('shows the error screen when the bathroom fetch fails', async () => {
+    setupDefaultMocks({ bathroomError: { message: 'network error' } });
+    render(<BathroomDetail />);
+
+    await waitFor(() => expect(screen.getByText("Couldn't load this bathroom")).toBeTruthy());
+    expect(screen.getByText('Retry')).toBeTruthy();
+    // Stale route params must not render as if the bathroom loaded.
+    expect(screen.queryByText('Test Bathroom')).toBeNull();
+  });
+
+  it('recovers when Retry is pressed and the refetch succeeds', async () => {
+    setupDefaultMocks({ bathroomError: { message: 'network error' } });
+    render(<BathroomDetail />);
+    await waitFor(() => expect(screen.getByText("Couldn't load this bathroom")).toBeTruthy());
+
+    // Next attempt succeeds.
+    setupDefaultMocks();
+    await act(async () => {
+      fireEvent.press(screen.getByText('Retry'));
+    });
+
+    await waitFor(() => expect(screen.getByText('Test Bathroom')).toBeTruthy());
+    expect(screen.queryByText("Couldn't load this bathroom")).toBeNull();
+  });
+
+  it('"Go back" on the error screen calls navigation.goBack', async () => {
+    setupDefaultMocks({ bathroomError: { message: 'network error' } });
+    render(<BathroomDetail />);
+    await waitFor(() => expect(screen.getByText('Go back')).toBeTruthy());
+
+    fireEvent.press(screen.getByText('Go back'));
+    expect(mockGoBack).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows an inline error in the reviews section when the reviews fetch fails', async () => {
+    setupDefaultMocks({ reviewsError: { message: 'network error' } });
+    render(<BathroomDetail />);
+
+    await waitFor(() => expect(screen.getByText("Couldn't load reviews.")).toBeTruthy());
+    // The bathroom itself still renders.
+    expect(screen.getByText('Test Bathroom')).toBeTruthy();
+    expect(screen.getByText('Try again')).toBeTruthy();
+  });
+});
+
+describe('BathroomDetail — review body rendering', () => {
+  it('omits the body text for reviews with a null body', async () => {
+    setupDefaultMocks({ reviews: [{ ...mockReview, body: null }] });
+    render(<BathroomDetail />);
+
+    await waitFor(() => expect(screen.getByText('testuser')).toBeTruthy());
+    expect(screen.queryByText('Clean and accessible.')).toBeNull();
   });
 });
