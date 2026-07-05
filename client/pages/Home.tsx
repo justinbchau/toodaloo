@@ -377,7 +377,12 @@ export function Home() {
         }}
       >
         {'By continuing you agree to our '}
-        <Text style={{ color: colors.purpleText }}>Terms & Privacy</Text>
+        <Text
+          style={{ color: colors.purpleText }}
+          onPress={() => navigation.navigate('Legal')}
+        >
+          Terms & Privacy
+        </Text>
       </Text>
     </SafeAreaView>
   );

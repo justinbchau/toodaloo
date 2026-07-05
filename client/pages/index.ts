@@ -9,3 +9,4 @@ export * from './BathroomDetail';
 export * from './Saved';
 export * from './MyReviews';
 export * from './Submitted';
+export * from './Legal';

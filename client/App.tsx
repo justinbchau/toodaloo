@@ -23,6 +23,7 @@ import { MainTabs } from './navigation/tabs';
 import { Success } from './pages/Success';
 import { BathroomDetail } from './pages/BathroomDetail';
 import { WriteReview } from './pages/WriteReview';
+import { Legal } from './pages/Legal';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -60,6 +61,7 @@ function AppNavigator() {
         <>
           <Stack.Screen name="ToodaLoo" component={Home} />
           <Stack.Screen name="Auth" component={Auth} />
+          <Stack.Screen name="Legal" component={Legal} />
         </>
       )}
     </Stack.Navigator>
