@@ -1,8 +1,10 @@
 /**
  * Tests for WriteReview — star picker state machine, submit guard,
- * character counter, and Supabase insert on successful submission.
+ * character counter, Supabase insert on new reviews, and the edit flow
+ * that prefills + updates an existing review.
  */
 import React from 'react';
+import { Alert } from 'react-native';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react-native';
 import { WriteReview } from '../../pages/WriteReview';
 import { mockColors, mockUser } from '../helpers/mocks';
@@ -27,63 +29,92 @@ jest.mock('../../context/UserContext', () => ({
 }));
 
 const mockInsert = jest.fn();
+const mockUpdate = jest.fn();
+const mockUpdateEq = jest.fn();
+const mockMaybeSingle = jest.fn();
 
 jest.mock('../../lib/supabase', () => ({
   supabase: {
     from: jest.fn(() => ({
+      // Existing-review lookup: .select().eq().eq().maybeSingle()
+      select: jest.fn(() => ({
+        eq: jest.fn(() => ({
+          eq: jest.fn(() => ({
+            maybeSingle: (...args: any[]) => mockMaybeSingle(...args),
+          })),
+        })),
+      })),
       insert: (...args: any[]) => mockInsert(...args),
+      // Update: .update(payload).eq('id', ...)
+      update: (...args: any[]) => {
+        mockUpdate(...args);
+        return { eq: (...eqArgs: any[]) => mockUpdateEq(...eqArgs) };
+      },
     })),
   },
 }));
 
+const existingReview = { id: 'review-1', rating: 3, body: 'Decent spot.' };
+
 beforeEach(() => {
   jest.clearAllMocks();
+  // Default: user has not reviewed this bathroom yet.
+  mockMaybeSingle.mockResolvedValue({ data: null, error: null });
   mockInsert.mockResolvedValue({ error: null });
+  mockUpdateEq.mockResolvedValue({ error: null });
 });
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-function renderWriteReview() {
-  return render(<WriteReview />);
+async function renderWriteReview() {
+  const result = render(<WriteReview />);
+  // Wait for the existing-review lookup to finish (spinner → form).
+  await waitFor(() => expect(screen.getByText('Test Bathroom')).toBeTruthy());
+  return result;
 }
 
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
 describe('WriteReview — initial render', () => {
-  it('renders the bathroom name from route params', () => {
-    renderWriteReview();
+  it('renders the bathroom name from route params', async () => {
+    await renderWriteReview();
     expect(screen.getByText('Test Bathroom')).toBeTruthy();
   });
 
-  it('renders 5 empty stars initially', () => {
-    renderWriteReview();
+  it('renders 5 empty stars initially', async () => {
+    await renderWriteReview();
     const stars = screen.getAllByText('☆');
     expect(stars).toHaveLength(5);
   });
 
-  it('renders the character counter at 0/280', () => {
-    renderWriteReview();
+  it('renders the character counter at 0/280', async () => {
+    await renderWriteReview();
     expect(screen.getByText('0/280')).toBeTruthy();
   });
 
-  it('renders the submit button label', () => {
-    renderWriteReview();
+  it('renders the submit button label', async () => {
+    await renderWriteReview();
     expect(screen.getByText('Submit Review')).toBeTruthy();
+  });
+
+  it('renders the "Write a Review" header for a new review', async () => {
+    await renderWriteReview();
+    expect(screen.getByText('Write a Review')).toBeTruthy();
   });
 });
 
 describe('WriteReview — submit button disabled state', () => {
-  it('submit button is disabled when no star is selected (rating=0)', () => {
-    renderWriteReview();
+  it('submit button is disabled when no star is selected (rating=0)', async () => {
+    await renderWriteReview();
     // @testing-library/jest-native's toBeDisabled checks if the element
     // or any ancestor has disabled=true / accessibilityState.disabled=true
     expect(screen.getByText('Submit Review')).toBeDisabled();
   });
 
-  it('submit button becomes enabled after selecting a star', () => {
-    renderWriteReview();
+  it('submit button becomes enabled after selecting a star', async () => {
+    await renderWriteReview();
     const emptyStars = screen.getAllByText('☆');
     fireEvent.press(emptyStars[2]); // tap star 3
     expect(screen.getByText('Submit Review')).not.toBeDisabled();
@@ -95,7 +126,7 @@ describe('WriteReview — submit button disabled state', () => {
       new Promise((res) => { resolveInsert = res; }),
     );
 
-    renderWriteReview();
+    await renderWriteReview();
     const emptyStars = screen.getAllByText('☆');
     fireEvent.press(emptyStars[0]);
 
@@ -111,8 +142,8 @@ describe('WriteReview — submit button disabled state', () => {
 });
 
 describe('WriteReview — star picker interactions', () => {
-  it('fills stars 1-3 and leaves 4-5 empty when star 3 is tapped', () => {
-    renderWriteReview();
+  it('fills stars 1-3 and leaves 4-5 empty when star 3 is tapped', async () => {
+    await renderWriteReview();
     const emptyStars = screen.getAllByText('☆');
     fireEvent.press(emptyStars[2]); // tap star index 2 = star 3
 
@@ -120,8 +151,8 @@ describe('WriteReview — star picker interactions', () => {
     expect(screen.getAllByText('☆')).toHaveLength(2);
   });
 
-  it('fills all 5 stars when star 5 is tapped', () => {
-    renderWriteReview();
+  it('fills all 5 stars when star 5 is tapped', async () => {
+    await renderWriteReview();
     const emptyStars = screen.getAllByText('☆');
     fireEvent.press(emptyStars[4]); // tap star 5
 
@@ -129,8 +160,8 @@ describe('WriteReview — star picker interactions', () => {
     expect(screen.queryByText('☆')).toBeNull();
   });
 
-  it('fills only star 1 when star 1 is tapped', () => {
-    renderWriteReview();
+  it('fills only star 1 when star 1 is tapped', async () => {
+    await renderWriteReview();
     const emptyStars = screen.getAllByText('☆');
     fireEvent.press(emptyStars[0]); // tap star 1
 
@@ -138,8 +169,8 @@ describe('WriteReview — star picker interactions', () => {
     expect(screen.getAllByText('☆')).toHaveLength(4);
   });
 
-  it('reduces filled stars when a lower star is pressed after a higher one', () => {
-    renderWriteReview();
+  it('reduces filled stars when a lower star is pressed after a higher one', async () => {
+    await renderWriteReview();
 
     // Tap star 5 → all 5 filled
     const allEmpty = screen.getAllByText('☆');
@@ -154,8 +185,8 @@ describe('WriteReview — star picker interactions', () => {
     expect(screen.getAllByText('☆')).toHaveLength(3);
   });
 
-  it('each star tap overrides the previous rating', () => {
-    renderWriteReview();
+  it('each star tap overrides the previous rating', async () => {
+    await renderWriteReview();
 
     const s1 = screen.getAllByText('☆');
     fireEvent.press(s1[0]); // tap star 1 → rating = 1; now ★ ☆ ☆ ☆ ☆
@@ -170,32 +201,32 @@ describe('WriteReview — star picker interactions', () => {
 });
 
 describe('WriteReview — character counter', () => {
-  it('updates counter as text is typed', () => {
-    renderWriteReview();
+  it('updates counter as text is typed', async () => {
+    await renderWriteReview();
     const textInput = screen.getByPlaceholderText('Share your experience...');
     fireEvent.changeText(textInput, 'Great bathroom!');
     expect(screen.getByText('15/280')).toBeTruthy();
   });
 
-  it('resets to 0/280 when text is cleared', () => {
-    renderWriteReview();
+  it('resets to 0/280 when text is cleared', async () => {
+    await renderWriteReview();
     const textInput = screen.getByPlaceholderText('Share your experience...');
     fireEvent.changeText(textInput, 'Hello');
     fireEvent.changeText(textInput, '');
     expect(screen.getByText('0/280')).toBeTruthy();
   });
 
-  it('shows correct count for multi-character text', () => {
-    renderWriteReview();
+  it('shows correct count for multi-character text', async () => {
+    await renderWriteReview();
     const textInput = screen.getByPlaceholderText('Share your experience...');
     fireEvent.changeText(textInput, 'A'.repeat(100));
     expect(screen.getByText('100/280')).toBeTruthy();
   });
 });
 
-describe('WriteReview — Supabase submission', () => {
+describe('WriteReview — Supabase submission (new review)', () => {
   it('calls supabase.from("reviews").insert() with correct data', async () => {
-    renderWriteReview();
+    await renderWriteReview();
 
     const emptyStars = screen.getAllByText('☆');
     fireEvent.press(emptyStars[3]); // star 4
@@ -217,8 +248,8 @@ describe('WriteReview — Supabase submission', () => {
     });
   });
 
-  it('sends "(no comment)" when body is empty after trimming', async () => {
-    renderWriteReview();
+  it('sends body: null when body is empty after trimming', async () => {
+    await renderWriteReview();
 
     const emptyStars = screen.getAllByText('☆');
     fireEvent.press(emptyStars[0]); // star 1 — body stays empty
@@ -229,13 +260,13 @@ describe('WriteReview — Supabase submission', () => {
 
     await waitFor(() => {
       expect(mockInsert).toHaveBeenCalledWith(
-        expect.objectContaining({ body: '(no comment)' }),
+        expect.objectContaining({ body: null }),
       );
     });
   });
 
-  it('trims whitespace-only body to "(no comment)"', async () => {
-    renderWriteReview();
+  it('trims whitespace-only body to null', async () => {
+    await renderWriteReview();
 
     const emptyStars = screen.getAllByText('☆');
     fireEvent.press(emptyStars[0]);
@@ -249,13 +280,13 @@ describe('WriteReview — Supabase submission', () => {
 
     await waitFor(() => {
       expect(mockInsert).toHaveBeenCalledWith(
-        expect.objectContaining({ body: '(no comment)' }),
+        expect.objectContaining({ body: null }),
       );
     });
   });
 
   it('calls navigation.goBack() on successful submit', async () => {
-    renderWriteReview();
+    await renderWriteReview();
     const emptyStars = screen.getAllByText('☆');
     fireEvent.press(emptyStars[0]);
 
@@ -269,7 +300,7 @@ describe('WriteReview — Supabase submission', () => {
   it('does NOT call goBack() when insert returns an error', async () => {
     mockInsert.mockResolvedValueOnce({ error: { message: 'DB error' } });
 
-    renderWriteReview();
+    await renderWriteReview();
     const emptyStars = screen.getAllByText('☆');
     fireEvent.press(emptyStars[0]);
 
@@ -283,15 +314,100 @@ describe('WriteReview — Supabase submission', () => {
     });
   });
 
-  it('does NOT submit when rating is 0 (guard clause)', async () => {
-    renderWriteReview();
-    // Do NOT tap any star
+  it('shows an "Already reviewed" alert on a unique-violation (23505) error', async () => {
+    const alertSpy = jest.spyOn(Alert, 'alert');
+    mockInsert.mockResolvedValueOnce({ error: { code: '23505', message: 'duplicate key' } });
+
+    await renderWriteReview();
+    const emptyStars = screen.getAllByText('☆');
+    fireEvent.press(emptyStars[0]);
 
     await act(async () => {
-      // Manually try to call submit — button is disabled so this won't fire
-      // but even if it did, the guard should prevent insert
+      fireEvent.press(screen.getByText('Submit Review'));
     });
 
+    await waitFor(() => {
+      expect(alertSpy).toHaveBeenCalledWith('Already reviewed', expect.any(String));
+      expect(mockGoBack).not.toHaveBeenCalled();
+    });
+    alertSpy.mockRestore();
+  });
+
+  it('does NOT submit when rating is 0 (guard clause)', async () => {
+    await renderWriteReview();
+    // Do NOT tap any star — button is disabled so submit never fires
+
     expect(mockInsert).not.toHaveBeenCalled();
+    expect(mockUpdate).not.toHaveBeenCalled();
+  });
+});
+
+describe('WriteReview — edit flow (existing review)', () => {
+  beforeEach(() => {
+    mockMaybeSingle.mockResolvedValue({ data: existingReview, error: null });
+  });
+
+  it('prefills the star rating and body from the existing review', async () => {
+    await renderWriteReview();
+
+    expect(screen.getAllByText('★')).toHaveLength(3);
+    expect(screen.getAllByText('☆')).toHaveLength(2);
+    expect(screen.getByDisplayValue('Decent spot.')).toBeTruthy();
+  });
+
+  it('shows the edit header and "Update Review" button label', async () => {
+    await renderWriteReview();
+
+    expect(screen.getByText('Edit Your Review')).toBeTruthy();
+    expect(screen.getByText('Update Review')).toBeTruthy();
+  });
+
+  it('treats the legacy "(no comment)" body as empty', async () => {
+    mockMaybeSingle.mockResolvedValue({
+      data: { ...existingReview, body: '(no comment)' },
+      error: null,
+    });
+
+    await renderWriteReview();
+
+    expect(screen.getByText('0/280')).toBeTruthy();
+    expect(screen.queryByDisplayValue('(no comment)')).toBeNull();
+  });
+
+  it('calls update (not insert) with the new values and goes back', async () => {
+    await renderWriteReview();
+
+    // Bump rating from 3 to 5: after prefill ☆ = [star4, star5]
+    const emptyStars = screen.getAllByText('☆');
+    fireEvent.press(emptyStars[1]); // star 5
+
+    const textInput = screen.getByDisplayValue('Decent spot.');
+    fireEvent.changeText(textInput, 'Actually great!');
+
+    await act(async () => {
+      fireEvent.press(screen.getByText('Update Review'));
+    });
+
+    await waitFor(() => {
+      expect(mockUpdate).toHaveBeenCalledWith({ rating: 5, body: 'Actually great!' });
+      expect(mockUpdateEq).toHaveBeenCalledWith('id', 'review-1');
+      expect(mockInsert).not.toHaveBeenCalled();
+      expect(mockGoBack).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it('does NOT go back when the update fails', async () => {
+    mockUpdateEq.mockResolvedValueOnce({ error: { message: 'DB error' } });
+
+    await renderWriteReview();
+
+    await act(async () => {
+      fireEvent.press(screen.getByText('Update Review'));
+    });
+
+    await waitFor(() => {
+      expect(mockUpdate).toHaveBeenCalled();
+      expect(mockGoBack).not.toHaveBeenCalled();
+    });
   });
 });
