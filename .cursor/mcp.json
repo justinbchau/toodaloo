@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "supabase": {
+      "url": "https://mcp.supabase.com/mcp"
+    },
+    "expo": {
+      "url": "https://mcp.expo.dev/mcp"
+    }
+  }
+}

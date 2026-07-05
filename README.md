@@ -51,12 +51,20 @@ cd client
 npm install
 ```
 
-Create `client/.env`:
+Create `client/.env` (see `client/.env.example`). With **Supabase MCP** connected in Cursor, you can ask the agent to fetch `get_project_url` + `get_publishable_keys` and write the file for you — see **`AGENTS.md`** for the full bootstrap flow.
 
 ```
 EXPO_PUBLIC_SUPABASE_URL=https://<project>.supabase.co
 EXPO_PUBLIC_SUPABASE_ANON_KEY=<anon-key>
 ```
+
+Or run the automated checks (deps, tests, typecheck):
+
+```bash
+./scripts/bootstrap-cursor-env.sh
+```
+
+MCP servers are configured in **`.cursor/mcp.json`** (Supabase + Expo). Authenticate both under **Cursor Settings → Tools & MCP** before asking the agent to use them.
 
 Run the dev client:
 
