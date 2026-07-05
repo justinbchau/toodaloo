@@ -9,8 +9,9 @@
 #
 # Usage:  ./scripts/dev.sh <command>
 #
-#   up          doctor -> db:up -> sim -> build-if-needed -> start   (the everyday command)
-#   doctor      check the local toolchain and report what's missing
+#   up          preflight -> db:up -> sim -> build-if-needed -> start  (the everyday command)
+#   doctor      full static gate: toolchain + expo-doctor + SDK version check
+#   smoke       runtime gate: drive login -> map and assert seeded data renders (Maestro)
 #   db:up       ensure Docker + local Supabase are running; write local creds to env
 #   db:reset    re-apply migrations 0001-0003 + seed.sql to the local DB
 #   db:types    regenerate types/database.ts from the local schema
@@ -153,7 +154,7 @@ start() {
 # --- Orchestration -----------------------------------------------------------
 
 up() {
-  doctor || return 1
+  preflight
   db_up
   sim
   if app_installed; then
@@ -169,7 +170,60 @@ down() {
   ok "Down. (Metro, if running, can be stopped with Ctrl-C in its terminal.)"
 }
 
-doctor() {
+# --- Smoke test (runtime gate) ----------------------------------------------
+# Drives login -> authenticated map against the local stack and asserts the seeded
+# bathrooms render. This is the gate that catches runtime rendering regressions
+# (like the Reanimated crash) that jest and a green native build both miss.
+
+metro_up() { curl -s -o /dev/null "http://localhost:8081/status" 2>/dev/null; }
+
+ensure_metro() {
+  metro_up && return 0
+  log "Starting Metro in the background…"
+  ( npx expo start --dev-client >/dev/null 2>&1 & )
+  local i=0
+  until metro_up || [[ $i -ge 60 ]]; do sleep 1; i=$((i+1)); done
+  metro_up
+}
+
+resolve_maestro() {
+  # Maestro needs JDK 11+, but the system default here is JDK 8 — point it at brew's openjdk@17.
+  if command -v brew >/dev/null 2>&1; then
+    local jh; jh="$(brew --prefix openjdk@17 2>/dev/null)"
+    if [[ -n "$jh" ]]; then
+      [[ -d "$jh/libexec/openjdk.jdk/Contents/Home" ]] && export JAVA_HOME="$jh/libexec/openjdk.jdk/Contents/Home" || export JAVA_HOME="$jh"
+    fi
+  fi
+  export PATH="$HOME/.maestro/bin:$PATH"
+  command -v maestro >/dev/null 2>&1
+}
+
+smoke() {
+  ensure_docker || return 1
+  supabase status >/dev/null 2>&1 || { log "Starting local Supabase…"; supabase start >/dev/null; }
+  write_env_local >/dev/null
+  sim
+  if ! app_installed; then
+    err "Dev client isn't installed on the simulator. Build it first:  ./scripts/dev.sh ios"
+    return 1
+  fi
+  ensure_metro || { err "Metro isn't reachable on :8081."; return 1; }
+  log "Pointing the simulator's GPS at the seeded NYC data…"
+  xcrun simctl location booted set 40.7580,-73.9855 || true
+  # Pre-grant location so fresh installs don't stall on the permission prompt
+  # (the flow also taps it optionally, as a fallback).
+  xcrun simctl privacy booted grant location-always "$BUNDLE_ID" 2>/dev/null || true
+  if ! resolve_maestro; then
+    err "Maestro not installed. One-time setup (openjdk@17 is already present):"
+    err "  curl -Ls https://get.maestro.mobile.dev | bash"
+    return 1
+  fi
+  local SR; SR="$(supabase status -o env 2>/dev/null | sed -n 's/^SERVICE_ROLE_KEY="\(.*\)"$/\1/p')"
+  log "Running Maestro login→data smoke (JAVA_HOME=$JAVA_HOME)…"
+  maestro test -e SERVICE_ROLE="$SR" "$CLIENT_DIR/.maestro/login-smoke.yaml"
+}
+
+preflight() {
   local missing=0
   _check() { # label  test-cmd  hint
     if eval "$2" >/dev/null 2>&1; then ok "$1"; else warn "$1 — $3"; missing=1; fi
@@ -186,9 +240,21 @@ doctor() {
   if [[ "$missing" -ne 0 ]]; then
     warn "Some checks failed — resolve the hints above. 'up' will still try where it can."
   else
-    ok "All checks passed."
+    ok "All toolchain checks passed."
   fi
   return 0
+}
+
+# Full static gate: toolchain + Expo dependency/config health. Catches the dep rot
+# and version drift that silently broke the build here (unused/duplicate native
+# modules, packages off the SDK's pinned set, config-plugin problems). Slower than
+# `preflight` (which is what `up` runs), so invoke it explicitly or in CI.
+doctor() {
+  preflight
+  log "Dependency & config health (expo-doctor)…"
+  npx expo-doctor || warn "expo-doctor found issues (above) — worth fixing."
+  log "SDK version alignment (expo install --check)…"
+  npx expo install --check || warn "Some packages drift from the SDK's expected versions."
 }
 
 # --- Dispatch ----------------------------------------------------------------
@@ -204,6 +270,7 @@ case "${1:-up}" in
   sim)       sim ;;
   ios)       build_ios ;;
   start)     start ;;
+  smoke)     smoke ;;
   down)      down ;;
   *)
     err "Unknown command: $1"

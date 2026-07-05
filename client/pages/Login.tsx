@@ -62,6 +62,7 @@ export function Login() {
                         name="email"
                         render={({ field: { onChange, onBlur, value }, fieldState: { error } }) => (
                             <FormInput
+                                testID="login-email"
                                 label="Email"
                                 onChangeText={onChange}
                                 onBlur={onBlur}
@@ -81,6 +82,7 @@ export function Login() {
                 )}
 
                 <PrimaryButton
+                    testID="send-code"
                     title="Send code →"
                     onPress={handleSubmit(onSubmit)}
                     style={styles.button}

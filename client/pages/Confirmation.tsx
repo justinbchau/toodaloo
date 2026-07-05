@@ -104,6 +104,7 @@ export function Confirmation({ route }: Props) {
                         name="code"
                         render={({ field: { onChange, onBlur, value }, fieldState: { error } }) => (
                             <FormInput
+                                testID="otp-code"
                                 label="Confirmation Code"
                                 onChangeText={onChange}
                                 onBlur={onBlur}
@@ -128,6 +129,7 @@ export function Confirmation({ route }: Props) {
                 )}
 
                 <PrimaryButton
+                    testID="verify-otp"
                     title="Verify →"
                     onPress={handleSubmit(onSubmit)}
                     style={styles.button}

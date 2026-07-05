@@ -38,7 +38,8 @@ Run from anywhere; the script cd's into `client/` itself.
 | Goal | Command |
 |---|---|
 | Everyday: bring up DB + sim + app | `client/scripts/dev.sh up` |
-| Preflight the toolchain | `client/scripts/dev.sh doctor` |
+| Static gate: toolchain + expo-doctor + SDK version check | `client/scripts/dev.sh doctor` |
+| Runtime gate: drive login→map, assert seeded data renders | `client/scripts/dev.sh smoke` |
 | Start/refresh local Supabase + env | `client/scripts/dev.sh db:up` |
 | Wipe + re-seed local DB | `client/scripts/dev.sh db:reset` |
 | Regenerate `types/database.ts` | `client/scripts/dev.sh db:types` |
@@ -49,6 +50,24 @@ Run from anywhere; the script cd's into `client/` itself.
 
 Target simulator defaults to **iPhone 17 Pro**; override with `TOODALOO_SIM`,
 e.g. `TOODALOO_SIM="iPhone 15" client/scripts/dev.sh up`.
+
+## Two gates that keep the build reliable
+
+A silent regression (a bad babel plugin) once made the authenticated screen crash
+while `jest`, typecheck, and the native build were all green. Two gates guard against
+that class of failure — run them after non-trivial changes, and in CI:
+
+- **`dev.sh doctor`** (static) — `expo-doctor` + `expo install --check`. Catches
+  dependency rot (unused/duplicate native modules), config-plugin problems, and
+  packages that drift off the SDK's pinned set. Fast to run; no build needed.
+- **`dev.sh smoke`** (runtime) — the gate that actually catches render crashes.
+  Drives login → the authenticated map with **Maestro** (`.maestro/login-smoke.yaml`)
+  and asserts the seeded bathrooms render. The 6-digit OTP is minted mid-flow from the
+  local Supabase admin endpoint (`.maestro/gen-otp.js`), so it's deterministic. It sets
+  the sim GPS to NYC (where the seed data lives) automatically.
+  **One-time setup:** `openjdk@17` is already installed; install the Maestro CLI with
+  `curl -Ls https://get.maestro.mobile.dev | bash`. `dev.sh smoke` points JAVA_HOME at
+  openjdk@17 itself. Requires the dev client already built (`dev.sh ios`) and Metro up.
 
 ## How to run it (important for the agent)
 

@@ -1,0 +1,37 @@
+# Runtime smoke: prove the app builds AND renders the authenticated map with data.
+# Run via `./scripts/dev.sh smoke` (sets the sim's GPS to NYC + passes SERVICE_ROLE).
+#
+# It reconnects the dev client to Metro (clearState would make the dev client forget
+# the bundler URL), logs in only if needed, then asserts the seeded bathrooms render —
+# the exact screen the Reanimated crash blew up on.
+appId: com.jchau.toodaloo
+name: login-to-data smoke
+---
+- stopApp
+- openLink: "com.jchau.toodaloo://expo-development-client/?url=http%3A%2F%2Flocalhost%3A8081"
+# Fresh installs (e.g. CI) show a one-time iOS "Open in 'toodaloo'?" scheme prompt.
+- tapOn:
+    text: "Open"
+    optional: true
+- extendedWaitUntil:
+    visible:
+      text: "Log in|NEARBY|Welcome back"
+    timeout: 90000
+# Log in only when we're actually logged out (session persists across launches).
+- runFlow:
+    when:
+      visible:
+        text: "Log in"
+    file: login-steps.yaml
+# Fresh installs prompt for location; grant it so the map can fetch nearby bathrooms.
+- tapOn:
+    text: "Allow While Using App"
+    optional: true
+# The crash point: the authenticated map must render...
+- extendedWaitUntil:
+    visible:
+      text: "NEARBY"
+    timeout: 30000
+# ...and it must show real seeded data (GPS is set to NYC by dev.sh smoke).
+- assertVisible:
+    text: ".*(Bryant Park|Grand Central|Whole Foods|Starbucks|High Line).*"
