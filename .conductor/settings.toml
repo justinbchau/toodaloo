@@ -1,0 +1,25 @@
+#:schema https://conductor.build/schemas/settings.repo.schema.json
+
+# All app code lives in client/ (Expo SDK 55 bare workflow, npm).
+# client/.env holds EXPO_PUBLIC_SUPABASE_URL / _ANON_KEY and is gitignored,
+# so copy it into every new workspace.
+file_include_globs = "client/.env*"
+
+[scripts]
+setup = "cd client && npm install"
+# Free multi-GB generated artifacts when a workspace is archived.
+archive = "rm -rf client/node_modules client/ios/Pods client/.expo"
+run_mode = "concurrent"
+
+[scripts.run.dev]
+command = "cd client && npx expo start --dev-client --port $CONDUCTOR_PORT"
+default = true
+icon = "play"
+
+[scripts.run.ios]
+command = "cd client && npx expo run:ios --port $CONDUCTOR_PORT"
+icon = "smartphone"
+
+[scripts.run.test]
+command = "cd client && npm test"
+icon = "test-tube"
