@@ -17,10 +17,15 @@ type profileScreenProp = NativeStackNavigationProp<ProfileStackParamList>;
 export function Profile() {
   const navigation = useNavigation<profileScreenProp>();
   const { colors } = useThemeContext();
-  const { user, profile, signOut } = useUser();
+  const { user, profile, signOut, refreshProfile } = useUser();
   const isFocused = useIsFocused();
   const [stats, setStats] = useState({ saved: 0, reviews: 0, added: 0 });
   const [isLoadingStats, setIsLoadingStats] = useState(true);
+
+  useEffect(() => {
+    if (!isFocused || !user) return;
+    refreshProfile();
+  }, [isFocused, user?.id, refreshProfile]);
 
   useEffect(() => {
     if (!isFocused || !user) return;

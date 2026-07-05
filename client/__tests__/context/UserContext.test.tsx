@@ -12,6 +12,7 @@ import { mockUser, mockSession } from '../helpers/mocks';
 const mockGetSession = jest.fn();
 const mockOnAuthStateChange = jest.fn();
 const mockSignOut = jest.fn();
+const mockRpc = jest.fn();
 const mockUnsubscribe = jest.fn();
 
 jest.mock('../../lib/supabase', () => ({
@@ -21,6 +22,12 @@ jest.mock('../../lib/supabase', () => ({
       onAuthStateChange: (...args: any[]) => mockOnAuthStateChange(...args),
       signOut: (...args: any[]) => mockSignOut(...args),
     },
+    from: jest.fn(() => ({
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      maybeSingle: jest.fn().mockResolvedValue({ data: null, error: null }),
+    })),
+    rpc: (...args: any[]) => mockRpc(...args),
   },
 }));
 
@@ -48,6 +55,7 @@ beforeEach(() => {
     data: { subscription: { unsubscribe: mockUnsubscribe } },
   });
   mockSignOut.mockResolvedValue({ error: null });
+  mockRpc.mockResolvedValue({ error: null });
 });
 
 // ---------------------------------------------------------------------------
@@ -153,6 +161,53 @@ describe('UserContext — signOut', () => {
     });
 
     expect(mockSignOut).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('UserContext — deleteAccount', () => {
+  it('calls delete_own_account RPC then signOut on success', async () => {
+    mockGetSession.mockResolvedValue({ data: { session: mockSession }, error: null });
+
+    const { result } = renderHook(() => useUser(), { wrapper });
+    await waitFor(() => expect(result.current.user).toEqual(mockUser));
+
+    let deleteResult: { error: string | null } | undefined;
+    await act(async () => {
+      deleteResult = await result.current.deleteAccount();
+    });
+
+    expect(deleteResult?.error).toBeNull();
+    expect(mockRpc).toHaveBeenCalledWith('delete_own_account');
+    expect(mockSignOut).toHaveBeenCalledTimes(1);
+  });
+
+  it('returns an error and does not sign out when the RPC fails', async () => {
+    mockGetSession.mockResolvedValue({ data: { session: mockSession }, error: null });
+    mockRpc.mockResolvedValue({ error: { message: 'permission denied' } });
+
+    const { result } = renderHook(() => useUser(), { wrapper });
+    await waitFor(() => expect(result.current.user).toEqual(mockUser));
+
+    let deleteResult: { error: string | null } | undefined;
+    await act(async () => {
+      deleteResult = await result.current.deleteAccount();
+    });
+
+    expect(deleteResult?.error).toBe('Could not delete your account. Please try again.');
+    expect(mockSignOut).not.toHaveBeenCalled();
+  });
+
+  it('returns an error when not signed in', async () => {
+    const { result } = renderHook(() => useUser(), { wrapper });
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    let deleteResult: { error: string | null } | undefined;
+    await act(async () => {
+      deleteResult = await result.current.deleteAccount();
+    });
+
+    expect(deleteResult?.error).toBe('You must be signed in.');
+    expect(mockRpc).not.toHaveBeenCalled();
   });
 });
 
