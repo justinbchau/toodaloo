@@ -1,6 +1,6 @@
-import React, { useContext, useEffect, useRef, useState } from 'react';
+import React, { useContext, useCallback, useEffect, useRef, useState } from 'react';
 import { StyleSheet, View, Text, Pressable, Linking } from 'react-native';
-import MapView, { Marker } from 'react-native-maps';
+import MapView, { Marker, Region } from 'react-native-maps';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { ACCESS_ICON, DEFAULT_ACCESS_ICON } from '../lib/accessIcons';
 import * as Location from 'expo-location';
@@ -11,16 +11,34 @@ import LottieView from 'lottie-react-native';
 import LocationSearch from '../components/LocationSearch';
 import { BathroomSheet } from '../components/BathroomSheet';
 import { BathroomCardData } from '../components/BathroomCard';
+import { Chip } from '../components/ui/Chip';
 import { useThemeContext } from '../context/ThemeContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '../lib/supabase';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { RootStackParamList, MainTabParamList } from '../RootStackParams';
 import { LocationCtx } from '../context/context';
+import { haversine } from '../utils/geo';
 
 type LocationStatus = 'requesting' | 'denied' | 'granted';
 type MapNavProp = NativeStackNavigationProp<RootStackParamList>;
 type TabNavProp = BottomTabNavigationProp<MainTabParamList>;
+
+type MapBathroom = BathroomCardData & {
+    accessType: string | null;
+    is24: boolean;
+};
+
+const ACCESS_FILTERS: { label: string; value: string }[] = [
+    { label: 'Public', value: 'public' },
+    { label: 'Key Required', value: 'key_required' },
+    { label: 'Purchase Required', value: 'purchase_required' },
+];
+
+const DEFAULT_RADIUS_KM = 5.0;
+// How far the user must pan (km) before the "Search this area" button appears.
+const SEARCH_HERE_THRESHOLD_KM = 1.0;
+const MILES_TO_KM = 1.60934;
 
 const formatDistance = (km: number): string => {
     const miles = km * 0.621371;
@@ -28,12 +46,47 @@ const formatDistance = (km: number): string => {
     return `${miles.toFixed(1)} mi away`;
 };
 
+const transformBathroom = (b: any): MapBathroom => ({
+    id: b.id,
+    name: b.name,
+    icon: ACCESS_ICON[b.access_type] ?? DEFAULT_ACCESS_ICON,
+    sub: b.access_type == null
+        ? (b.address ?? 'Nearby')
+        : b.access_type === 'public'
+            ? `Public${b.is_24_hours ? ' · Open 24h' : ''}`
+            : b.access_type === 'key_required'
+                ? 'Key Required'
+                : 'Purchase Required',
+    rating: Math.round(Number(b.rating_avg) || 0),
+    score: (Number(b.rating_avg) || 0).toFixed(1),
+    reviewCount: `(${b.review_count ?? 0})`,
+    distance: b.distance_km != null ? formatDistance(b.distance_km) : 'Nearby',
+    lat: b.lat,
+    lng: b.lng,
+    accessType: b.access_type ?? null,
+    is24: !!b.is_24_hours,
+});
+
+// Approximate the visible radius (km) from the region's latitude span.
+const radiusFromRegion = (region: Region): number => {
+    const km = (region.latitudeDelta * 111) / 2;
+    return Math.min(40, Math.max(1, km));
+};
+
 export function Map() {
     const [locationStatus, setLocationStatus] = useState<LocationStatus>('requesting');
     const [location, setLocalLocation] = useState<LocationObject | null>(null);
-    const [bathrooms, setBathrooms] = useState<BathroomCardData[]>([]);
+    const [bathrooms, setBathrooms] = useState<MapBathroom[]>([]);
     const [isFetchingBathrooms, setIsFetchingBathrooms] = useState(false);
+    const [fetchError, setFetchError] = useState(false);
+    const [showSearchHere, setShowSearchHere] = useState(false);
+    const [showFilters, setShowFilters] = useState(false);
+    const [accessFilter, setAccessFilter] = useState<string | null>(null);
+    const [open24Filter, setOpen24Filter] = useState(false);
+
     const mapRef = useRef<MapView>(null);
+    const currentRegion = useRef<Region | null>(null);
+    const lastFetchedCenter = useRef<{ lat: number; lng: number } | null>(null);
 
     const navigation = useNavigation<MapNavProp>();
     const tabNavigation = useNavigation<TabNavProp>();
@@ -45,6 +98,29 @@ export function Map() {
         setLocalLocation(loc);
         setCtxLocation(loc);
     };
+
+    const fetchBathrooms = useCallback(async (lat: number, lng: number, radiusKm: number) => {
+        setIsFetchingBathrooms(true);
+        setFetchError(false);
+        try {
+            const { data, error } = await supabase.rpc('bathrooms_nearby', {
+                user_lat: lat,
+                user_lng: lng,
+                radius_km: radiusKm,
+            });
+
+            if (error) throw error;
+
+            setBathrooms((data ?? []).map(transformBathroom));
+            lastFetchedCenter.current = { lat, lng };
+            setShowSearchHere(false);
+        } catch (err) {
+            console.error('Failed to fetch bathrooms:', err);
+            setFetchError(true);
+        } finally {
+            setIsFetchingBathrooms(false);
+        }
+    }, []);
 
     // Location permission + acquisition
     useEffect(() => {
@@ -64,50 +140,46 @@ export function Map() {
         })();
     }, []);
 
-    // Fetch bathrooms when location is acquired
+    // Initial fetch once location is acquired
     useEffect(() => {
         if (!location) return;
+        fetchBathrooms(location.coords.latitude, location.coords.longitude, DEFAULT_RADIUS_KM);
+    }, [location, fetchBathrooms]);
 
-        const fetchBathrooms = async () => {
-            setIsFetchingBathrooms(true);
-            try {
-                const { data, error } = await supabase.rpc('bathrooms_nearby', {
-                    user_lat: location.coords.latitude,
-                    user_lng: location.coords.longitude,
-                    radius_km: 5.0,
-                });
+    const onRegionChangeComplete = useCallback((region: Region) => {
+        currentRegion.current = region;
+        const center = lastFetchedCenter.current;
+        if (!center) return;
+        const movedKm =
+            haversine(center.lat, center.lng, region.latitude, region.longitude) * MILES_TO_KM;
+        if (movedKm > SEARCH_HERE_THRESHOLD_KM) {
+            setShowSearchHere(true);
+        }
+    }, []);
 
-                if (error) throw error;
+    const searchThisArea = () => {
+        const region = currentRegion.current;
+        if (!region) return;
+        fetchBathrooms(region.latitude, region.longitude, radiusFromRegion(region));
+    };
 
-                const transformed: BathroomCardData[] = (data ?? []).map((b: any) => ({
-                    id: b.id,
-                    name: b.name,
-                    icon: ACCESS_ICON[b.access_type] ?? DEFAULT_ACCESS_ICON,
-                    sub: b.access_type == null
-                        ? (b.address ?? 'Nearby')
-                        : b.access_type === 'public'
-                            ? `Public${b.is_24_hours ? ' · Open 24h' : ''}`
-                            : b.access_type === 'key_required'
-                                ? 'Key Required'
-                                : 'Purchase Required',
-                    rating: Math.round(Number(b.rating_avg) || 0),
-                    score: (Number(b.rating_avg) || 0).toFixed(1),
-                    reviewCount: `(${b.review_count ?? 0})`,
-                    distance: b.distance_km != null ? formatDistance(b.distance_km) : 'Nearby',
-                    lat: b.lat,
-                    lng: b.lng,
-                }));
+    const retryFetch = () => {
+        const center = lastFetchedCenter.current;
+        const region = currentRegion.current;
+        if (center) {
+            fetchBathrooms(center.lat, center.lng, region ? radiusFromRegion(region) : DEFAULT_RADIUS_KM);
+        } else if (location) {
+            fetchBathrooms(location.coords.latitude, location.coords.longitude, DEFAULT_RADIUS_KM);
+        }
+    };
 
-                setBathrooms(transformed);
-            } catch (err) {
-                console.error('Failed to fetch bathrooms:', err);
-            } finally {
-                setIsFetchingBathrooms(false);
-            }
-        };
+    const activeFilterCount = (accessFilter ? 1 : 0) + (open24Filter ? 1 : 0);
 
-        fetchBathrooms();
-    }, [location]);
+    const visibleBathrooms = bathrooms.filter((b) => {
+        if (accessFilter && b.accessType !== accessFilter) return false;
+        if (open24Filter && !b.is24) return false;
+        return true;
+    });
 
     // --- Requesting state: spinner ---
     if (locationStatus === 'requesting') {
@@ -186,10 +258,11 @@ export function Map() {
                     latitudeDelta: 0.0922,
                     longitudeDelta: 0.0421,
                 }}
+                onRegionChangeComplete={onRegionChangeComplete}
                 showsUserLocation
                 style={StyleSheet.absoluteFill}
             >
-                {bathrooms.map((b) => (
+                {visibleBathrooms.map((b) => (
                     <Marker
                         key={b.id}
                         coordinate={{ latitude: b.lat, longitude: b.lng }}
@@ -224,17 +297,20 @@ export function Map() {
             ]}>
                 <View style={styles.topBarInner}>
                     <LocationSearch />
-                    <Pressable style={({ pressed }: { pressed: boolean }) => ({
-                        width: 42,
-                        height: 42,
-                        backgroundColor: colors.surface2,
-                        borderWidth: 1,
-                        borderColor: colors.borderMed,
-                        borderRadius: 12,
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        opacity: pressed ? 0.7 : 1,
-                    })}>
+                    <Pressable
+                        onPress={() => setShowFilters((v) => !v)}
+                        style={({ pressed }: { pressed: boolean }) => ({
+                            width: 42,
+                            height: 42,
+                            backgroundColor: showFilters || activeFilterCount > 0 ? colors.purple : colors.surface2,
+                            borderWidth: 1,
+                            borderColor: showFilters || activeFilterCount > 0 ? colors.purple : colors.borderMed,
+                            borderRadius: 12,
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            opacity: pressed ? 0.7 : 1,
+                        })}
+                    >
                         <View style={{ gap: 3.5, width: 16 }}>
                             {[1, 2, 3].map((_, i) => (
                                 <View
@@ -242,15 +318,132 @@ export function Map() {
                                     style={{
                                         height: 1.5,
                                         width: i === 2 ? '65%' : '100%',
-                                        backgroundColor: colors.text2,
+                                        backgroundColor: showFilters || activeFilterCount > 0 ? '#fff' : colors.text2,
                                         borderRadius: 1,
                                     }}
                                 />
                             ))}
                         </View>
+                        {activeFilterCount > 0 && !showFilters && (
+                            <View style={{
+                                position: 'absolute', top: -4, right: -4,
+                                minWidth: 16, height: 16, borderRadius: 8,
+                                backgroundColor: colors.red,
+                                alignItems: 'center', justifyContent: 'center',
+                                paddingHorizontal: 3,
+                            }}>
+                                <Text style={{ color: '#fff', fontSize: 10, fontFamily: 'PlusJakartaSans_700Bold' }}>
+                                    {activeFilterCount}
+                                </Text>
+                            </View>
+                        )}
                     </Pressable>
                 </View>
+
+                {/* Filter panel */}
+                {showFilters && (
+                    <View style={{
+                        marginTop: 10,
+                        backgroundColor: colors.surface1,
+                        borderRadius: 14,
+                        borderWidth: 1,
+                        borderColor: colors.borderMed,
+                        padding: 12,
+                        gap: 10,
+                    }}>
+                        <Text style={{ fontSize: 11, fontFamily: 'PlusJakartaSans_700Bold', letterSpacing: 0.8, color: colors.text2 }}>
+                            ACCESS TYPE
+                        </Text>
+                        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                            {ACCESS_FILTERS.map((opt) => (
+                                <Chip
+                                    key={opt.value}
+                                    label={opt.label}
+                                    active={accessFilter === opt.value}
+                                    onPress={() =>
+                                        setAccessFilter((prev) => (prev === opt.value ? null : opt.value))
+                                    }
+                                />
+                            ))}
+                        </View>
+                        <Pressable
+                            onPress={() => setOpen24Filter((v) => !v)}
+                            style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 2 }}
+                        >
+                            <Text style={{ fontSize: 13, fontFamily: 'PlusJakartaSans_500Medium', color: colors.text1 }}>
+                                Open 24 hours only
+                            </Text>
+                            <View style={{
+                                width: 22, height: 22, borderRadius: 6,
+                                borderWidth: 1.5,
+                                borderColor: open24Filter ? colors.purple : colors.borderMed,
+                                backgroundColor: open24Filter ? colors.purple : 'transparent',
+                                alignItems: 'center', justifyContent: 'center',
+                            }}>
+                                {open24Filter && <Text style={{ color: '#fff', fontSize: 13 }}>✓</Text>}
+                            </View>
+                        </Pressable>
+                        {activeFilterCount > 0 && (
+                            <Pressable onPress={() => { setAccessFilter(null); setOpen24Filter(false); }}>
+                                <Text style={{ fontSize: 12, fontFamily: 'PlusJakartaSans_600SemiBold', color: colors.purpleText, marginTop: 2 }}>
+                                    Clear filters
+                                </Text>
+                            </Pressable>
+                        )}
+                    </View>
+                )}
             </View>
+
+            {/* Search this area button */}
+            {showSearchHere && !isFetchingBathrooms && (
+                <View style={{ position: 'absolute', top: insets.top + 64, left: 0, right: 0, alignItems: 'center', zIndex: 999 }}>
+                    <Pressable
+                        onPress={searchThisArea}
+                        style={({ pressed }: { pressed: boolean }) => ({
+                            backgroundColor: colors.purple,
+                            borderRadius: 20,
+                            paddingHorizontal: 18,
+                            paddingVertical: 10,
+                            flexDirection: 'row', alignItems: 'center', gap: 6,
+                            shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
+                            shadowOpacity: 0.2, shadowRadius: 6, elevation: 6,
+                            opacity: pressed ? 0.85 : 1,
+                        })}
+                    >
+                        <Text style={{ color: '#fff', fontSize: 13, fontFamily: 'PlusJakartaSans_700Bold' }}>
+                            ⟳ Search this area
+                        </Text>
+                    </Pressable>
+                </View>
+            )}
+
+            {/* Error banner + retry */}
+            {fetchError && (
+                <View style={{ position: 'absolute', top: insets.top + 64, left: 16, right: 16, alignItems: 'center', zIndex: 999 }}>
+                    <View style={{
+                        backgroundColor: colors.surface1,
+                        borderColor: colors.red,
+                        borderWidth: 1,
+                        borderRadius: 14,
+                        paddingHorizontal: 16, paddingVertical: 12,
+                        flexDirection: 'row', alignItems: 'center', gap: 12,
+                        maxWidth: 360,
+                    }}>
+                        <Text style={{ flex: 1, color: colors.text1, fontSize: 13, fontFamily: 'PlusJakartaSans_500Medium' }}>
+                            Couldn't load nearby bathrooms.
+                        </Text>
+                        <Pressable
+                            onPress={retryFetch}
+                            style={({ pressed }: { pressed: boolean }) => ({
+                                backgroundColor: colors.purple, borderRadius: 10,
+                                paddingHorizontal: 14, paddingVertical: 8, opacity: pressed ? 0.85 : 1,
+                            })}
+                        >
+                            <Text style={{ color: '#fff', fontSize: 13, fontFamily: 'PlusJakartaSans_700Bold' }}>Retry</Text>
+                        </Pressable>
+                    </View>
+                </View>
+            )}
 
             {/* FABs — absolute, right 14, bottom 260 */}
             <View style={styles.fabContainer}>
@@ -298,10 +491,10 @@ export function Map() {
 
             {/* BATHROOM SHEET */}
             <BathroomSheet
-                bathrooms={bathrooms}
+                bathrooms={visibleBathrooms}
                 isLoading={isFetchingBathrooms}
                 onCardPress={(id) => {
-                    const b = bathrooms.find(x => x.id === id);
+                    const b = visibleBathrooms.find(x => x.id === id);
                     if (b) navigation.navigate('BathroomDetail', { id: b.id, name: b.name, lat: b.lat, lng: b.lng });
                 }}
             />

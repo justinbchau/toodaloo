@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, RefreshControl, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, Text, RefreshControl, ActivityIndicator, StyleSheet, Pressable } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -24,6 +24,7 @@ export function Saved() {
   const [bathrooms, setBathrooms] = useState<BathroomCardData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [hasError, setHasError] = useState(false);
 
   const keyExtractor = useCallback((item: BathroomCardData) => item.id, []);
 
@@ -47,11 +48,14 @@ export function Saved() {
   const fetchSaved = async () => {
     if (!user) return;
     try {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('saved_bathrooms')
         .select('bathrooms(*)')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setHasError(false);
 
       const transformed: BathroomCardData[] = (data ?? [])
         .map((row: any) => row.bathrooms)
@@ -77,6 +81,7 @@ export function Saved() {
       setBathrooms(transformed);
     } catch (err) {
       console.error('Failed to fetch saved bathrooms:', err);
+      setHasError(true);
     }
   };
 
@@ -101,6 +106,42 @@ export function Saved() {
           </Text>
         </View>
         <ActivityIndicator color={colors.purple} style={{ marginTop: 40 }} />
+      </SafeAreaView>
+    );
+  }
+
+  // Error state
+  if (hasError) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
+        <View style={{ padding: 24 }}>
+          <Text style={{ fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 28, color: colors.text1 }}>
+            Saved
+          </Text>
+        </View>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 32 }}>
+          <Text style={{ fontSize: 44 }}>⚠️</Text>
+          <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 16, color: colors.text1, marginTop: 12, textAlign: 'center' }}>
+            Couldn't load your saved places
+          </Text>
+          <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 13, color: colors.text3, marginTop: 4, textAlign: 'center' }}>
+            Check your connection and try again.
+          </Text>
+          <Pressable
+            onPress={async () => {
+              setIsLoading(true);
+              await fetchSaved();
+              setIsLoading(false);
+            }}
+            style={({ pressed }: { pressed: boolean }) => ({
+              marginTop: 20, backgroundColor: colors.purple,
+              borderRadius: 12, paddingHorizontal: 24, paddingVertical: 12,
+              opacity: pressed ? 0.85 : 1,
+            })}
+          >
+            <Text style={{ color: '#fff', fontFamily: 'PlusJakartaSans_700Bold', fontSize: 14 }}>Retry</Text>
+          </Pressable>
+        </View>
       </SafeAreaView>
     );
   }
