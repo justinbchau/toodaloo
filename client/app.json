@@ -54,7 +54,8 @@
         {
           "fonts": []
         }
-      ]
+      ],
+      "expo-secure-store"
     ],
     "extra": {
       "eas": {
