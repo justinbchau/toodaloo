@@ -1,0 +1,25 @@
+# Email-OTP login against the LOCAL Supabase stack.
+# The 6-digit code is minted mid-flow via the admin generate_link endpoint AFTER the
+# app sends its own OTP, so the admin code is the latest valid one (see gen-otp.js).
+appId: com.jchau.toodaloo
+---
+- tapOn:
+    text: "Log in"
+- assertVisible:
+    text: "Welcome back"
+- tapOn:
+    id: "login-email"
+- inputText: "tester@example.com"
+- tapOn:
+    id: "send-code"
+- extendedWaitUntil:
+    visible:
+      text: "Verification"
+    timeout: 20000
+- runScript:
+    file: gen-otp.js
+- tapOn:
+    id: "otp-code"
+- inputText: "${output.otp}"
+- tapOn:
+    id: "verify-otp"

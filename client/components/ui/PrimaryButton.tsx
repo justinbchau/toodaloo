@@ -7,12 +7,14 @@ interface Props {
   onPress: () => void;
   style?: ViewStyle;
   disabled?: boolean;
+  testID?: string;
 }
 
-export function PrimaryButton({ title, onPress, style, disabled }: Props) {
+export function PrimaryButton({ title, onPress, style, disabled, testID }: Props) {
   const { colors } = useThemeContext();
   return (
     <Pressable
+      testID={testID}
       onPress={onPress}
       disabled={disabled}
       style={({ pressed }: { pressed: boolean }) => [styles.btn, { backgroundColor: colors.purple, shadowColor: colors.purpleGlow, opacity: disabled ? 0.5 : pressed ? 0.85 : 1 }, style]}
