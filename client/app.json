@@ -39,7 +39,13 @@
           "fonts": []
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Allow toodaloo to use your location to find bathrooms near you."
+        }
+      ]
     ],
     "extra": {
       "eas": {
