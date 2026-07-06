@@ -22,11 +22,7 @@
   },
   "submit": {
     "production": {
-      "ios": {
-        "ascApiKeyPath": "./credentials/AuthKey_T995NGPN62.p8",
-        "ascApiKeyId": "T995NGPN62",
-        "ascApiKeyIssuerId": "d8f11d85-b743-4a4f-87ba-ba75f40a1820"
-      }
+      "ios": {}
     }
   }
 }

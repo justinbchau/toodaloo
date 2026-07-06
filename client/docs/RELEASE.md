@@ -33,9 +33,9 @@ eas workflow:run production-release.yml
 ```
 
 This runs the two-stage workflow (`.eas/workflows/production-release.yml`):
-`build_ios` (profile `production`) → `submit_ios` (profile `production`). No
-Apple prompts — signing is EAS-managed and submission uses the App Store Connect
-API key.
+`build_ios` → `submit_ios` (TestFlight). Once credentials are bootstrapped (see
+First-run notes), there are no Apple prompts — signing is EAS-managed and the
+TestFlight submit uses the stored App Store Connect API key.
 
 Prefer to drive the stages by hand?
 
@@ -89,21 +89,37 @@ Rule of thumb: **native change → bump `runtimeVersion` AND cut a new binary.**
 - **EAS project:** `@jchau/toodaloo` (`extra.eas.projectId` in `app.json`).
 - **GitHub:** repo connected to the Expo project (required for cloud builds).
 - **Env vars:** `EXPO_PUBLIC_SUPABASE_URL` / `EXPO_PUBLIC_SUPABASE_ANON_KEY` are
-  stored as **EAS project secrets** and injected at build time — production does
-  **not** read a local `.env`. Update them with `eas secret:create --force`.
-  (These are the publishable anon URL/key, safe to ship; never the
-  `service_role` key.)
-- **iOS signing:** EAS-managed (remote credentials). Generated on first build.
-- **App Store Connect API key:** the `.p8` lives at
-  `client/credentials/` (gitignored by `*.p8`, never committed). Its Key ID and
-  Issuer ID are referenced in `eas.json` → `submit.production.ios`. The first
-  `eas submit` uploads the key to EAS and, if the app record doesn't exist yet,
-  creates it in App Store Connect automatically.
+  stored as **EAS environment variables** (plaintext, in the `production` and
+  `preview` environments) and injected at build time — production does **not**
+  read a local `.env`. Update them with
+  `eas env:create --environment production --force`. (These are the publishable
+  anon URL/key, safe to ship; never the `service_role` key.)
+- **iOS signing:** EAS-managed (remote credentials). Generated on first setup.
+- **App Store Connect API key:** the `.p8` lives at `client/credentials/`
+  (gitignored by `*.p8`, never committed). To keep this **public** repo free of
+  credential identifiers, the Key ID / Issuer ID are deliberately **not** in
+  `eas.json` — the key is registered once, server-side, via
+  `eas credentials --platform ios` (production → *App Store Connect: Manage your
+  API Key*). After that, every `eas submit` / the `testflight` workflow job uses
+  the stored key non-interactively, and the first submit creates the ASC app
+  record if it doesn't exist yet.
 
-## First-run notes
+## First-run notes (one-time credential bootstrap)
 
-- The **first** production build triggers EAS to generate the iOS Distribution
-  Certificate + Provisioning Profile. With the ASC API key in place this is
-  non-interactive; if Apple ever prompts for 2FA, approve it once.
-- The **first** `eas update --channel production` creates the `production`
-  update branch and links the channel to it.
+- iOS signing + submit credentials are set up **once, interactively**:
+  `eas credentials --platform ios` → select `production` → generate the
+  Distribution Certificate + Provisioning Profile, and set up the App Store
+  Connect API Key. EAS deliberately won't mint the *first* Distribution
+  Certificate in non-interactive mode (an Apple-safety guardrail against
+  burning the 2-cert limit), so this step needs a terminal. After it, all
+  builds/submits/updates run non-interactively (CLI, workflow, or MCP).
+- The `production` EAS Update channel + branch are already created (during
+  pipeline setup); the first `eas update --channel production` publishes to it.
+
+## Security follow-ups (before public release)
+
+- **EAS Update code signing is not yet configured.** Without it, a compromised
+  update channel or Expo account could push unsigned JS to installed apps.
+  Acceptable for internal TestFlight; set up before a public App Store release:
+  `npx expo-updates codesigning:generate` + `codesigning:configure`, then ship a
+  new binary embedding the public key.
