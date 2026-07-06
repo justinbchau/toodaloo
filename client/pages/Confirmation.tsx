@@ -89,7 +89,7 @@ export function Confirmation({ route, navigation }: Props) {
                 type: 'email',
             });
             if (error) {
-                setAuthError(error.message);
+                setAuthError(friendlyAuthError(error));
                 return;
             }
             // Session created → UserContext fires onAuthStateChange(SIGNED_IN)

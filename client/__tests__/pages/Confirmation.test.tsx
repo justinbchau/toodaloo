@@ -151,3 +151,33 @@ describe('Confirmation — resend rate limiting', () => {
     });
   });
 });
+
+// ---------------------------------------------------------------------------
+// Verify rate-limit messaging — the verifyOtp error path must go through the
+// same friendlyAuthError mapping as resend/Login/SignUp.
+// ---------------------------------------------------------------------------
+describe('Confirmation — verify rate limiting', () => {
+  it('shows the friendly message when verifyOtp returns a 429', async () => {
+    mockVerifyOtp.mockResolvedValueOnce({ error: { status: 429, message: 'Too Many Requests' } });
+
+    renderConfirmation('user@example.com');
+    await submitCode('123456');
+
+    await waitFor(() => {
+      expect(
+        screen.getByText("You're requesting codes too quickly. Please wait a bit and try again."),
+      ).toBeTruthy();
+    });
+  });
+
+  it('shows the raw error message for a non-rate-limit verify error', async () => {
+    mockVerifyOtp.mockResolvedValueOnce({ error: { status: 403, message: 'Token has expired' } });
+
+    renderConfirmation('user@example.com');
+    await submitCode('123456');
+
+    await waitFor(() => {
+      expect(screen.getByText('Token has expired')).toBeTruthy();
+    });
+  });
+});
