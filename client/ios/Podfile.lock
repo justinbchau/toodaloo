@@ -2245,8 +2245,6 @@ PODS:
     - ReactCommon/turbomodule/core
     - ReactNativeDependencies
     - Yoga
-  - RNVectorIcons (9.0.0):
-    - React-Core
   - RNWorklets (0.7.4):
     - hermes-engine
     - RCTRequired
@@ -2422,7 +2420,6 @@ DEPENDENCIES:
   - RNReanimated (from `../node_modules/react-native-reanimated`)
   - RNScreens (from `../node_modules/react-native-screens`)
   - RNSVG (from `../node_modules/react-native-svg`)
-  - RNVectorIcons (from `../node_modules/react-native-vector-icons`)
   - RNWorklets (from `../node_modules/react-native-worklets`)
   - Yoga (from `../node_modules/react-native/ReactCommon/yoga`)
 
@@ -2633,8 +2630,6 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native-screens"
   RNSVG:
     :path: "../node_modules/react-native-svg"
-  RNVectorIcons:
-    :path: "../node_modules/react-native-vector-icons"
   RNWorklets:
     :path: "../node_modules/react-native-worklets"
   Yoga:
@@ -2743,7 +2738,6 @@ SPEC CHECKSUMS:
   RNReanimated: 0de2f2ee429ff5e566104e177a69f58e9216668a
   RNScreens: fb11b7412bcbdc0ffafcaf9174938d998d4e2bc4
   RNSVG: b5bd4454de003a99d3130a3c6a1b1c949c89d37d
-  RNVectorIcons: 4143ba35feebab8fdbe6bc43d1e776b393d47ac8
   RNWorklets: 84d0520f6c93ba83081931e23726fd0270aebe3f
   Yoga: e41d64347f52d634dd8c2f6bac33f95081959fd3
 
