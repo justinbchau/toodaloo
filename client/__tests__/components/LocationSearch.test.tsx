@@ -127,3 +127,22 @@ describe('LocationSearch — clear / reset', () => {
     expect(onReset).not.toHaveBeenCalled();
   });
 });
+
+describe('LocationSearch — external reset (resetSignal)', () => {
+  it('clears the box when resetSignal changes, without calling onReset', async () => {
+    const onReset = jest.fn();
+    const { rerender } = render(
+      <LocationSearch onLocationSelected={jest.fn()} onReset={onReset} resetSignal={0} />,
+    );
+    submit('Union Square NYC');
+    await waitFor(() => expect(screen.getByLabelText('Clear search')).toBeTruthy());
+
+    // Parent bumps the signal (e.g. the ◎ recenter FAB reset). The box should clear,
+    // but onReset must NOT fire — the parent already handled the map reset.
+    rerender(<LocationSearch onLocationSelected={jest.fn()} onReset={onReset} resetSignal={1} />);
+
+    expect(screen.getByPlaceholderText('Search location').props.value).toBe('');
+    expect(screen.queryByLabelText('Clear search')).toBeNull();
+    expect(onReset).not.toHaveBeenCalled();
+  });
+});

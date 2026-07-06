@@ -83,6 +83,9 @@ export function Map() {
     const [showFilters, setShowFilters] = useState(false);
     const [accessFilter, setAccessFilter] = useState<string | null>(null);
     const [open24Filter, setOpen24Filter] = useState(false);
+    // Bumped to tell LocationSearch to clear its query/✕ when the map is reset from
+    // outside the search box (e.g. the ◎ recenter FAB).
+    const [searchResetSignal, setSearchResetSignal] = useState(0);
 
     const mapRef = useRef<MapView>(null);
     const currentRegion = useRef<Region | null>(null);
@@ -204,6 +207,15 @@ export function Map() {
         setCenter({ lat: latitude, lng: longitude });
         fetchBathrooms(latitude, longitude, DEFAULT_RADIUS_KM);
     }, [location, fetchBathrooms, setCenter]);
+
+    // The ◎ recenter FAB: run the same reset the search's ✕ does (recenter + refetch
+    // + restore the GPS anchor) AND clear any active search in the box, so pressing
+    // it after a search can't leave the camera on GPS while the list/anchor/✕ stay
+    // pointed at the searched location.
+    const recenterToGps = useCallback(() => {
+        onResetLocation();
+        setSearchResetSignal((n) => n + 1);
+    }, [onResetLocation]);
 
     const activeFilterCount = (accessFilter ? 1 : 0) + (open24Filter ? 1 : 0);
 
@@ -328,7 +340,7 @@ export function Map() {
                 },
             ]}>
                 <View style={styles.topBarInner}>
-                    <LocationSearch onLocationSelected={onSearchLocation} onReset={onResetLocation} />
+                    <LocationSearch onLocationSelected={onSearchLocation} onReset={onResetLocation} resetSignal={searchResetSignal} />
                     <Pressable
                         onPress={() => setShowFilters((v) => !v)}
                         style={({ pressed }: { pressed: boolean }) => ({
@@ -506,16 +518,7 @@ export function Map() {
                             opacity: pressed ? 0.85 : 1,
                         },
                     ]}
-                    onPress={() => {
-                        if (location) {
-                            mapRef.current?.animateToRegion({
-                                latitude: location.coords.latitude,
-                                longitude: location.coords.longitude,
-                                latitudeDelta: 0.01,
-                                longitudeDelta: 0.01,
-                            }, 500);
-                        }
-                    }}
+                    onPress={recenterToGps}
                 >
                     <Text style={[styles.fabLocText, { color: colors.text2 }]}>◎</Text>
                 </Pressable>

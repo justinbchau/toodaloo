@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, Text, TextInput, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
@@ -14,9 +14,12 @@ type LocationSearchProps = {
     onLocationSelected: (lat: number, lng: number) => void;
     // Called when the user clears an active search to return to their GPS location.
     onReset: () => void;
+    // Bumped by the parent to clear the box when the map is reset from elsewhere
+    // (e.g. the ◎ recenter FAB), keeping the search UI in sync with the map.
+    resetSignal?: number;
 };
 
-export default function LocationSearch({ onLocationSelected, onReset }: LocationSearchProps) {
+export default function LocationSearch({ onLocationSelected, onReset, resetSignal }: LocationSearchProps) {
     const { colors } = useThemeContext();
     const [value, setValue] = useState('');
     const [searching, setSearching] = useState(false);
@@ -24,6 +27,21 @@ export default function LocationSearch({ onLocationSelected, onReset }: Location
     // True once a search has recentered the map, so the clear (✕) affordance keeps
     // showing even after the query is submitted — its press returns the user to GPS.
     const [hasActiveSearch, setHasActiveSearch] = useState(false);
+
+    // Clear the box when the parent bumps resetSignal (e.g. the ◎ recenter FAB
+    // resets the map). The parent already handled the map reset — this only syncs
+    // the local UI, so it must NOT call onReset (that would double-reset/refetch).
+    // Skip the initial mount value so it fires only on an actual bump.
+    const isFirstResetSignal = useRef(true);
+    useEffect(() => {
+        if (isFirstResetSignal.current) {
+            isFirstResetSignal.current = false;
+            return;
+        }
+        setValue('');
+        setMessage(null);
+        setHasActiveSearch(false);
+    }, [resetSignal]);
 
     const handleSubmit = async () => {
         const query = value.trim();
