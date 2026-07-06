@@ -1,6 +1,7 @@
 {
   "cli": {
-    "version": ">= 2.0.0"
+    "version": ">= 5.9.0",
+    "appVersionSource": "remote"
   },
   "build": {
     "development": {
@@ -9,15 +10,23 @@
     },
     "preview": {
       "distribution": "internal",
+      "channel": "preview",
       "ios": {
         "simulator": true
       }
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "channel": "production"
     }
   },
   "submit": {
-    "production": {}
+    "production": {
+      "ios": {
+        "ascApiKeyPath": "./credentials/AuthKey_T995NGPN62.p8",
+        "ascApiKeyId": "T995NGPN62",
+        "ascApiKeyIssuerId": "d8f11d85-b743-4a4f-87ba-ba75f40a1820"
+      }
+    }
   }
 }
