@@ -8,6 +8,7 @@ import { useNavigation } from '@react-navigation/native';
 import { useThemeContext } from '../context/ThemeContext';
 import { PrimaryButton } from '../components/ui/PrimaryButton';
 import { SecondaryButton } from '../components/ui/SecondaryButton';
+import { openLegal } from '../lib/legalUrl';
 
 type homeScreenProp = StackNavigationProp<RootStackParamList, 'ToodaLoo'>;
 
@@ -379,7 +380,7 @@ export function Home() {
         {'By continuing you agree to our '}
         <Text
           style={{ color: colors.purpleText }}
-          onPress={() => navigation.navigate('Legal')}
+          onPress={openLegal}
         >
           Terms & Privacy
         </Text>
