@@ -11,6 +11,7 @@ import { useThemeContext } from '../context/ThemeContext';
 import { PrimaryButton } from '../components/ui/PrimaryButton';
 import { FormInput } from '../components/ui/FormInput';
 import { supabase } from '../lib/supabase';
+import { friendlyAuthError } from '../lib/authErrors';
 
 type signUpScreenProp = NativeStackNavigationProp<AuthStackParamList>;
 
@@ -39,7 +40,7 @@ export function SignUp() {
                 email: values.email,
             });
             if (error) {
-                setAuthError(error.message);
+                setAuthError(friendlyAuthError(error));
                 return;
             }
             navigation.navigate('Confirmation', { email: values.email });
@@ -62,6 +63,7 @@ export function SignUp() {
                         name="email"
                         render={({ field: { onChange, onBlur, value }, fieldState: { error } }) => (
                             <FormInput
+                                testID="signup-email"
                                 label="Email"
                                 onChangeText={onChange}
                                 onBlur={onBlur}
@@ -81,6 +83,7 @@ export function SignUp() {
                 )}
 
                 <PrimaryButton
+                    testID="signup-send"
                     title="Send OTP →"
                     onPress={handleSubmit(onSubmit)}
                     style={styles.button}

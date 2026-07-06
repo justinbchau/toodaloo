@@ -11,6 +11,8 @@ import { useThemeContext } from '../context/ThemeContext';
 import { PrimaryButton } from '../components/ui/PrimaryButton';
 import { FormInput } from '../components/ui/FormInput';
 import { supabase } from '../lib/supabase';
+import { friendlyAuthError } from '../lib/authErrors';
+import { useUser } from '../context/UserContext';
 
 type loginScreenProp = NativeStackNavigationProp<AuthStackParamList>;
 
@@ -23,6 +25,7 @@ type FormValues = z.infer<typeof schema>;
 export function Login() {
     const navigation = useNavigation<loginScreenProp>();
     const { colors } = useThemeContext();
+    const { sessionExpired, clearSessionExpired } = useUser();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [authError, setAuthError] = useState<string | null>(null);
 
@@ -34,12 +37,13 @@ export function Login() {
     const onSubmit = async (values: FormValues) => {
         setIsSubmitting(true);
         setAuthError(null);
+        clearSessionExpired();
         try {
             const { error } = await supabase.auth.signInWithOtp({
                 email: values.email,
             });
             if (error) {
-                setAuthError(error.message);
+                setAuthError(friendlyAuthError(error));
                 return;
             }
             navigation.navigate('Confirmation', { email: values.email });
@@ -55,6 +59,12 @@ export function Login() {
             <View style={styles.container}>
                 <Text style={[styles.title, { color: colors.text1 }]}>Welcome back</Text>
                 <Text style={[styles.subtitle, { color: colors.text2 }]}>Enter your email to receive a login code</Text>
+
+                {sessionExpired && (
+                    <Text testID="session-expired-notice" style={[styles.errorText, { color: colors.red }]}>
+                        Your session expired. Please sign in again.
+                    </Text>
+                )}
 
                 <View style={styles.fields}>
                     <Controller<FormValues>

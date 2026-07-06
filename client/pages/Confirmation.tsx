@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, Pressable } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Alert } from 'react-native';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -10,9 +10,10 @@ import { useThemeContext } from '../context/ThemeContext';
 import { PrimaryButton } from '../components/ui/PrimaryButton';
 import { FormInput } from '../components/ui/FormInput';
 import { supabase } from '../lib/supabase';
+import { friendlyAuthError } from '../lib/authErrors';
 
 const schema = z.object({
-    code: z.string().min(1, 'Code is required'),
+    code: z.string().regex(/^\d{6}$/, 'Enter the 6-digit code'),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -21,7 +22,7 @@ type Props = NativeStackScreenProps<AuthStackParamList, 'Confirmation'>;
 
 const RESEND_COOLDOWN_SECONDS = 30;
 
-export function Confirmation({ route }: Props) {
+export function Confirmation({ route, navigation }: Props) {
     const { colors } = useThemeContext();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [authError, setAuthError] = useState<string | null>(null);
@@ -52,6 +53,14 @@ export function Confirmation({ route }: Props) {
     };
 
     useEffect(() => {
+        if (!email) {
+            Alert.alert('Something went wrong', 'Please sign in again to continue.');
+            navigation.replace('Login');
+        }
+        // eslint-disable-next-line
+    }, []);
+
+    useEffect(() => {
         return () => {
             if (intervalRef.current) clearInterval(intervalRef.current);
         };
@@ -63,7 +72,7 @@ export function Confirmation({ route }: Props) {
         setResendNotice(null);
         const { error } = await supabase.auth.signInWithOtp({ email });
         if (error) {
-            setAuthError(error.message);
+            setAuthError(friendlyAuthError(error));
             return;
         }
         setResendNotice('A new code is on its way.');
@@ -80,7 +89,7 @@ export function Confirmation({ route }: Props) {
                 type: 'email',
             });
             if (error) {
-                setAuthError(error.message);
+                setAuthError(friendlyAuthError(error));
                 return;
             }
             // Session created → UserContext fires onAuthStateChange(SIGNED_IN)
@@ -91,6 +100,10 @@ export function Confirmation({ route }: Props) {
             setIsSubmitting(false);
         }
     };
+
+    if (!email) {
+        return null;
+    }
 
     return (
         <Page>
@@ -110,6 +123,8 @@ export function Confirmation({ route }: Props) {
                                 onBlur={onBlur}
                                 value={value}
                                 keyboardType="number-pad"
+                                maxLength={6}
+                                textContentType="oneTimeCode"
                                 error={error?.message}
                             />
                         )}
