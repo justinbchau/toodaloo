@@ -87,6 +87,10 @@ export function Map() {
     const mapRef = useRef<MapView>(null);
     const currentRegion = useRef<Region | null>(null);
     const lastFetchedCenter = useRef<{ lat: number; lng: number } | null>(null);
+    // The center of the most recent fetch *request* (set before the await), so a
+    // Retry after a failed fetch re-targets that center — not the last successful
+    // one. Without this, retrying a failed search reloads the previous location.
+    const lastRequestedCenter = useRef<{ lat: number; lng: number } | null>(null);
 
     const navigation = useNavigation<MapNavProp>();
     const tabNavigation = useNavigation<TabNavProp>();
@@ -100,6 +104,7 @@ export function Map() {
     };
 
     const fetchBathrooms = useCallback(async (lat: number, lng: number, radiusKm: number) => {
+        lastRequestedCenter.current = { lat, lng };
         setIsFetchingBathrooms(true);
         setFetchError(false);
         try {
@@ -164,7 +169,9 @@ export function Map() {
     };
 
     const retryFetch = () => {
-        const center = lastFetchedCenter.current;
+        // Prefer the requested center so retrying a failed search reloads that
+        // location, not the last one that happened to succeed.
+        const center = lastRequestedCenter.current ?? lastFetchedCenter.current;
         const region = currentRegion.current;
         if (center) {
             fetchBathrooms(center.lat, center.lng, region ? radiusFromRegion(region) : DEFAULT_RADIUS_KM);
@@ -172,6 +179,34 @@ export function Map() {
             fetchBathrooms(location.coords.latitude, location.coords.longitude, DEFAULT_RADIUS_KM);
         }
     };
+
+    const animateTo = (lat: number, lng: number) => {
+        mapRef.current?.animateToRegion(
+            { latitude: lat, longitude: lng, latitudeDelta: 0.0922, longitudeDelta: 0.0421 },
+            500
+        );
+    };
+
+    // LocationSearch geocoded a query: fly there, refetch around it, and point the
+    // shared LocationCtx anchor at the searched center so BathroomDetail's distances
+    // stay coherent. Local `location` stays the true GPS fix (the ◎ FAB + reset).
+    const onSearchLocation = useCallback((lat: number, lng: number) => {
+        animateTo(lat, lng);
+        setCtxLocation({
+            coords: { latitude: lat, longitude: lng, altitude: 0, accuracy: 0, altitudeAccuracy: 0, heading: 0, speed: 0 },
+            timestamp: Date.now(),
+        } as LocationObject);
+        fetchBathrooms(lat, lng, DEFAULT_RADIUS_KM);
+    }, [fetchBathrooms, setCtxLocation]);
+
+    // Clear affordance: return to the user's GPS location and restore its anchor.
+    const onResetLocation = useCallback(() => {
+        if (!location) return;
+        const { latitude, longitude } = location.coords;
+        animateTo(latitude, longitude);
+        setCtxLocation(location);
+        fetchBathrooms(latitude, longitude, DEFAULT_RADIUS_KM);
+    }, [location, fetchBathrooms, setCtxLocation]);
 
     const activeFilterCount = (accessFilter ? 1 : 0) + (open24Filter ? 1 : 0);
 
@@ -296,7 +331,7 @@ export function Map() {
                 },
             ]}>
                 <View style={styles.topBarInner}>
-                    <LocationSearch />
+                    <LocationSearch onLocationSelected={onSearchLocation} onReset={onResetLocation} />
                     <Pressable
                         onPress={() => setShowFilters((v) => !v)}
                         style={({ pressed }: { pressed: boolean }) => ({
