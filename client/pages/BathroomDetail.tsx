@@ -25,7 +25,7 @@ export function BathroomDetail() {
   const route = useRoute<DetailRoute>();
   const { id, name, lat, lng } = route.params;
   const { user } = useUser();
-  const { location: userLocation } = useContext(LocationCtx);
+  const { center } = useContext(LocationCtx);
 
   const [bathroomData, setBathroomData] = useState<any>(null);
   const [reviews, setReviews] = useState<any[]>([]);
@@ -38,8 +38,8 @@ export function BathroomDetail() {
   const [retryKey, setRetryKey] = useState(0);
 
   // Compute distance
-  const distance = userLocation
-    ? formatDistance(haversine(userLocation.coords.latitude, userLocation.coords.longitude, lat, lng))
+  const distance = center
+    ? formatDistance(haversine(center.lat, center.lng, lat, lng))
     : '— mi';
 
   // Refetch on focus so a newly written review (and its effect on the rating)

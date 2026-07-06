@@ -83,23 +83,31 @@ export function Map() {
     const [showFilters, setShowFilters] = useState(false);
     const [accessFilter, setAccessFilter] = useState<string | null>(null);
     const [open24Filter, setOpen24Filter] = useState(false);
+    // Bumped to tell LocationSearch to clear its query/✕ when the map is reset from
+    // outside the search box (e.g. the ◎ recenter FAB).
+    const [searchResetSignal, setSearchResetSignal] = useState(0);
 
     const mapRef = useRef<MapView>(null);
     const currentRegion = useRef<Region | null>(null);
     const lastFetchedCenter = useRef<{ lat: number; lng: number } | null>(null);
+    // The center of the most recent fetch *request* (set before the await), so a
+    // Retry after a failed fetch re-targets that center — not the last successful
+    // one. Without this, retrying a failed search reloads the previous location.
+    const lastRequestedCenter = useRef<{ lat: number; lng: number } | null>(null);
 
     const navigation = useNavigation<MapNavProp>();
     const tabNavigation = useNavigation<TabNavProp>();
     const { colors, isDark } = useThemeContext();
     const insets = useSafeAreaInsets();
-    const { setLocation: setCtxLocation } = useContext(LocationCtx);
+    const { setCenter } = useContext(LocationCtx);
 
     const setLocation = (loc: LocationObject) => {
         setLocalLocation(loc);
-        setCtxLocation(loc);
+        setCenter({ lat: loc.coords.latitude, lng: loc.coords.longitude });
     };
 
     const fetchBathrooms = useCallback(async (lat: number, lng: number, radiusKm: number) => {
+        lastRequestedCenter.current = { lat, lng };
         setIsFetchingBathrooms(true);
         setFetchError(false);
         try {
@@ -164,7 +172,9 @@ export function Map() {
     };
 
     const retryFetch = () => {
-        const center = lastFetchedCenter.current;
+        // Prefer the requested center so retrying a failed search reloads that
+        // location, not the last one that happened to succeed.
+        const center = lastRequestedCenter.current ?? lastFetchedCenter.current;
         const region = currentRegion.current;
         if (center) {
             fetchBathrooms(center.lat, center.lng, region ? radiusFromRegion(region) : DEFAULT_RADIUS_KM);
@@ -172,6 +182,49 @@ export function Map() {
             fetchBathrooms(location.coords.latitude, location.coords.longitude, DEFAULT_RADIUS_KM);
         }
     };
+
+    // Default deltas match the map's initialRegion (neighborhood browse zoom).
+    const animateTo = (lat: number, lng: number, latDelta = 0.0922, lngDelta = 0.0421) => {
+        mapRef.current?.animateToRegion(
+            { latitude: lat, longitude: lng, latitudeDelta: latDelta, longitudeDelta: lngDelta },
+            500
+        );
+    };
+
+    // LocationSearch geocoded a query: fly there, refetch around it, and point the
+    // shared LocationCtx anchor at the searched center so BathroomDetail's distances
+    // stay coherent. Local `location` stays the true GPS fix (the ◎ FAB + reset).
+    const onSearchLocation = useCallback((lat: number, lng: number) => {
+        animateTo(lat, lng);
+        setCenter({ lat, lng });
+        fetchBathrooms(lat, lng, DEFAULT_RADIUS_KM);
+    }, [fetchBathrooms, setCenter]);
+
+    // Repoint the fetch + LocationCtx anchor back to the GPS fix. Shared by the
+    // search-✕ reset and the ◎ FAB; each animates the camera itself so they can use
+    // different zoom levels. Returns the GPS coords (or null if not acquired yet).
+    const refetchAroundGps = useCallback(() => {
+        if (!location) return null;
+        const { latitude, longitude } = location.coords;
+        setCenter({ lat: latitude, lng: longitude });
+        fetchBathrooms(latitude, longitude, DEFAULT_RADIUS_KM);
+        return { latitude, longitude };
+    }, [location, fetchBathrooms, setCenter]);
+
+    // Clear affordance (search ✕): return to GPS at the wider browse zoom.
+    const onResetLocation = useCallback(() => {
+        const c = refetchAroundGps();
+        if (c) animateTo(c.latitude, c.longitude);
+    }, [refetchAroundGps]);
+
+    // The ◎ recenter FAB: same GPS reset as the ✕, but zooms in tight (street level,
+    // the original ◎ behavior) and clears any active search in the box, so pressing
+    // it after a search can't leave the list/anchor/✕ pointed at the searched location.
+    const recenterToGps = useCallback(() => {
+        const c = refetchAroundGps();
+        if (c) animateTo(c.latitude, c.longitude, 0.01, 0.01);
+        setSearchResetSignal((n) => n + 1);
+    }, [refetchAroundGps]);
 
     const activeFilterCount = (accessFilter ? 1 : 0) + (open24Filter ? 1 : 0);
 
@@ -296,7 +349,7 @@ export function Map() {
                 },
             ]}>
                 <View style={styles.topBarInner}>
-                    <LocationSearch />
+                    <LocationSearch onLocationSelected={onSearchLocation} onReset={onResetLocation} resetSignal={searchResetSignal} />
                     <Pressable
                         onPress={() => setShowFilters((v) => !v)}
                         style={({ pressed }: { pressed: boolean }) => ({
@@ -474,16 +527,7 @@ export function Map() {
                             opacity: pressed ? 0.85 : 1,
                         },
                     ]}
-                    onPress={() => {
-                        if (location) {
-                            mapRef.current?.animateToRegion({
-                                latitude: location.coords.latitude,
-                                longitude: location.coords.longitude,
-                                latitudeDelta: 0.01,
-                                longitudeDelta: 0.01,
-                            }, 500);
-                        }
-                    }}
+                    onPress={recenterToGps}
                 >
                     <Text style={[styles.fabLocText, { color: colors.text2 }]}>◎</Text>
                 </Pressable>
