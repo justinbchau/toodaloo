@@ -96,11 +96,11 @@ export function Map() {
     const tabNavigation = useNavigation<TabNavProp>();
     const { colors, isDark } = useThemeContext();
     const insets = useSafeAreaInsets();
-    const { setLocation: setCtxLocation } = useContext(LocationCtx);
+    const { setCenter } = useContext(LocationCtx);
 
     const setLocation = (loc: LocationObject) => {
         setLocalLocation(loc);
-        setCtxLocation(loc);
+        setCenter({ lat: loc.coords.latitude, lng: loc.coords.longitude });
     };
 
     const fetchBathrooms = useCallback(async (lat: number, lng: number, radiusKm: number) => {
@@ -192,21 +192,18 @@ export function Map() {
     // stay coherent. Local `location` stays the true GPS fix (the ◎ FAB + reset).
     const onSearchLocation = useCallback((lat: number, lng: number) => {
         animateTo(lat, lng);
-        setCtxLocation({
-            coords: { latitude: lat, longitude: lng, altitude: 0, accuracy: 0, altitudeAccuracy: 0, heading: 0, speed: 0 },
-            timestamp: Date.now(),
-        } as LocationObject);
+        setCenter({ lat, lng });
         fetchBathrooms(lat, lng, DEFAULT_RADIUS_KM);
-    }, [fetchBathrooms, setCtxLocation]);
+    }, [fetchBathrooms, setCenter]);
 
     // Clear affordance: return to the user's GPS location and restore its anchor.
     const onResetLocation = useCallback(() => {
         if (!location) return;
         const { latitude, longitude } = location.coords;
         animateTo(latitude, longitude);
-        setCtxLocation(location);
+        setCenter({ lat: latitude, lng: longitude });
         fetchBathrooms(latitude, longitude, DEFAULT_RADIUS_KM);
-    }, [location, fetchBathrooms, setCtxLocation]);
+    }, [location, fetchBathrooms, setCenter]);
 
     const activeFilterCount = (accessFilter ? 1 : 0) + (open24Filter ? 1 : 0);
 

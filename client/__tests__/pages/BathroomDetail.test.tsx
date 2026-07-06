@@ -57,14 +57,8 @@ jest.mock('../../context/context', () => {
   const React = require('react');
   return {
     LocationCtx: React.createContext({
-      location: {
-        coords: {
-          latitude: 40.7128, longitude: -74.006,
-          altitude: 0, accuracy: 10, altitudeAccuracy: 0, heading: 0, speed: 0,
-        },
-        timestamp: 0,
-      },
-      setLocation: jest.fn(),
+      center: { lat: 40.7128, lng: -74.006 },
+      setCenter: jest.fn(),
     }),
   };
 });
