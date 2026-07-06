@@ -183,9 +183,10 @@ export function Map() {
         }
     };
 
-    const animateTo = (lat: number, lng: number) => {
+    // Default deltas match the map's initialRegion (neighborhood browse zoom).
+    const animateTo = (lat: number, lng: number, latDelta = 0.0922, lngDelta = 0.0421) => {
         mapRef.current?.animateToRegion(
-            { latitude: lat, longitude: lng, latitudeDelta: 0.0922, longitudeDelta: 0.0421 },
+            { latitude: lat, longitude: lng, latitudeDelta: latDelta, longitudeDelta: lngDelta },
             500
         );
     };
@@ -199,23 +200,31 @@ export function Map() {
         fetchBathrooms(lat, lng, DEFAULT_RADIUS_KM);
     }, [fetchBathrooms, setCenter]);
 
-    // Clear affordance: return to the user's GPS location and restore its anchor.
-    const onResetLocation = useCallback(() => {
-        if (!location) return;
+    // Repoint the fetch + LocationCtx anchor back to the GPS fix. Shared by the
+    // search-✕ reset and the ◎ FAB; each animates the camera itself so they can use
+    // different zoom levels. Returns the GPS coords (or null if not acquired yet).
+    const refetchAroundGps = useCallback(() => {
+        if (!location) return null;
         const { latitude, longitude } = location.coords;
-        animateTo(latitude, longitude);
         setCenter({ lat: latitude, lng: longitude });
         fetchBathrooms(latitude, longitude, DEFAULT_RADIUS_KM);
+        return { latitude, longitude };
     }, [location, fetchBathrooms, setCenter]);
 
-    // The ◎ recenter FAB: run the same reset the search's ✕ does (recenter + refetch
-    // + restore the GPS anchor) AND clear any active search in the box, so pressing
-    // it after a search can't leave the camera on GPS while the list/anchor/✕ stay
-    // pointed at the searched location.
+    // Clear affordance (search ✕): return to GPS at the wider browse zoom.
+    const onResetLocation = useCallback(() => {
+        const c = refetchAroundGps();
+        if (c) animateTo(c.latitude, c.longitude);
+    }, [refetchAroundGps]);
+
+    // The ◎ recenter FAB: same GPS reset as the ✕, but zooms in tight (street level,
+    // the original ◎ behavior) and clears any active search in the box, so pressing
+    // it after a search can't leave the list/anchor/✕ pointed at the searched location.
     const recenterToGps = useCallback(() => {
-        onResetLocation();
+        const c = refetchAroundGps();
+        if (c) animateTo(c.latitude, c.longitude, 0.01, 0.01);
         setSearchResetSignal((n) => n + 1);
-    }, [onResetLocation]);
+    }, [refetchAroundGps]);
 
     const activeFilterCount = (accessFilter ? 1 : 0) + (open24Filter ? 1 : 0);
 
