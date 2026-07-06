@@ -147,7 +147,15 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = async () => {
     isManualSignOutRef.current = true;
-    await supabase.auth.signOut();
+    try {
+      await supabase.auth.signOut();
+    } catch (e) {
+      // If sign-out rejects before the local SIGNED_OUT fires, the ref would
+      // stay stuck true and mis-flag a later genuine refresh failure as manual.
+      // Reset it so only a real manual sign-out is ever treated as one.
+      isManualSignOutRef.current = false;
+      throw e;
+    }
   };
 
   const deleteAccount = useCallback(async (): Promise<DeleteAccountResult> => {
@@ -160,7 +168,13 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
     // Clear the local session even though the auth row is gone server-side.
     isManualSignOutRef.current = true;
-    await supabase.auth.signOut();
+    try {
+      await supabase.auth.signOut();
+    } catch {
+      // Account is already deleted server-side; if the local sign-out rejects,
+      // just reset the ref so it can't mis-flag a future SIGNED_OUT as manual.
+      isManualSignOutRef.current = false;
+    }
     return { error: null };
   }, [user?.id]);
 

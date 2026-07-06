@@ -207,6 +207,31 @@ describe('UserContext — session expiry handling', () => {
     expect(result.current.sessionExpired).toBe(false);
   });
 
+  it('resets the manual-signout flag if signOut rejects, so a later unexpected SIGNED_OUT still flags expiry', async () => {
+    mockGetSession.mockResolvedValue({ data: { session: mockSession }, error: null });
+    mockSignOut.mockRejectedValueOnce(new Error('network'));
+    let capturedCallback: ((event: string, session: any) => void) | null = null;
+    mockOnAuthStateChange.mockImplementation((cb: any) => {
+      capturedCallback = cb;
+      return { data: { subscription: { unsubscribe: mockUnsubscribe } } };
+    });
+
+    const { result } = renderHook(() => useUser(), { wrapper });
+    await waitFor(() => expect(result.current.session).toEqual(mockSession));
+
+    // A failed sign-out must not leave the ref stuck true.
+    await act(async () => {
+      await expect(result.current.signOut()).rejects.toThrow('network');
+    });
+
+    // A subsequent genuine refresh failure must still be treated as unexpected.
+    await act(async () => {
+      capturedCallback?.('SIGNED_OUT', null);
+    });
+
+    expect(result.current.sessionExpired).toBe(true);
+  });
+
   it('clears sessionExpired when a new session signs in', async () => {
     mockGetSession.mockResolvedValue({ data: { session: mockSession }, error: null });
     let capturedCallback: ((event: string, session: any) => void) | null = null;
