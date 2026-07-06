@@ -2,6 +2,7 @@
  * Tests for UserContext — session state machine, loading transitions, signOut.
  */
 import React from 'react';
+import { AppState } from 'react-native';
 import { renderHook, act, waitFor } from '@testing-library/react-native';
 import { UserProvider, useUser } from '../../context/UserContext';
 import { mockUser, mockSession } from '../helpers/mocks';
@@ -14,6 +15,8 @@ const mockOnAuthStateChange = jest.fn();
 const mockSignOut = jest.fn();
 const mockRpc = jest.fn();
 const mockUnsubscribe = jest.fn();
+const mockStartAutoRefresh = jest.fn();
+const mockStopAutoRefresh = jest.fn();
 
 jest.mock('../../lib/supabase', () => ({
   supabase: {
@@ -21,6 +24,8 @@ jest.mock('../../lib/supabase', () => ({
       getSession: (...args: any[]) => mockGetSession(...args),
       onAuthStateChange: (...args: any[]) => mockOnAuthStateChange(...args),
       signOut: (...args: any[]) => mockSignOut(...args),
+      startAutoRefresh: (...args: any[]) => mockStartAutoRefresh(...args),
+      stopAutoRefresh: (...args: any[]) => mockStopAutoRefresh(...args),
     },
     from: jest.fn(() => ({
       select: jest.fn().mockReturnThis(),
@@ -47,6 +52,11 @@ function wrapper({ children }: { children: React.ReactNode }) {
   return <UserProvider>{children}</UserProvider>;
 }
 
+// AppState mocking: capture the 'change' handler so we can drive foreground/background
+// transitions, and hand back a removable subscription to assert cleanup.
+let appStateHandler: ((state: string) => void) | null = null;
+const mockAppStateRemove = jest.fn();
+
 beforeEach(() => {
   jest.clearAllMocks();
   // Default: no session
@@ -56,6 +66,14 @@ beforeEach(() => {
   });
   mockSignOut.mockResolvedValue({ error: null });
   mockRpc.mockResolvedValue({ error: null });
+
+  // Default to a foregrounded app; individual tests can override before render.
+  (AppState as unknown as { currentState: string }).currentState = 'active';
+  appStateHandler = null;
+  jest.spyOn(AppState, 'addEventListener').mockImplementation((_event: string, cb: any) => {
+    appStateHandler = cb;
+    return { remove: mockAppStateRemove } as any;
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -148,6 +166,52 @@ describe('UserContext — onAuthStateChange', () => {
 
     expect(result.current.session).toBeNull();
     expect(result.current.user).toBeNull();
+  });
+});
+
+describe('UserContext — auth auto-refresh follows AppState', () => {
+  it('starts auto-refresh on mount when the app is already foregrounded', async () => {
+    (AppState as unknown as { currentState: string }).currentState = 'active';
+    renderHook(() => useUser(), { wrapper });
+    await waitFor(() => expect(mockStartAutoRefresh).toHaveBeenCalled());
+  });
+
+  it('does NOT start auto-refresh on mount when the app is backgrounded', async () => {
+    (AppState as unknown as { currentState: string }).currentState = 'background';
+    renderHook(() => useUser(), { wrapper });
+    await waitFor(() => expect(mockOnAuthStateChange).toHaveBeenCalled());
+    expect(mockStartAutoRefresh).not.toHaveBeenCalled();
+  });
+
+  it('registers a single AppState change listener', async () => {
+    renderHook(() => useUser(), { wrapper });
+    await waitFor(() => expect(AppState.addEventListener).toHaveBeenCalledTimes(1));
+    expect(AppState.addEventListener).toHaveBeenCalledWith('change', expect.any(Function));
+  });
+
+  it('resumes auto-refresh when the app returns to the foreground', async () => {
+    renderHook(() => useUser(), { wrapper });
+    await waitFor(() => expect(appStateHandler).not.toBeNull());
+    mockStartAutoRefresh.mockClear();
+
+    act(() => appStateHandler?.('active'));
+    expect(mockStartAutoRefresh).toHaveBeenCalledTimes(1);
+    expect(mockStopAutoRefresh).not.toHaveBeenCalled();
+  });
+
+  it('pauses auto-refresh when the app is backgrounded', async () => {
+    renderHook(() => useUser(), { wrapper });
+    await waitFor(() => expect(appStateHandler).not.toBeNull());
+
+    act(() => appStateHandler?.('background'));
+    expect(mockStopAutoRefresh).toHaveBeenCalledTimes(1);
+  });
+
+  it('removes the AppState listener on unmount', async () => {
+    const { unmount } = renderHook(() => useUser(), { wrapper });
+    await waitFor(() => expect(AppState.addEventListener).toHaveBeenCalled());
+    unmount();
+    expect(mockAppStateRemove).toHaveBeenCalledTimes(1);
   });
 });
 

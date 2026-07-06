@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useCallback, useEffect, useState } from 'react';
+import { AppState, AppStateStatus } from 'react-native';
 import { Session, User, AuthChangeEvent } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { migrateAuthStorageIfNeeded } from '../lib/secureStorageAdapter';
@@ -67,7 +68,9 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       });
     });
 
-    // 2. Subscribe to auth state changes
+    // 2. Subscribe to auth state changes. A failed token refresh surfaces here as
+    //    SIGNED_OUT with a null session, which clears state and drops the user back
+    //    to the auth stack (AppNavigator switches on `session`) — no silent dead session.
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event: AuthChangeEvent, session: Session | null) => {
@@ -76,7 +79,26 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       fetchProfile(session?.user?.id);
     });
 
-    return () => subscription.unsubscribe();
+    // 3. Keep Supabase's token auto-refresh in sync with app foreground state.
+    //    autoRefreshToken only ticks while startAutoRefresh() is active; without
+    //    this, a backgrounded app's refresh timer stalls and long-lived sessions
+    //    silently expire. Start now if we're already foregrounded, then follow
+    //    AppState: refresh while active, pause while backgrounded/inactive.
+    if (AppState.currentState === 'active') {
+      supabase.auth.startAutoRefresh();
+    }
+    const appStateSub = AppState.addEventListener('change', (state: AppStateStatus) => {
+      if (state === 'active') {
+        supabase.auth.startAutoRefresh();
+      } else {
+        supabase.auth.stopAutoRefresh();
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+      appStateSub.remove();
+    };
   }, [fetchProfile]);
 
   const refreshProfile = useCallback(async () => {
