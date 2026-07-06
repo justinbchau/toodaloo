@@ -169,6 +169,114 @@ describe('UserContext — onAuthStateChange', () => {
   });
 });
 
+describe('UserContext — session expiry handling', () => {
+  it('flags sessionExpired on an unexpected SIGNED_OUT (refresh failure)', async () => {
+    mockGetSession.mockResolvedValue({ data: { session: mockSession }, error: null });
+    let capturedCallback: ((event: string, session: any) => void) | null = null;
+    mockOnAuthStateChange.mockImplementation((cb: any) => {
+      capturedCallback = cb;
+      return { data: { subscription: { unsubscribe: mockUnsubscribe } } };
+    });
+
+    const { result } = renderHook(() => useUser(), { wrapper });
+    await waitFor(() => expect(result.current.session).toEqual(mockSession));
+
+    await act(async () => {
+      capturedCallback?.('SIGNED_OUT', null);
+    });
+
+    expect(result.current.sessionExpired).toBe(true);
+  });
+
+  it('does NOT flag sessionExpired when the SIGNED_OUT follows a user-initiated signOut', async () => {
+    mockGetSession.mockResolvedValue({ data: { session: mockSession }, error: null });
+    let capturedCallback: ((event: string, session: any) => void) | null = null;
+    mockOnAuthStateChange.mockImplementation((cb: any) => {
+      capturedCallback = cb;
+      return { data: { subscription: { unsubscribe: mockUnsubscribe } } };
+    });
+
+    const { result } = renderHook(() => useUser(), { wrapper });
+    await waitFor(() => expect(result.current.session).toEqual(mockSession));
+
+    await act(async () => {
+      await result.current.signOut();
+      capturedCallback?.('SIGNED_OUT', null);
+    });
+
+    expect(result.current.sessionExpired).toBe(false);
+  });
+
+  it('resets the manual-signout flag if signOut rejects, so a later unexpected SIGNED_OUT still flags expiry', async () => {
+    mockGetSession.mockResolvedValue({ data: { session: mockSession }, error: null });
+    mockSignOut.mockRejectedValueOnce(new Error('network'));
+    let capturedCallback: ((event: string, session: any) => void) | null = null;
+    mockOnAuthStateChange.mockImplementation((cb: any) => {
+      capturedCallback = cb;
+      return { data: { subscription: { unsubscribe: mockUnsubscribe } } };
+    });
+
+    const { result } = renderHook(() => useUser(), { wrapper });
+    await waitFor(() => expect(result.current.session).toEqual(mockSession));
+
+    // A failed sign-out must not leave the ref stuck true.
+    await act(async () => {
+      await expect(result.current.signOut()).rejects.toThrow('network');
+    });
+
+    // A subsequent genuine refresh failure must still be treated as unexpected.
+    await act(async () => {
+      capturedCallback?.('SIGNED_OUT', null);
+    });
+
+    expect(result.current.sessionExpired).toBe(true);
+  });
+
+  it('clears sessionExpired when a new session signs in', async () => {
+    mockGetSession.mockResolvedValue({ data: { session: mockSession }, error: null });
+    let capturedCallback: ((event: string, session: any) => void) | null = null;
+    mockOnAuthStateChange.mockImplementation((cb: any) => {
+      capturedCallback = cb;
+      return { data: { subscription: { unsubscribe: mockUnsubscribe } } };
+    });
+
+    const { result } = renderHook(() => useUser(), { wrapper });
+    await waitFor(() => expect(result.current.session).toEqual(mockSession));
+
+    await act(async () => {
+      capturedCallback?.('SIGNED_OUT', null);
+    });
+    expect(result.current.sessionExpired).toBe(true);
+
+    await act(async () => {
+      capturedCallback?.('SIGNED_IN', mockSession);
+    });
+    expect(result.current.sessionExpired).toBe(false);
+  });
+
+  it('clears sessionExpired when clearSessionExpired is called', async () => {
+    mockGetSession.mockResolvedValue({ data: { session: mockSession }, error: null });
+    let capturedCallback: ((event: string, session: any) => void) | null = null;
+    mockOnAuthStateChange.mockImplementation((cb: any) => {
+      capturedCallback = cb;
+      return { data: { subscription: { unsubscribe: mockUnsubscribe } } };
+    });
+
+    const { result } = renderHook(() => useUser(), { wrapper });
+    await waitFor(() => expect(result.current.session).toEqual(mockSession));
+
+    await act(async () => {
+      capturedCallback?.('SIGNED_OUT', null);
+    });
+    expect(result.current.sessionExpired).toBe(true);
+
+    await act(async () => {
+      result.current.clearSessionExpired();
+    });
+    expect(result.current.sessionExpired).toBe(false);
+  });
+});
+
 describe('UserContext — auth auto-refresh follows AppState', () => {
   it('starts auto-refresh on mount when the app is already foregrounded', async () => {
     (AppState as unknown as { currentState: string }).currentState = 'active';

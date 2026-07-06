@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useCallback, useEffect, useState } from 'react';
+import React, { createContext, useContext, useCallback, useEffect, useRef, useState } from 'react';
 import { AppState, AppStateStatus } from 'react-native';
 import { Session, User, AuthChangeEvent } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
@@ -21,6 +21,8 @@ type UserContextType = {
   refreshProfile: () => Promise<void>;
   updateUsername: (username: string) => Promise<UpdateUsernameResult>;
   deleteAccount: () => Promise<DeleteAccountResult>;
+  sessionExpired: boolean;
+  clearSessionExpired: () => void;
 };
 
 const UserContext = createContext<UserContextType>({
@@ -32,6 +34,8 @@ const UserContext = createContext<UserContextType>({
   refreshProfile: async () => {},
   updateUsername: async () => ({ error: null }),
   deleteAccount: async () => ({ error: null }),
+  sessionExpired: false,
+  clearSessionExpired: () => {},
 });
 
 export function UserProvider({ children }: { children: React.ReactNode }) {
@@ -39,6 +43,10 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [sessionExpired, setSessionExpired] = useState(false);
+  // Distinguishes a user-initiated signOut() from an unexpected SIGNED_OUT
+  // (refresh failure) emitted asynchronously by the auth-state listener.
+  const isManualSignOutRef = useRef(false);
 
   const fetchProfile = useCallback(async (userId: string | undefined) => {
     if (!userId) {
@@ -73,7 +81,17 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     //    to the auth stack (AppNavigator switches on `session`) — no silent dead session.
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event: AuthChangeEvent, session: Session | null) => {
+    } = supabase.auth.onAuthStateChange((event: AuthChangeEvent, session: Session | null) => {
+      if (event === 'SIGNED_OUT') {
+        if (isManualSignOutRef.current) {
+          isManualSignOutRef.current = false;
+          setSessionExpired(false);
+        } else {
+          setSessionExpired(true);
+        }
+      } else if (session) {
+        setSessionExpired(false);
+      }
       setSession(session);
       setUser(session?.user ?? null);
       fetchProfile(session?.user?.id);
@@ -128,7 +146,16 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   );
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    isManualSignOutRef.current = true;
+    try {
+      await supabase.auth.signOut();
+    } catch (e) {
+      // If sign-out rejects before the local SIGNED_OUT fires, the ref would
+      // stay stuck true and mis-flag a later genuine refresh failure as manual.
+      // Reset it so only a real manual sign-out is ever treated as one.
+      isManualSignOutRef.current = false;
+      throw e;
+    }
   };
 
   const deleteAccount = useCallback(async (): Promise<DeleteAccountResult> => {
@@ -140,13 +167,33 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     }
 
     // Clear the local session even though the auth row is gone server-side.
-    await supabase.auth.signOut();
+    isManualSignOutRef.current = true;
+    try {
+      await supabase.auth.signOut();
+    } catch {
+      // Account is already deleted server-side; if the local sign-out rejects,
+      // just reset the ref so it can't mis-flag a future SIGNED_OUT as manual.
+      isManualSignOutRef.current = false;
+    }
     return { error: null };
   }, [user?.id]);
 
+  const clearSessionExpired = useCallback(() => setSessionExpired(false), []);
+
   return (
     <UserContext.Provider
-      value={{ session, user, profile, loading, signOut, refreshProfile, updateUsername, deleteAccount }}
+      value={{
+        session,
+        user,
+        profile,
+        loading,
+        signOut,
+        refreshProfile,
+        updateUsername,
+        deleteAccount,
+        sessionExpired,
+        clearSessionExpired,
+      }}
     >
       {children}
     </UserContext.Provider>
