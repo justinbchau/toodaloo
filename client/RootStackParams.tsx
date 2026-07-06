@@ -7,7 +7,6 @@ export type RootStackParamList = {
   BathroomDetail: { id: string; name: string; lat: number; lng: number };
   WriteReview: { bathroomId: string; bathroomName: string };
   Success: undefined;
-  Legal: undefined;
 };
 
 export type MainTabParamList = {

@@ -2,9 +2,10 @@
  * Tests for Settings — username save, read-only email, delete account flow.
  */
 import React from 'react';
-import { Alert } from 'react-native';
+import { Alert, Linking } from 'react-native';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react-native';
 import { Settings } from '../../pages/Settings';
+import { LEGAL_URL } from '../../lib/legalUrl';
 import { mockColors, mockUser } from '../helpers/mocks';
 
 const mockUpdateUsername = jest.fn();
@@ -52,6 +53,20 @@ describe('Settings — profile section', () => {
   it('prefills the username from the profile', () => {
     render(<Settings />);
     expect(screen.getByTestId('username-input').props.value).toBe('testuser');
+  });
+});
+
+describe('Settings — about section', () => {
+  it('opens the hosted Terms & Privacy URL when the row is pressed', async () => {
+    const openSpy = jest.spyOn(Linking, 'openURL').mockResolvedValue(undefined);
+    render(<Settings />);
+
+    await act(async () => {
+      fireEvent.press(screen.getByText('Terms & Privacy'));
+    });
+
+    expect(openSpy).toHaveBeenCalledWith(LEGAL_URL);
+    openSpy.mockRestore();
   });
 });
 

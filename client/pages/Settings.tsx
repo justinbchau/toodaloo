@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, Switch, TextInput, Pressable, ActivityIndicator, Keyboard, Alert } from 'react-native';
+import { View, Text, Switch, TextInput, Pressable, ActivityIndicator, Keyboard, Alert, ScrollView } from 'react-native';
 import { Page } from '../templates/Page';
 import { useThemeContext } from '../context/ThemeContext';
 import { useUser } from '../context/UserContext';
 import { SectionLabel } from '../components/ui/SectionLabel';
+import { MenuItem } from '../components/ui/MenuItem';
+import { openLegal } from '../lib/legalUrl';
 
 export function Settings() {
   const { colors, isDark, toggleTheme } = useThemeContext();
@@ -64,7 +66,10 @@ export function Settings() {
 
   return (
     <Page>
-      <View style={{ flex: 1, paddingHorizontal: 20, paddingTop: 16 }}>
+      <ScrollView
+        contentInsetAdjustmentBehavior="automatic"
+        contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: 32 }}
+      >
         <Text style={{ fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 24, color: colors.text1, marginBottom: 24 }}>
           Settings
         </Text>
@@ -190,6 +195,24 @@ export function Settings() {
           </View>
         </View>
 
+        <SectionLabel label="About" />
+        <View style={{
+          marginTop: 10,
+          marginBottom: 24,
+          backgroundColor: colors.surface1,
+          borderRadius: 16,
+          overflow: 'hidden',
+          borderWidth: 1,
+          borderColor: colors.border,
+        }}>
+          <MenuItem
+            icon="file-document-outline"
+            label="Terms & Privacy"
+            sublabel="Opens in browser"
+            onPress={openLegal}
+          />
+        </View>
+
         <SectionLabel label="Danger zone" />
         <View style={{
           marginTop: 10,
@@ -229,7 +252,7 @@ export function Settings() {
             )}
           </Pressable>
         </View>
-      </View>
+      </ScrollView>
     </Page>
   );
 }
