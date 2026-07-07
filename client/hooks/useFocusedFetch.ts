@@ -1,4 +1,4 @@
-import { Dispatch, SetStateAction, useCallback, useState } from 'react';
+import { Dispatch, SetStateAction, useCallback, useRef, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 
 export type FocusedFetch<T> = {
@@ -37,35 +37,49 @@ export function useFocusedFetch<T>(load: () => Promise<T>): FocusedFetch<T> {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [hasError, setHasError] = useState(false);
 
-  const run = useCallback(async () => {
-    try {
-      const result = await load();
-      setData(result);
-      setHasError(false);
-    } catch (err) {
-      console.error('useFocusedFetch: load failed:', err);
-      setHasError(true);
-    }
-  }, [load]);
+  // Monotonic run token. Each run captures the current value; only the run that
+  // still matches `runId.current` when it settles may commit state. This guards
+  // the focus → blur → refocus race: a slow earlier fetch that resolves after a
+  // newer one (or after the screen blurred) must not clobber the fresh result.
+  const runId = useRef(0);
+
+  const run = useCallback(
+    async (mode: 'load' | 'refresh') => {
+      const id = ++runId.current;
+      if (mode === 'load') setIsLoading(true);
+      else setIsRefreshing(true);
+      try {
+        const result = await load();
+        if (id !== runId.current) return; // superseded — drop the stale result
+        setData(result);
+        setHasError(false);
+      } catch (err) {
+        if (id !== runId.current) return;
+        console.error('useFocusedFetch: load failed:', err);
+        setHasError(true);
+      } finally {
+        if (id === runId.current) {
+          if (mode === 'load') setIsLoading(false);
+          else setIsRefreshing(false);
+        }
+      }
+    },
+    [load],
+  );
 
   useFocusEffect(
     useCallback(() => {
-      setIsLoading(true);
-      run().finally(() => setIsLoading(false));
+      run('load');
+      // Invalidate any in-flight run on blur so a late resolve can't write onto
+      // a screen the user has already left (and can't clobber the next focus).
+      return () => {
+        runId.current += 1;
+      };
     }, [run]),
   );
 
-  const refetch = useCallback(async () => {
-    setIsLoading(true);
-    await run();
-    setIsLoading(false);
-  }, [run]);
-
-  const refresh = useCallback(async () => {
-    setIsRefreshing(true);
-    await run();
-    setIsRefreshing(false);
-  }, [run]);
+  const refetch = useCallback(() => run('load'), [run]);
+  const refresh = useCallback(() => run('refresh'), [run]);
 
   return { data, setData, isLoading, isRefreshing, hasError, refetch, refresh };
 }

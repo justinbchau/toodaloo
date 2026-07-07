@@ -44,6 +44,31 @@ describe('useFocusedFetch', () => {
     errSpy.mockRestore();
   });
 
+  it('drops a stale in-flight load that resolves after a newer one', async () => {
+    let resolveA: (v: string[]) => void = () => {};
+    const load = jest
+      .fn()
+      // First (focus) load is slow and manually controlled.
+      .mockImplementationOnce(() => new Promise<string[]>((r) => { resolveA = r; }))
+      // Second (refetch) load resolves immediately with the fresh result.
+      .mockResolvedValueOnce(['B']);
+
+    const { result } = renderHook(() => useFocusedFetch<string[]>(load));
+
+    // Newer run resolves first and wins.
+    await act(async () => {
+      await result.current.refetch();
+    });
+    expect(result.current.data).toEqual(['B']);
+
+    // The stale first load now resolves — it must NOT overwrite the fresh result.
+    await act(async () => {
+      resolveA(['A']);
+      await Promise.resolve();
+    });
+    expect(result.current.data).toEqual(['B']);
+  });
+
   it('setData applies an optimistic local mutation', async () => {
     const load = jest.fn().mockResolvedValue([{ id: '1' }, { id: '2' }]);
     const { result } = renderHook(() => useFocusedFetch<{ id: string }[]>(load));
