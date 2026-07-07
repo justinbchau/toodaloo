@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, RefreshControl, ActivityIndicator, StyleSheet, Pressable } from 'react-native';
+import { View, Text, RefreshControl, ActivityIndicator, StyleSheet } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -8,6 +8,7 @@ import { useThemeContext } from '../context/ThemeContext';
 import { useUser } from '../context/UserContext';
 import { supabase } from '../lib/supabase';
 import { BathroomCard, BathroomCardData } from '../components/BathroomCard';
+import { ErrorState } from '../components/ErrorState';
 import { ACCESS_ICON, DEFAULT_ACCESS_ICON } from '../lib/accessIcons';
 import { RootStackParamList } from '../RootStackParams';
 import { FlashList } from '@shopify/flash-list';
@@ -119,29 +120,15 @@ export function Saved() {
             Saved
           </Text>
         </View>
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 32 }}>
-          <Text style={{ fontSize: 44 }}>⚠️</Text>
-          <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 16, color: colors.text1, marginTop: 12, textAlign: 'center' }}>
-            Couldn't load your saved places
-          </Text>
-          <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 13, color: colors.text3, marginTop: 4, textAlign: 'center' }}>
-            Check your connection and try again.
-          </Text>
-          <Pressable
-            onPress={async () => {
-              setIsLoading(true);
-              await fetchSaved();
-              setIsLoading(false);
-            }}
-            style={({ pressed }: { pressed: boolean }) => ({
-              marginTop: 20, backgroundColor: colors.purple,
-              borderRadius: 12, paddingHorizontal: 24, paddingVertical: 12,
-              opacity: pressed ? 0.85 : 1,
-            })}
-          >
-            <Text style={{ color: '#fff', fontFamily: 'PlusJakartaSans_700Bold', fontSize: 14 }}>Retry</Text>
-          </Pressable>
-        </View>
+        <ErrorState
+          title="Couldn't load your saved places"
+          retryAccessibilityLabel="Retry loading saved places"
+          onRetry={async () => {
+            setIsLoading(true);
+            await fetchSaved();
+            setIsLoading(false);
+          }}
+        />
       </SafeAreaView>
     );
   }

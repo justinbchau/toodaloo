@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, Text, ActivityIndicator, StyleSheet, RefreshControl } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -10,6 +10,7 @@ import { useUser } from '../context/UserContext';
 import { supabase } from '../lib/supabase';
 import { RootStackParamList } from '../RootStackParams';
 import { BathroomCard, BathroomCardData } from '../components/BathroomCard';
+import { ErrorState } from '../components/ErrorState';
 import { ACCESS_ICON, DEFAULT_ACCESS_ICON } from '../lib/accessIcons';
 import BackButton from '../components/BackButton';
 
@@ -22,50 +23,52 @@ export function Submitted() {
 
   const [bathrooms, setBathrooms] = useState<BathroomCardData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [hasError, setHasError] = useState(false);
 
+  const fetchSubmitted = useCallback(async () => {
+    if (!user) return;
+    try {
+      const { data, error } = await supabase
+        .from('bathrooms')
+        .select('*')
+        .eq('created_by', user.id)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      const transformed: BathroomCardData[] = (data ?? []).map((b: any) => ({
+        id: b.id,
+        name: b.name,
+        icon: ACCESS_ICON[b.access_type] ?? DEFAULT_ACCESS_ICON,
+        sub:
+          b.access_type === 'public'
+            ? `Public${b.is_24_hours ? ' · Open 24h' : ''}`
+            : b.access_type === 'key_required'
+            ? 'Key Required'
+            : 'Purchase Required',
+        rating: Math.round(Number(b.rating_avg) || 0),
+        score: (Number(b.rating_avg) || 0).toFixed(1),
+        reviewCount: `(${b.review_count ?? 0})`,
+        distance: '',
+        lat: b.lat,
+        lng: b.lng,
+      }));
+
+      setBathrooms(transformed);
+      setHasError(false);
+    } catch (err) {
+      console.error('Failed to fetch submitted bathrooms:', err);
+      setHasError(true);
+    }
+  }, [user?.id]);
+
+  // Refetch on focus so a newly added bathroom shows on return.
   useFocusEffect(
     useCallback(() => {
-      let active = true;
-      const fetchSubmitted = async () => {
-        if (!user) return;
-        setIsLoading(true);
-        try {
-          const { data } = await supabase
-            .from('bathrooms')
-            .select('*')
-            .eq('created_by', user.id)
-            .order('created_at', { ascending: false });
-
-          const transformed: BathroomCardData[] = (data ?? []).map((b: any) => ({
-            id: b.id,
-            name: b.name,
-            icon: ACCESS_ICON[b.access_type] ?? DEFAULT_ACCESS_ICON,
-            sub:
-              b.access_type === 'public'
-                ? `Public${b.is_24_hours ? ' · Open 24h' : ''}`
-                : b.access_type === 'key_required'
-                ? 'Key Required'
-                : 'Purchase Required',
-            rating: Math.round(Number(b.rating_avg) || 0),
-            score: (Number(b.rating_avg) || 0).toFixed(1),
-            reviewCount: `(${b.review_count ?? 0})`,
-            distance: '',
-            lat: b.lat,
-            lng: b.lng,
-          }));
-
-          if (active) setBathrooms(transformed);
-        } catch (err) {
-          console.error('Failed to fetch submitted bathrooms:', err);
-        } finally {
-          if (active) setIsLoading(false);
-        }
-      };
-      fetchSubmitted();
-      return () => {
-        active = false;
-      };
-    }, [user?.id])
+      setIsLoading(true);
+      fetchSubmitted().finally(() => setIsLoading(false));
+    }, [fetchSubmitted])
   );
 
   const renderItem = useCallback(
@@ -96,6 +99,16 @@ export function Submitted() {
 
       {isLoading ? (
         <ActivityIndicator color={colors.purple} style={{ marginTop: 40 }} />
+      ) : hasError ? (
+        <ErrorState
+          title="Couldn't load your submissions"
+          retryAccessibilityLabel="Retry loading submitted bathrooms"
+          onRetry={async () => {
+            setIsLoading(true);
+            await fetchSubmitted();
+            setIsLoading(false);
+          }}
+        />
       ) : bathrooms.length === 0 ? (
         <View style={styles.empty}>
           <MaterialCommunityIcons name="map-marker-outline" size={48} color={colors.text3} />
@@ -112,6 +125,17 @@ export function Submitted() {
           keyExtractor={(item) => item.id}
           renderItem={renderItem}
           contentContainerStyle={styles.listContent}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefreshing}
+              tintColor={colors.purple}
+              onRefresh={async () => {
+                setIsRefreshing(true);
+                await fetchSubmitted();
+                setIsRefreshing(false);
+              }}
+            />
+          }
         />
       )}
     </SafeAreaView>

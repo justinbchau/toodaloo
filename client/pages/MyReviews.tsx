@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, ActivityIndicator, Pressable, StyleSheet, Alert } from 'react-native';
+import { View, Text, ActivityIndicator, Pressable, StyleSheet, Alert, RefreshControl } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -10,6 +10,7 @@ import { useUser } from '../context/UserContext';
 import { supabase } from '../lib/supabase';
 import { RootStackParamList } from '../RootStackParams';
 import BackButton from '../components/BackButton';
+import { ErrorState } from '../components/ErrorState';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -28,41 +29,43 @@ export function MyReviews() {
 
   const [reviews, setReviews] = useState<MyReview[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [hasError, setHasError] = useState(false);
 
+  const fetchReviews = useCallback(async () => {
+    if (!user) return;
+    try {
+      const { data, error } = await supabase
+        .from('reviews')
+        .select('id, rating, body, created_at, bathroom:bathrooms(id, name, lat, lng)')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      const normalized: MyReview[] = (data ?? []).map((r: any) => ({
+        id: r.id,
+        rating: r.rating,
+        body: r.body,
+        created_at: r.created_at,
+        // Supabase returns the joined relation as an object (or array); normalize.
+        bathroom: Array.isArray(r.bathroom) ? r.bathroom[0] ?? null : r.bathroom ?? null,
+      }));
+
+      setReviews(normalized);
+      setHasError(false);
+    } catch (err) {
+      console.error('Failed to fetch reviews:', err);
+      setHasError(true);
+    }
+  }, [user?.id]);
+
+  // Refetch on focus so newly written/edited reviews reflect on return.
   useFocusEffect(
     useCallback(() => {
-      let active = true;
-      const fetchReviews = async () => {
-        if (!user) return;
-        setIsLoading(true);
-        try {
-          const { data } = await supabase
-            .from('reviews')
-            .select('id, rating, body, created_at, bathroom:bathrooms(id, name, lat, lng)')
-            .eq('user_id', user.id)
-            .order('created_at', { ascending: false });
-
-          const normalized: MyReview[] = (data ?? []).map((r: any) => ({
-            id: r.id,
-            rating: r.rating,
-            body: r.body,
-            created_at: r.created_at,
-            // Supabase returns the joined relation as an object (or array); normalize.
-            bathroom: Array.isArray(r.bathroom) ? r.bathroom[0] ?? null : r.bathroom ?? null,
-          }));
-
-          if (active) setReviews(normalized);
-        } catch (err) {
-          console.error('Failed to fetch reviews:', err);
-        } finally {
-          if (active) setIsLoading(false);
-        }
-      };
-      fetchReviews();
-      return () => {
-        active = false;
-      };
-    }, [user?.id])
+      setIsLoading(true);
+      fetchReviews().finally(() => setIsLoading(false));
+    }, [fetchReviews])
   );
 
   const handleEdit = useCallback(
@@ -182,6 +185,16 @@ export function MyReviews() {
 
       {isLoading ? (
         <ActivityIndicator color={colors.purple} style={{ marginTop: 40 }} />
+      ) : hasError ? (
+        <ErrorState
+          title="Couldn't load your reviews"
+          retryAccessibilityLabel="Retry loading reviews"
+          onRetry={async () => {
+            setIsLoading(true);
+            await fetchReviews();
+            setIsLoading(false);
+          }}
+        />
       ) : reviews.length === 0 ? (
         <View style={styles.empty}>
           <MaterialCommunityIcons name="note-text-outline" size={48} color={colors.text3} />
@@ -198,6 +211,17 @@ export function MyReviews() {
           keyExtractor={(item) => item.id}
           renderItem={renderItem}
           contentContainerStyle={styles.listContent}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefreshing}
+              tintColor={colors.purple}
+              onRefresh={async () => {
+                setIsRefreshing(true);
+                await fetchReviews();
+                setIsRefreshing(false);
+              }}
+            />
+          }
         />
       )}
     </SafeAreaView>

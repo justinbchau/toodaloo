@@ -137,6 +137,27 @@ describe('MyReviews — list rendering', () => {
   });
 });
 
+describe('MyReviews — error state', () => {
+  it('shows a retryable error when the fetch fails, then recovers on retry', async () => {
+    const errSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    // First (focus) fetch fails; the default success mock covers the retry.
+    mockSelectResult.mockResolvedValueOnce({ data: null, error: { message: 'boom' } });
+
+    render(<MyReviews />);
+    await waitFor(() => expect(screen.getByText("Couldn't load your reviews")).toBeTruthy());
+    // Not the empty state — the failure must not read as "no reviews".
+    expect(screen.queryByText('No reviews yet')).toBeNull();
+
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText('Retry loading reviews'));
+    });
+
+    await waitFor(() => expect(screen.getByText('Test Bathroom')).toBeTruthy());
+    expect(screen.queryByText("Couldn't load your reviews")).toBeNull();
+    errSpy.mockRestore();
+  });
+});
+
 describe('MyReviews — edit action', () => {
   it('navigates to WriteReview with the bathroom params', async () => {
     await renderMyReviews();
