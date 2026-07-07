@@ -1,0 +1,27 @@
+name: Production release (iOS)
+
+# Manually triggered:  eas workflow:run production-release.yml
+# 1. Builds a store-distribution iOS binary against prod Supabase
+#    (EXPO_PUBLIC_SUPABASE_* come from EAS environment variables).
+# 2. Submits it to TestFlight using the App Store Connect API key stored in
+#    EAS credentials (set up once via `eas credentials --platform ios`).
+#
+# For JS-only fixes you do NOT need this workflow — publish an over-the-air
+# update instead:  eas update --channel production --message "..."
+# (see docs/RELEASE.md for the full runbook).
+on:
+  workflow_dispatch: {}
+
+jobs:
+  build_ios:
+    name: Build iOS (production)
+    type: build
+    params:
+      platform: ios
+      profile: production
+  submit_ios:
+    name: Submit to TestFlight
+    needs: [build_ios]
+    type: testflight
+    params:
+      build_id: ${{ needs.build_ios.outputs.build_id }}

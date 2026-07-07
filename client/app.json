@@ -2,6 +2,7 @@
   "expo": {
     "name": "toodaloo",
     "slug": "toodaloo",
+    "owner": "jchau",
     "version": "1.0.0",
     "sdkVersion": "55.0.0",
     "runtimeVersion": "1.0.0",
@@ -14,6 +15,7 @@
       "backgroundColor": "#ffffff"
     },
     "updates": {
+      "url": "https://u.expo.dev/2d1c0223-c462-462d-85cc-d8a63e7ddbad",
       "fallbackToCacheTimeout": 0
     },
     "assetBundlePatterns": [
