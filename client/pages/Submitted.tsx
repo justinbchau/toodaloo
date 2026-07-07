@@ -1,8 +1,8 @@
-import React, { useState, useCallback } from 'react';
+import React, { useCallback } from 'react';
 import { View, Text, ActivityIndicator, StyleSheet, RefreshControl } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { FlashList } from '@shopify/flash-list';
 import { useThemeContext } from '../context/ThemeContext';
@@ -13,6 +13,7 @@ import { BathroomCard, BathroomCardData } from '../components/BathroomCard';
 import { ErrorState } from '../components/ErrorState';
 import { ACCESS_ICON, DEFAULT_ACCESS_ICON } from '../lib/accessIcons';
 import BackButton from '../components/BackButton';
+import { useFocusedFetch } from '../hooks/useFocusedFetch';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -21,55 +22,38 @@ export function Submitted() {
   const { user } = useUser();
   const navigation = useNavigation<Nav>();
 
-  const [bathrooms, setBathrooms] = useState<BathroomCardData[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [hasError, setHasError] = useState(false);
+  const load = useCallback(async (): Promise<BathroomCardData[]> => {
+    if (!user) return [];
+    const { data, error } = await supabase
+      .from('bathrooms')
+      .select('*')
+      .eq('created_by', user.id)
+      .order('created_at', { ascending: false });
 
-  const fetchSubmitted = useCallback(async () => {
-    if (!user) return;
-    try {
-      const { data, error } = await supabase
-        .from('bathrooms')
-        .select('*')
-        .eq('created_by', user.id)
-        .order('created_at', { ascending: false });
+    if (error) throw error;
 
-      if (error) throw error;
-
-      const transformed: BathroomCardData[] = (data ?? []).map((b: any) => ({
-        id: b.id,
-        name: b.name,
-        icon: ACCESS_ICON[b.access_type] ?? DEFAULT_ACCESS_ICON,
-        sub:
-          b.access_type === 'public'
-            ? `Public${b.is_24_hours ? ' · Open 24h' : ''}`
-            : b.access_type === 'key_required'
-            ? 'Key Required'
-            : 'Purchase Required',
-        rating: Math.round(Number(b.rating_avg) || 0),
-        score: (Number(b.rating_avg) || 0).toFixed(1),
-        reviewCount: `(${b.review_count ?? 0})`,
-        distance: '',
-        lat: b.lat,
-        lng: b.lng,
-      }));
-
-      setBathrooms(transformed);
-      setHasError(false);
-    } catch (err) {
-      console.error('Failed to fetch submitted bathrooms:', err);
-      setHasError(true);
-    }
+    return (data ?? []).map((b: any) => ({
+      id: b.id,
+      name: b.name,
+      icon: ACCESS_ICON[b.access_type] ?? DEFAULT_ACCESS_ICON,
+      sub:
+        b.access_type === 'public'
+          ? `Public${b.is_24_hours ? ' · Open 24h' : ''}`
+          : b.access_type === 'key_required'
+          ? 'Key Required'
+          : 'Purchase Required',
+      rating: Math.round(Number(b.rating_avg) || 0),
+      score: (Number(b.rating_avg) || 0).toFixed(1),
+      reviewCount: `(${b.review_count ?? 0})`,
+      distance: '',
+      lat: b.lat,
+      lng: b.lng,
+    }));
   }, [user?.id]);
 
   // Refetch on focus so a newly added bathroom shows on return.
-  useFocusEffect(
-    useCallback(() => {
-      setIsLoading(true);
-      fetchSubmitted().finally(() => setIsLoading(false));
-    }, [fetchSubmitted])
-  );
+  const { data, isLoading, isRefreshing, hasError, refetch, refresh } = useFocusedFetch(load);
+  const bathrooms = data ?? [];
 
   const renderItem = useCallback(
     ({ item }: { item: BathroomCardData }) => (
@@ -103,11 +87,7 @@ export function Submitted() {
         <ErrorState
           title="Couldn't load your submissions"
           retryAccessibilityLabel="Retry loading submitted bathrooms"
-          onRetry={async () => {
-            setIsLoading(true);
-            await fetchSubmitted();
-            setIsLoading(false);
-          }}
+          onRetry={refetch}
         />
       ) : bathrooms.length === 0 ? (
         <View style={styles.empty}>
@@ -129,11 +109,7 @@ export function Submitted() {
             <RefreshControl
               refreshing={isRefreshing}
               tintColor={colors.purple}
-              onRefresh={async () => {
-                setIsRefreshing(true);
-                await fetchSubmitted();
-                setIsRefreshing(false);
-              }}
+              onRefresh={refresh}
             />
           }
         />

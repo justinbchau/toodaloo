@@ -1,8 +1,8 @@
-import React, { useState, useCallback } from 'react';
+import React, { useCallback } from 'react';
 import { View, Text, ActivityIndicator, Pressable, StyleSheet, Alert, RefreshControl } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { FlashList } from '@shopify/flash-list';
 import { useThemeContext } from '../context/ThemeContext';
@@ -11,6 +11,7 @@ import { supabase } from '../lib/supabase';
 import { RootStackParamList } from '../RootStackParams';
 import BackButton from '../components/BackButton';
 import { ErrorState } from '../components/ErrorState';
+import { useFocusedFetch } from '../hooks/useFocusedFetch';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -27,46 +28,29 @@ export function MyReviews() {
   const { user } = useUser();
   const navigation = useNavigation<Nav>();
 
-  const [reviews, setReviews] = useState<MyReview[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [hasError, setHasError] = useState(false);
+  const load = useCallback(async (): Promise<MyReview[]> => {
+    if (!user) return [];
+    const { data, error } = await supabase
+      .from('reviews')
+      .select('id, rating, body, created_at, bathroom:bathrooms(id, name, lat, lng)')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false });
 
-  const fetchReviews = useCallback(async () => {
-    if (!user) return;
-    try {
-      const { data, error } = await supabase
-        .from('reviews')
-        .select('id, rating, body, created_at, bathroom:bathrooms(id, name, lat, lng)')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
+    if (error) throw error;
 
-      if (error) throw error;
-
-      const normalized: MyReview[] = (data ?? []).map((r: any) => ({
-        id: r.id,
-        rating: r.rating,
-        body: r.body,
-        created_at: r.created_at,
-        // Supabase returns the joined relation as an object (or array); normalize.
-        bathroom: Array.isArray(r.bathroom) ? r.bathroom[0] ?? null : r.bathroom ?? null,
-      }));
-
-      setReviews(normalized);
-      setHasError(false);
-    } catch (err) {
-      console.error('Failed to fetch reviews:', err);
-      setHasError(true);
-    }
+    return (data ?? []).map((r: any) => ({
+      id: r.id,
+      rating: r.rating,
+      body: r.body,
+      created_at: r.created_at,
+      // Supabase returns the joined relation as an object (or array); normalize.
+      bathroom: Array.isArray(r.bathroom) ? r.bathroom[0] ?? null : r.bathroom ?? null,
+    }));
   }, [user?.id]);
 
   // Refetch on focus so newly written/edited reviews reflect on return.
-  useFocusEffect(
-    useCallback(() => {
-      setIsLoading(true);
-      fetchReviews().finally(() => setIsLoading(false));
-    }, [fetchReviews])
-  );
+  const { data, setData, isLoading, isRefreshing, hasError, refetch, refresh } = useFocusedFetch(load);
+  const reviews = data ?? [];
 
   const handleEdit = useCallback(
     (item: MyReview) => {
@@ -96,13 +80,13 @@ export function MyReviews() {
                 Alert.alert('Error', 'Could not delete your review. Please try again.');
                 return;
               }
-              setReviews((prev) => prev.filter((r) => r.id !== item.id));
+              setData((prev) => (prev ?? []).filter((r) => r.id !== item.id));
             },
           },
         ]
       );
     },
-    []
+    [setData]
   );
 
   const renderItem = useCallback(
@@ -189,11 +173,7 @@ export function MyReviews() {
         <ErrorState
           title="Couldn't load your reviews"
           retryAccessibilityLabel="Retry loading reviews"
-          onRetry={async () => {
-            setIsLoading(true);
-            await fetchReviews();
-            setIsLoading(false);
-          }}
+          onRetry={refetch}
         />
       ) : reviews.length === 0 ? (
         <View style={styles.empty}>
@@ -215,11 +195,7 @@ export function MyReviews() {
             <RefreshControl
               refreshing={isRefreshing}
               tintColor={colors.purple}
-              onRefresh={async () => {
-                setIsRefreshing(true);
-                await fetchReviews();
-                setIsRefreshing(false);
-              }}
+              onRefresh={refresh}
             />
           }
         />
