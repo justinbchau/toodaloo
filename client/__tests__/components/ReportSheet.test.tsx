@@ -115,6 +115,48 @@ describe('ReportSheet — submission', () => {
     await waitFor(() => expect(screen.getByText("Couldn't submit your report. Try again.")).toBeTruthy());
     expect(screen.queryByText("Thanks — we'll take a look")).toBeNull();
   });
+
+  it('shows the inline error when the insert throws (network-level failure)', async () => {
+    // A rejected promise (not a returned {error}) must hit the catch branch and
+    // surface the same inline error, never the confirmation.
+    mockInsert.mockRejectedValue(new Error('network down'));
+    render(<ReportSheet target={bathroomTarget} onClose={mockOnClose} />);
+
+    await act(async () => {
+      fireEvent.press(screen.getByText('Spam or fake'));
+    });
+
+    await waitFor(() => expect(screen.getByText("Couldn't submit your report. Try again.")).toBeTruthy());
+    expect(screen.queryByText("Thanks — we'll take a look")).toBeNull();
+  });
+
+  it('cancels the pending auto-dismiss when reused for a new target', async () => {
+    // Regression: the sheet is one reused instance. Submitting report A schedules
+    // a 1.6s auto-dismiss; reopening for target B before it fires must cancel it,
+    // or the stale timer would silently close B's sheet mid-interaction.
+    jest.useFakeTimers();
+    try {
+      const onClose = jest.fn();
+      const { rerender } = render(<ReportSheet target={bathroomTarget} onClose={onClose} />);
+      await act(async () => {
+        fireEvent.press(screen.getByText('Spam or fake'));
+      });
+      expect(screen.getByText("Thanks — we'll take a look")).toBeTruthy();
+
+      // Reopen for a different target before the auto-dismiss fires.
+      rerender(<ReportSheet target={reviewTarget} onClose={onClose} />);
+      expect(screen.getByText('Report this review')).toBeTruthy();
+
+      // Advance well past the auto-dismiss window — the stale timer must be gone.
+      act(() => {
+        jest.advanceTimersByTime(5000);
+      });
+      expect(onClose).not.toHaveBeenCalled();
+      expect(screen.getByText('Report this review')).toBeTruthy();
+    } finally {
+      jest.useRealTimers();
+    }
+  });
 });
 
 describe('ReportSheet — auth guard', () => {

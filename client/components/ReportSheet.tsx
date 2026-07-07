@@ -42,8 +42,12 @@ export default function ReportSheet({ target, onClose }: Props) {
 
   const visible = target !== null;
 
-  // Fresh slate every time the sheet is (re)opened for a new target.
+  // Fresh slate every time the sheet is (re)opened for — or closed from — a new
+  // target. Crucially, cancel any pending auto-dismiss first: this one instance
+  // is reused across reports (never remounted), so a leftover timer from a prior
+  // submit would otherwise fire and close a freshly-opened sheet mid-interaction.
   useEffect(() => {
+    clearTimeout(dismissTimer.current);
     if (target) {
       setSubmitting(false);
       setSubmitted(false);
