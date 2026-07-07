@@ -16,6 +16,7 @@ import { useUser } from '../context/UserContext';
 import { LocationCtx } from '../context/context';
 import { haversine, formatDistance } from '../utils/geo';
 import { SkeletonReviewCard } from '../components/SkeletonReviewCard';
+import ReportSheet, { ReportTarget } from '../components/ReportSheet';
 
 type DetailRoute = RouteProp<RootStackParamList, 'BathroomDetail'>;
 
@@ -36,6 +37,8 @@ export function BathroomDetail() {
   const [isSaved, setIsSaved] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [retryKey, setRetryKey] = useState(0);
+  // Non-null while the report reason-picker is open; carries what's being reported.
+  const [reportTarget, setReportTarget] = useState<ReportTarget | null>(null);
 
   // Compute distance
   const distance = center
@@ -167,9 +170,7 @@ export function BathroomDetail() {
   };
 
   const handleReport = () => {
-    Linking.openURL(
-      `mailto:hello@toodaloo.app?subject=Report: ${encodeURIComponent(name)}&body=I'd like to report this bathroom listing.`
-    );
+    setReportTarget({ type: 'bathroom', id });
   };
 
   // Loading state
@@ -409,9 +410,22 @@ export function BathroomDetail() {
                 <Text style={{ color: colors.text1, fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 14 }}>
                   {review.author_username ?? 'Anonymous'}
                 </Text>
-                <Text style={{ color: colors.text3, fontSize: 12, fontFamily: 'PlusJakartaSans_400Regular' }}>
-                  {new Date(review.created_at).toLocaleDateString()}
-                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                  <Text style={{ color: colors.text3, fontSize: 12, fontFamily: 'PlusJakartaSans_400Regular' }}>
+                    {new Date(review.created_at).toLocaleDateString()}
+                  </Text>
+                  {/* Report affordance — hidden on the user's own reviews. */}
+                  {user?.id !== review.user_id && (
+                    <Pressable
+                      onPress={() => setReportTarget({ type: 'review', id: review.id })}
+                      hitSlop={8}
+                      accessibilityRole="button"
+                      accessibilityLabel="Report this review"
+                    >
+                      <MaterialCommunityIcons name="flag-outline" size={15} color={colors.text3} />
+                    </Pressable>
+                  )}
+                </View>
               </View>
               <Text style={{ color: colors.yellow, fontSize: 13, marginTop: 2 }}>
                 {'★'.repeat(review.rating)}{'☆'.repeat(5 - review.rating)}
@@ -426,6 +440,8 @@ export function BathroomDetail() {
         )}
 
       </ScrollView>
+
+      <ReportSheet target={reportTarget} onClose={() => setReportTarget(null)} />
     </View>
   );
 }
