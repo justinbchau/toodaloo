@@ -114,33 +114,24 @@ function haversineM(lat1, lng1, lat2, lng2) {
   return 2 * R * Math.asin(Math.sqrt(a));
 }
 
-// Refuge duplicates a spot two ways, and we must catch both:
-//   1. Same place, different names, ~same coords  ("The market" / "the Market SF")
-//   2. Same name+address, coords ~30m apart in different grid cells
-//      (two "Exploratorium, Pier 15" pins) — a coordinate-bucket key alone
-//      misses these, and the SQL's WHERE NOT EXISTS can't (it only checks the
-//      committed table, not sibling VALUES rows), so both would insert.
-// So dedupe on TWO signals: exact coordinate bucket (~11m), OR same normalized
-// name within 75m of an already-kept same-named row. Rows arrive nearest-first,
-// so the survivor is the closest to the query point.
+// Dedupe on physical proximity alone. Refuge duplicates a spot every which way
+// — same name/diff coords ("Exploratorium" x2, ~30m apart), diff name/same
+// address ("Coffee Bar" / "Arc Cafe" at 1890 Bryant, ~10m apart), diff spelling
+// same coords ("The market" / "the Market SF") — so name and address strings are
+// all unreliable keys. Proximity is the honest one: two toilets within DEDUPE_M
+// are the same findable location. Drop a row if it's within DEDUPE_M of any
+// already-kept row. Rows arrive nearest-first, so the survivor is the closest to
+// the query point. (Tight enough — ~one building — that genuinely distinct
+// venues a block apart survive.)
+const DEDUPE_M = 40;
+
 function dedupe(rows) {
-  const coordSeen = new Set();
-  const keptByName = new Map(); // normName -> [{ lat, lng }]
-  const out = [];
+  const kept = [];
   for (const row of rows) {
-    const coordKey = `${row.lat.toFixed(4)}|${row.lng.toFixed(4)}`;
-    if (coordSeen.has(coordKey)) continue;
-
-    const normName = row.name.toLowerCase().replace(/\s+/g, ' ').trim();
-    const sameName = keptByName.get(normName);
-    if (sameName?.some((p) => haversineM(p.lat, p.lng, row.lat, row.lng) < 75)) continue;
-
-    coordSeen.add(coordKey);
-    if (sameName) sameName.push({ lat: row.lat, lng: row.lng });
-    else keptByName.set(normName, [{ lat: row.lat, lng: row.lng }]);
-    out.push(row);
+    if (kept.some((k) => haversineM(k.lat, k.lng, row.lat, row.lng) < DEDUPE_M)) continue;
+    kept.push(row);
   }
-  return out;
+  return kept;
 }
 
 // --- emit SQL ----------------------------------------------------------------
