@@ -114,24 +114,33 @@ function haversineM(lat1, lng1, lat2, lng2) {
   return 2 * R * Math.asin(Math.sqrt(a));
 }
 
-// Dedupe on physical proximity alone. Refuge duplicates a spot every which way
-// — same name/diff coords ("Exploratorium" x2, ~30m apart), diff name/same
-// address ("Coffee Bar" / "Arc Cafe" at 1890 Bryant, ~10m apart), diff spelling
-// same coords ("The market" / "the Market SF") — so name and address strings are
-// all unreliable keys. Proximity is the honest one: two toilets within DEDUPE_M
-// are the same findable location. Drop a row if it's within DEDUPE_M of any
-// already-kept row. Rows arrive nearest-first, so the survivor is the closest to
-// the query point. (Tight enough — ~one building — that genuinely distinct
-// venues a block apart survive.)
-const DEDUPE_M = 40;
+const norm = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+
+// A real duplicate shares an *identity* (same name OR same address) AND is
+// nearby — that's what tells "one place submitted twice" apart from "two
+// distinct venues on one dense block". Proximity alone can't: it merges El Rio
+// and Virgil's Sea Room (17m, different bars). Name alone can't: many distinct
+// "Starbucks" exist citywide. So drop a row only if it's within DEDUPE_M of an
+// already-kept row that ALSO matches on name or address. Catches "Exploratorium"
+// x2 (name), "Coffee Bar"/"Arc Cafe" at 1890 Bryant (address), "The market"/"the
+// Market SF" (address) — while keeping genuinely distinct neighbors. Rows arrive
+// nearest-first, so the survivor is closest to center.
+const DEDUPE_M = 120;
 
 function dedupe(rows) {
   const kept = [];
   for (const row of rows) {
-    if (kept.some((k) => haversineM(k.lat, k.lng, row.lat, row.lng) < DEDUPE_M)) continue;
-    kept.push(row);
+    const nn = norm(row.name);
+    const na = norm(row.address);
+    const isDup = kept.some(
+      (k) =>
+        haversineM(k.lat, k.lng, row.lat, row.lng) < DEDUPE_M &&
+        (k.nn === nn || (na !== '' && k.na === na)),
+    );
+    if (isDup) continue;
+    kept.push({ ...row, nn, na });
   }
-  return kept;
+  return kept.map(({ nn, na, ...row }) => row);
 }
 
 // --- emit SQL ----------------------------------------------------------------
