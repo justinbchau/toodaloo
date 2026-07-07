@@ -19,6 +19,7 @@
 
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 // --- args --------------------------------------------------------------------
 function arg(name, fallback) {
@@ -69,7 +70,7 @@ async function fetchAll() {
 // --- clean / filter ----------------------------------------------------------
 const JUNK_NAME = /^(test\b|asdf|qwerty|http|n\/?a$|none$|\.+$)/i;
 
-function isSane(r) {
+export function isSane(r) {
   if (r.approved !== true) return false; // unmoderated
   if (!Number.isFinite(r.latitude) || !Number.isFinite(r.longitude)) return false;
   if (typeof r.distance === 'number' && r.distance > RADIUS_KM) return false;
@@ -90,7 +91,7 @@ function titleCase(s) {
   return s.replace(/\w\S*/g, (w) => w[0].toUpperCase() + w.slice(1).toLowerCase());
 }
 
-function toRow(r) {
+export function toRow(r) {
   const name = r.name.trim();
   const state = (r.state ?? '').trim();
   const parts = [
@@ -103,7 +104,7 @@ function toRow(r) {
   return { name, address, lat: r.latitude, lng: r.longitude, tags };
 }
 
-function haversineM(lat1, lng1, lat2, lng2) {
+export function haversineM(lat1, lng1, lat2, lng2) {
   const R = 6371000;
   const toRad = (d) => (d * Math.PI) / 180;
   const dLat = toRad(lat2 - lat1);
@@ -114,28 +115,38 @@ function haversineM(lat1, lng1, lat2, lng2) {
   return 2 * R * Math.asin(Math.sqrt(a));
 }
 
-const norm = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+export const norm = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 
-// A real duplicate shares an *identity* (same name OR same address) AND is
-// nearby — that's what tells "one place submitted twice" apart from "two
-// distinct venues on one dense block". Proximity alone can't: it merges El Rio
-// and Virgil's Sea Room (17m, different bars). Name alone can't: many distinct
-// "Starbucks" exist citywide. So drop a row only if it's within DEDUPE_M of an
-// already-kept row that ALSO matches on name or address. Catches "Exploratorium"
-// x2 (name), "Coffee Bar"/"Arc Cafe" at 1890 Bryant (address), "The market"/"the
-// Market SF" (address) — while keeping genuinely distinct neighbors. Rows arrive
-// nearest-first, so the survivor is closest to center.
+// Canonicalize common street-type abbreviations so "4 Valencia St." and "4
+// Valencia street" compare equal. Applied to addresses only — expanding "st" in
+// names would corrupt "St James" → "street james".
+const ABBR = {
+  st: 'street', ave: 'avenue', av: 'avenue', blvd: 'boulevard', rd: 'road',
+  dr: 'drive', ln: 'lane', ct: 'court', pl: 'place', sq: 'square', hwy: 'highway',
+};
+export const normAddr = (s) => norm(s).split(' ').map((t) => ABBR[t] ?? t).join(' ');
+
+// A real duplicate is the SAME pin. Three signals, strongest first:
+//   1. Bit-identical coordinates — two rows at the exact same float (e.g.
+//      37.75254169999999) are one geocode result re-submitted; distinct venues
+//      never collide on a full-precision float. Dedupe regardless of name/addr.
+//   2/3. Within 120m AND matching normalized name OR canonicalized address —
+//      catches the same place re-pinned a few meters over with a name/spelling
+//      variant, without merging two distinct venues on one dense block (El Rio
+//      vs Virgil's, 17m) or two same-named venues citywide (many Starbucks).
+// Rows arrive nearest-first, so the survivor is closest to center.
 const DEDUPE_M = 120;
 
-function dedupe(rows) {
+export function dedupe(rows) {
   const kept = [];
   for (const row of rows) {
     const nn = norm(row.name);
-    const na = norm(row.address);
+    const na = normAddr(row.address);
     const isDup = kept.some(
       (k) =>
-        haversineM(k.lat, k.lng, row.lat, row.lng) < DEDUPE_M &&
-        (k.nn === nn || (na !== '' && k.na === na)),
+        (k.lat === row.lat && k.lng === row.lng) ||
+        (haversineM(k.lat, k.lng, row.lat, row.lng) < DEDUPE_M &&
+          (k.nn === nn || (na !== '' && k.na === na))),
     );
     if (isDup) continue;
     kept.push({ ...row, nn, na });
@@ -197,21 +208,27 @@ where not exists (
 }
 
 // --- main --------------------------------------------------------------------
-const raw = await fetchAll();
-const kept = dedupe(raw.filter(isSane).map(toRow)).slice(0, MAX_ROWS);
+// Only run the fetch → write pipeline when invoked directly (node import-refuge.mjs),
+// not when imported by the test file.
+const isMain = import.meta.url === pathToFileURL(process.argv[1] ?? '').href;
 
-if (kept.length === 0) {
-  console.error('No rows survived filtering — check lat/lng/radius.');
-  process.exit(1);
+if (isMain) {
+  const raw = await fetchAll();
+  const kept = dedupe(raw.filter(isSane).map(toRow)).slice(0, MAX_ROWS);
+
+  if (kept.length === 0) {
+    console.error('No rows survived filtering — check lat/lng/radius.');
+    process.exit(1);
+  }
+
+  // Date is passed in so the script is deterministic when unit-run; default now.
+  const date = arg('date', new Date().toISOString().slice(0, 10));
+  const sql = toSql(kept, { date, scanned: raw.length });
+
+  mkdirSync(dirname(OUT), { recursive: true });
+  writeFileSync(OUT, sql);
+  console.error(
+    `Wrote ${kept.length} rows to ${OUT} (scanned ${raw.length}, ` +
+      `${raw.length - kept.length} filtered/deduped).`,
+  );
 }
-
-// Date is passed in so the script is deterministic when unit-run; default now.
-const date = arg('date', new Date().toISOString().slice(0, 10));
-const sql = toSql(kept, { date, scanned: raw.length });
-
-mkdirSync(dirname(OUT), { recursive: true });
-writeFileSync(OUT, sql);
-console.error(
-  `Wrote ${kept.length} rows to ${OUT} (scanned ${raw.length}, ` +
-    `${raw.length - kept.length} filtered/deduped).`,
-);
