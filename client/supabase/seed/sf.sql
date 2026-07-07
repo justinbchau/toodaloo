@@ -46,7 +46,6 @@ select * from (values
   ('Celtic Coffee Company', '142 McAllister St, San Francisco, CA', 37.780854, -122.414421, array['Gender Neutral', 'Handicap']::text[], 'public', false),
   ('Wicked Grounds', '289 8th Street, San Francisco, CA', 37.7752859, -122.4102426, array['Gender Neutral']::text[], 'public', false),
   ('Lone Star Saloon', '1354 Harrison St, San Francisco, California', 37.7721623, -122.4108716, array['Gender Neutral', 'Handicap']::text[], 'public', false),
-  ('Wicked Grounds', '289 8th St, San Francisco, CA', 37.7753543, -122.4101844, array['Handicap']::text[], 'public', false),
   ('Cat Club', '1190 Folsom Street, San Francisco, CA', 37.775454, -122.410026, array['Gender Neutral', 'Handicap']::text[], 'public', false),
   ('Embassy Hotel', '610 Polk St, San Francisco, CA', 37.7823889, -122.4188905, array['Gender Neutral', 'Handicap']::text[], 'public', false),
   ('Whitechapel Gin Bar', '600 Polk St, San Francisco, California', 37.782414, -122.418765, array['Gender Neutral']::text[], 'public', false),
@@ -152,7 +151,6 @@ select * from (values
   ('Bar Basic', '510 Brannan St, San Francisco, CA', 37.7782271, -122.3970474, array['Handicap']::text[], 'public', false),
   ('Castro Country Club', '4058 18th street, San Francisco, CA', 37.7611113, -122.4340863, array['Gender Neutral', 'Handicap']::text[], 'public', false),
   ('Slurp Noodle Bar', '469 Castro St, San Francisco, CA', 37.7615081, -122.4347701, array['Gender Neutral']::text[], 'public', false),
-  ('Castro Country Club', '4058 18th Street, San Francisco, California', 37.7610779, -122.4341722, '{}'::text[], 'public', false),
   ('InterContinental Mark Hopkins San Francisco, an IHG Hotel', '999 California St., San Francisco, California', 37.7915187, -122.4101366, array['Handicap', 'Baby Friendly']::text[], 'public', false),
   ('SFMOMA', '151 Third Street, San Francisco, CA', 37.7859072, -122.4008003, array['Gender Neutral', 'Handicap']::text[], 'public', false),
   ('AG Ferrari Foods', '468 Castro St, San Francisco, CA', 37.7614002, -122.4352402, '{}'::text[], 'public', false),
@@ -262,7 +260,6 @@ select * from (values
   ('Bay Club', '150 Greenwich St, San Francisco, CA', 37.8034276, -122.4028839, array['Gender Neutral']::text[], 'public', false),
   ('Pico Latin Street Food', '801 Beach St San Francisco, CA  94109 United States, San Francisco, CA', 37.8062265, -122.4224782, array['Gender Neutral', 'Handicap']::text[], 'public', false),
   ('Exploratorium', 'Pier 15, San Francisco, CA', 37.8013881, -122.3975432, array['Gender Neutral', 'Handicap']::text[], 'public', false),
-  ('Exploratorium', 'Pier 15, San Francisco, CA', 37.8016649, -122.397348, array['Gender Neutral', 'Handicap']::text[], 'public', false),
   ('UCSF Medical Sciences Building', '513 Parnassus Street, San Francisco, CA', 37.7630467, -122.4584652, array['Gender Neutral', 'Handicap']::text[], 'public', false),
   ('Equator Coffees', '2 Marina Boulevard, San Francisco, California', 37.8067224, -122.4313474, array['Gender Neutral', 'Handicap']::text[], 'public', false),
   ('Dogpatch boulders', '3rd st, San Francisco, California', 37.7528313, -122.3878904, array['Gender Neutral']::text[], 'public', false),
@@ -314,7 +311,10 @@ select * from (values
   ('Simple Pleasures Cafe', '3434 Balboa Avenue, San Francisco, California', 37.7759732, -122.4958284, '{}'::text[], 'public', false),
   ('Broken Record', '1168 Geneva, San Francisco, CA', 37.7143089, -122.4368864, array['Gender Neutral', 'Handicap']::text[], 'public', false),
   ('La promenade cafe', '3643 Balboa St, San Francisco, California', 37.7754758, -122.4981518, array['Gender Neutral', 'Handicap']::text[], 'public', false),
-  ('Other Avenues', '3930 Judah St, San Francisco, CA', 37.7606042, -122.5043479, array['Gender Neutral', 'Handicap']::text[], 'public', false)
+  ('Other Avenues', '3930 Judah St, San Francisco, CA', 37.7606042, -122.5043479, array['Gender Neutral', 'Handicap']::text[], 'public', false),
+  ('San Francisco State University Humanities Building', '1600 Holloway Ave, San Francisco, CA', 37.7227685, -122.4767174, array['Gender Neutral', 'Handicap']::text[], 'public', false),
+  ('45th Ave, San Francisco, CA 94132, USA', '45th Ave, San Francisco, California', 37.7577165, -122.5046744, array['Handicap', 'Baby Friendly']::text[], 'public', false),
+  ('SF State University Student Health Services', '1600 Holloway Ave., San Francisco, CA', 37.7212, -122.4768438, array['Gender Neutral', 'Handicap']::text[], 'public', false)
 ) as v(name, address, lat, lng, tags, access_type, is_24_hours)
 where not exists (
   select 1 from public.bathrooms b
