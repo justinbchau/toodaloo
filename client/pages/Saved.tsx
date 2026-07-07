@@ -1,16 +1,18 @@
-import React, { useState, useCallback } from 'react';
-import { View, Text, RefreshControl, ActivityIndicator, StyleSheet, Pressable } from 'react-native';
+import React, { useCallback } from 'react';
+import { View, Text, RefreshControl, ActivityIndicator, StyleSheet } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useThemeContext } from '../context/ThemeContext';
 import { useUser } from '../context/UserContext';
 import { supabase } from '../lib/supabase';
 import { BathroomCard, BathroomCardData } from '../components/BathroomCard';
+import { ErrorState } from '../components/ErrorState';
 import { ACCESS_ICON, DEFAULT_ACCESS_ICON } from '../lib/accessIcons';
 import { RootStackParamList } from '../RootStackParams';
 import { FlashList } from '@shopify/flash-list';
+import { useFocusedFetch } from '../hooks/useFocusedFetch';
 
 const listStyles = StyleSheet.create({
   contentContainer: { paddingHorizontal: 16, paddingBottom: 32, gap: 12 },
@@ -20,11 +22,6 @@ export function Saved() {
   const { colors } = useThemeContext();
   const { user } = useUser();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-
-  const [bathrooms, setBathrooms] = useState<BathroomCardData[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [hasError, setHasError] = useState(false);
 
   const keyExtractor = useCallback((item: BathroomCardData) => item.id, []);
 
@@ -45,56 +42,41 @@ export function Saved() {
     [navigation]
   );
 
-  const fetchSaved = async () => {
-    if (!user) return;
-    try {
-      const { data, error } = await supabase
-        .from('saved_bathrooms')
-        .select('bathrooms(*)')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
+  const load = useCallback(async (): Promise<BathroomCardData[]> => {
+    if (!user) return [];
+    const { data, error } = await supabase
+      .from('saved_bathrooms')
+      .select('bathrooms(*)')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      setHasError(false);
+    if (error) throw error;
 
-      const transformed: BathroomCardData[] = (data ?? [])
-        .map((row: any) => row.bathrooms)
-        .filter(Boolean)
-        .map((b: any) => ({
-          id: b.id,
-          name: b.name,
-          icon: ACCESS_ICON[b.access_type] ?? DEFAULT_ACCESS_ICON,
-          sub:
-            b.access_type === 'public'
-              ? `Public${b.is_24_hours ? ' · Open 24h' : ''}`
-              : b.access_type === 'key_required'
-              ? 'Key Required'
-              : 'Purchase Required',
-          rating: Math.round(Number(b.rating_avg) || 0),
-          score: (Number(b.rating_avg) || 0).toFixed(1),
-          reviewCount: `(${b.review_count ?? 0})`,
-          distance: '',
-          lat: b.lat,
-          lng: b.lng,
-        }));
+    return (data ?? [])
+      .map((row: any) => row.bathrooms)
+      .filter(Boolean)
+      .map((b: any) => ({
+        id: b.id,
+        name: b.name,
+        icon: ACCESS_ICON[b.access_type] ?? DEFAULT_ACCESS_ICON,
+        sub:
+          b.access_type === 'public'
+            ? `Public${b.is_24_hours ? ' · Open 24h' : ''}`
+            : b.access_type === 'key_required'
+            ? 'Key Required'
+            : 'Purchase Required',
+        rating: Math.round(Number(b.rating_avg) || 0),
+        score: (Number(b.rating_avg) || 0).toFixed(1),
+        reviewCount: `(${b.review_count ?? 0})`,
+        distance: '',
+        lat: b.lat,
+        lng: b.lng,
+      }));
+  }, [user?.id]);
 
-      setBathrooms(transformed);
-    } catch (err) {
-      console.error('Failed to fetch saved bathrooms:', err);
-      setHasError(true);
-    }
-  };
-
-  // Refetch on focus so newly saved/unsaved bathrooms are reflected when the
-  // user returns to this tab.
-  useFocusEffect(
-    useCallback(() => {
-      setIsLoading(true);
-      fetchSaved().finally(() => setIsLoading(false));
-      // fetchSaved reads user + supabase (stable module ref); user.id is the key input.
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [user?.id])
-  );
+  // Refetch on focus so newly saved/unsaved bathrooms reflect on return.
+  const { data, isLoading, isRefreshing, hasError, refetch, refresh } = useFocusedFetch(load);
+  const bathrooms = data ?? [];
 
   // Loading state
   if (isLoading) {
@@ -119,29 +101,11 @@ export function Saved() {
             Saved
           </Text>
         </View>
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 32 }}>
-          <Text style={{ fontSize: 44 }}>⚠️</Text>
-          <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 16, color: colors.text1, marginTop: 12, textAlign: 'center' }}>
-            Couldn't load your saved places
-          </Text>
-          <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 13, color: colors.text3, marginTop: 4, textAlign: 'center' }}>
-            Check your connection and try again.
-          </Text>
-          <Pressable
-            onPress={async () => {
-              setIsLoading(true);
-              await fetchSaved();
-              setIsLoading(false);
-            }}
-            style={({ pressed }: { pressed: boolean }) => ({
-              marginTop: 20, backgroundColor: colors.purple,
-              borderRadius: 12, paddingHorizontal: 24, paddingVertical: 12,
-              opacity: pressed ? 0.85 : 1,
-            })}
-          >
-            <Text style={{ color: '#fff', fontFamily: 'PlusJakartaSans_700Bold', fontSize: 14 }}>Retry</Text>
-          </Pressable>
-        </View>
+        <ErrorState
+          title="Couldn't load your saved places"
+          retryAccessibilityLabel="Retry loading saved places"
+          onRetry={refetch}
+        />
       </SafeAreaView>
     );
   }
@@ -192,11 +156,7 @@ export function Saved() {
           <RefreshControl
             refreshing={isRefreshing}
             tintColor={colors.purple}
-            onRefresh={async () => {
-              setIsRefreshing(true);
-              await fetchSaved();
-              setIsRefreshing(false);
-            }}
+            onRefresh={refresh}
           />
         }
       />

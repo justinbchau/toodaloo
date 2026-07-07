@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, Alert } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, ScrollView, Alert, Pressable } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ProfileStackParamList } from '../RootStackParams';
@@ -22,35 +22,45 @@ export function Profile() {
   const isFocused = useIsFocused();
   const [stats, setStats] = useState({ saved: 0, reviews: 0, added: 0 });
   const [isLoadingStats, setIsLoadingStats] = useState(true);
+  const [statsError, setStatsError] = useState(false);
 
   useEffect(() => {
     if (!isFocused || !user) return;
     refreshProfile();
   }, [isFocused, user?.id, refreshProfile]);
 
+  const fetchStats = useCallback(async () => {
+    if (!user) return;
+    setIsLoadingStats(true);
+    try {
+      const [savedRes, reviewsRes, addedRes] = await Promise.all([
+        supabase.from('saved_bathrooms').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
+        supabase.from('reviews').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
+        supabase.from('bathrooms').select('*', { count: 'exact', head: true }).eq('created_by', user.id),
+      ]);
+      // Promise.all resolves even when a query returns { error } instead of
+      // throwing, so check each result — otherwise a failed count silently
+      // renders as 0 (a plausible-but-wrong stat).
+      const failure = savedRes.error ?? reviewsRes.error ?? addedRes.error;
+      if (failure) throw failure;
+      setStats({
+        saved: savedRes.count ?? 0,
+        reviews: reviewsRes.count ?? 0,
+        added: addedRes.count ?? 0,
+      });
+      setStatsError(false);
+    } catch (err) {
+      console.error('Failed to fetch profile stats:', err);
+      setStatsError(true);
+    } finally {
+      setIsLoadingStats(false);
+    }
+  }, [user?.id]);
+
   useEffect(() => {
     if (!isFocused || !user) return;
-
-    const fetchStats = async () => {
-      setIsLoadingStats(true);
-      try {
-        const [savedRes, reviewsRes, addedRes] = await Promise.all([
-          supabase.from('saved_bathrooms').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
-          supabase.from('reviews').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
-          supabase.from('bathrooms').select('*', { count: 'exact', head: true }).eq('created_by', user.id),
-        ]);
-        setStats({
-          saved: savedRes.count ?? 0,
-          reviews: reviewsRes.count ?? 0,
-          added: addedRes.count ?? 0,
-        });
-      } finally {
-        setIsLoadingStats(false);
-      }
-    };
-
     fetchStats();
-  }, [isFocused, user?.id]);
+  }, [isFocused, user?.id, fetchStats]);
 
   const handleLogOut = async () => {
     try {
@@ -105,28 +115,47 @@ export function Profile() {
               {user?.email ?? ''}
             </Text>
 
-            {/* Stats row */}
-            <View style={{ flexDirection: 'row', marginTop: 18, paddingTop: 16, borderTopWidth: 1, borderTopColor: colors.border, alignSelf: 'stretch', marginHorizontal: 24 }}>
-              {[
-                { stat: String(stats.saved), label: 'SAVED' },
-                { stat: String(stats.reviews), label: 'REVIEWS' },
-                { stat: String(stats.added), label: 'ADDED' },
-              ].map((item, i) => (
-                <View key={item.label} style={{
-                  flex: 1,
-                  alignItems: 'center',
-                  borderRightWidth: i < 2 ? 1 : 0,
-                  borderRightColor: colors.border,
-                }}>
-                  <Text style={{ fontSize: 20, fontFamily: 'PlusJakartaSans_800ExtraBold', color: colors.text1, letterSpacing: -0.8 }}>
-                    {item.stat}
+            {/* Stats row — or a retry affordance if the counts failed to load,
+                so we never render a misleading 0. */}
+            {statsError ? (
+              <View style={{ marginTop: 18, paddingTop: 16, borderTopWidth: 1, borderTopColor: colors.border, alignSelf: 'stretch', marginHorizontal: 24, alignItems: 'center' }}>
+                <Text style={{ fontSize: 13, fontFamily: 'PlusJakartaSans_400Regular', color: colors.text3 }}>
+                  Couldn't load your stats
+                </Text>
+                <Pressable
+                  onPress={fetchStats}
+                  accessibilityRole="button"
+                  accessibilityLabel="Retry loading stats"
+                  style={({ pressed }: { pressed: boolean }) => ({ marginTop: 6, paddingVertical: 4, paddingHorizontal: 8, opacity: pressed ? 0.6 : 1 })}
+                >
+                  <Text style={{ fontSize: 13, fontFamily: 'PlusJakartaSans_600SemiBold', color: colors.purpleText }}>
+                    Retry
                   </Text>
-                  <Text style={{ fontSize: 10, fontFamily: 'PlusJakartaSans_600SemiBold', color: colors.text3, letterSpacing: 1.2, marginTop: 2 }}>
-                    {item.label}
-                  </Text>
-                </View>
-              ))}
-            </View>
+                </Pressable>
+              </View>
+            ) : (
+              <View style={{ flexDirection: 'row', marginTop: 18, paddingTop: 16, borderTopWidth: 1, borderTopColor: colors.border, alignSelf: 'stretch', marginHorizontal: 24 }}>
+                {[
+                  { stat: String(stats.saved), label: 'SAVED' },
+                  { stat: String(stats.reviews), label: 'REVIEWS' },
+                  { stat: String(stats.added), label: 'ADDED' },
+                ].map((item, i) => (
+                  <View key={item.label} style={{
+                    flex: 1,
+                    alignItems: 'center',
+                    borderRightWidth: i < 2 ? 1 : 0,
+                    borderRightColor: colors.border,
+                  }}>
+                    <Text style={{ fontSize: 20, fontFamily: 'PlusJakartaSans_800ExtraBold', color: colors.text1, letterSpacing: -0.8 }}>
+                      {item.stat}
+                    </Text>
+                    <Text style={{ fontSize: 10, fontFamily: 'PlusJakartaSans_600SemiBold', color: colors.text3, letterSpacing: 1.2, marginTop: 2 }}>
+                      {item.label}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            )}
           </View>
         )}
 
