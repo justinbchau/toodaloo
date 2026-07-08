@@ -257,8 +257,7 @@ describe('BathroomDetail — action buttons', () => {
     openSpy.mockRestore();
   });
 
-  it('calls Linking.openURL with mailto when Report is pressed', async () => {
-    const linkingSpy = jest.spyOn(Linking, 'openURL').mockResolvedValue(undefined);
+  it('opens the report sheet when the Report button is pressed', async () => {
     render(<BathroomDetail />);
     await waitFor(() => expect(screen.getByText('Test Bathroom')).toBeTruthy());
 
@@ -266,10 +265,8 @@ describe('BathroomDetail — action buttons', () => {
       fireEvent.press(screen.getByText('Report'));
     });
 
-    expect(linkingSpy).toHaveBeenCalledWith(
-      expect.stringContaining('mailto:'),
-    );
-    linkingSpy.mockRestore();
+    // The reason-picker sheet surfaces its bathroom title.
+    expect(screen.getByText('Report this listing')).toBeTruthy();
   });
 
   it('calls navigation.goBack when back button is pressed', async () => {
@@ -453,5 +450,30 @@ describe('BathroomDetail — review body rendering', () => {
 
     await waitFor(() => expect(screen.getByText('testuser')).toBeTruthy());
     expect(screen.queryByText('Clean and accessible.')).toBeNull();
+  });
+});
+
+describe('BathroomDetail — report a review', () => {
+  it('hides the report affordance on the user\'s own review', async () => {
+    // mockReview.user_id === the logged-in user (test-user-id-123).
+    render(<BathroomDetail />);
+    await waitFor(() => expect(screen.getByText('Clean and accessible.')).toBeTruthy());
+    expect(screen.queryByLabelText('Report this review')).toBeNull();
+  });
+
+  it('shows the report affordance on another user\'s review and opens the sheet', async () => {
+    setupDefaultMocks({
+      reviews: [{ ...mockReview, user_id: 'someone-else', body: 'Not my review.' }],
+    });
+    render(<BathroomDetail />);
+    await waitFor(() => expect(screen.getByText('Not my review.')).toBeTruthy());
+
+    const flag = screen.getByLabelText('Report this review');
+    await act(async () => {
+      fireEvent.press(flag);
+    });
+
+    // Sheet opens with the review-specific title.
+    expect(screen.getByText('Report this review')).toBeTruthy();
   });
 });
