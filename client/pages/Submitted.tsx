@@ -10,7 +10,7 @@ import { supabase } from '../lib/supabase';
 import { RootStackParamList } from '../RootStackParams';
 import { BathroomCard, BathroomCardData } from '../components/BathroomCard';
 import { ErrorState } from '../components/ErrorState';
-import { ACCESS_ICON, DEFAULT_ACCESS_ICON } from '../lib/accessIcons';
+import { toCardData } from '../lib/bathroomCard';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { EmptyState } from '../components/ui/EmptyState';
 import { SkeletonBathroomCard } from '../components/SkeletonBathroomCard';
@@ -33,23 +33,7 @@ export function Submitted() {
 
     if (error) throw error;
 
-    return (data ?? []).map((b: any) => ({
-      id: b.id,
-      name: b.name,
-      icon: ACCESS_ICON[b.access_type] ?? DEFAULT_ACCESS_ICON,
-      sub:
-        b.access_type === 'public'
-          ? `Public${b.is_24_hours ? ' · Open 24h' : ''}`
-          : b.access_type === 'key_required'
-          ? 'Key Required'
-          : 'Purchase Required',
-      rating: Math.round(Number(b.rating_avg) || 0),
-      score: (Number(b.rating_avg) || 0).toFixed(1),
-      reviewCount: `(${b.review_count ?? 0})`,
-      distance: '',
-      lat: b.lat,
-      lng: b.lng,
-    }));
+    return (data ?? []).map((b: any) => toCardData(b));
   }, [user?.id]);
 
   // Refetch on focus so a newly added bathroom shows on return.

@@ -12,6 +12,8 @@ import { useUser } from '../context/UserContext';
 import { supabase } from '../lib/supabase';
 import { PrimaryButton } from '../components/ui/PrimaryButton';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
+import { Chip } from '../components/ui/Chip';
+import { REVIEW_TAGS, MAX_REVIEW_TAGS, sanitizeTags } from '../lib/reviewTags';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 type WriteReviewRoute = RouteProp<RootStackParamList, 'WriteReview'>;
@@ -32,6 +34,11 @@ export function WriteReview() {
   const [existingReviewId, setExistingReviewId] = useState<string | null>(null);
   const [isLoadingExisting, setIsLoadingExisting] = useState(true);
   const [focused, setFocused] = useState(false);
+  const [tags, setTags] = useState<string[]>([]);
+  const toggleTag = (slug: string) =>
+    setTags((prev) =>
+      prev.includes(slug) ? prev.filter((t) => t !== slug) : prev.length >= MAX_REVIEW_TAGS ? prev : [...prev, slug],
+    );
 
   // One review per user per bathroom (unique constraint in the DB) — if the
   // user already reviewed this bathroom, prefill the form and update instead.
@@ -45,7 +52,7 @@ export function WriteReview() {
       try {
         const { data } = await supabase
           .from('reviews')
-          .select('id, rating, body')
+          .select('id, rating, body, tags')
           .eq('user_id', user.id)
           .eq('bathroom_id', bathroomId)
           .maybeSingle();
@@ -53,6 +60,7 @@ export function WriteReview() {
           setExistingReviewId(data.id);
           setRating(data.rating);
           setBody(data.body && data.body !== LEGACY_EMPTY_BODY ? data.body : '');
+          setTags(sanitizeTags((data as { tags?: unknown }).tags));
         }
       } catch {
         // Non-fatal: fall through to the create flow.
@@ -77,7 +85,8 @@ export function WriteReview() {
 
     setIsSubmitting(true);
     try {
-      const payload = { rating, body: body.trim() || null };
+      // tags is NOT NULL in the DB — always send an array (empty when none picked).
+      const payload = { rating, body: body.trim() || null, tags };
 
       const { error } = existingReviewId
         ? await supabase.from('reviews').update(payload).eq('id', existingReviewId)
@@ -164,6 +173,34 @@ export function WriteReview() {
                 ))}
               </View>
               <Text style={[styles.caption, { color: rating === 0 ? colors.text3 : colors.text1 }]}>{caption}</Text>
+
+              {/* One-tap tags (AllTrails/Gojek): revealed once there's a rating,
+                  with the group that matches the rating shown first. */}
+              {rating > 0 && (
+                <View style={{ marginTop: 28 }}>
+                  <Text style={[styles.label, { color: colors.text1, marginBottom: 12 }]}>
+                    What stood out? <Text style={{ color: colors.text3, fontFamily: 'PlusJakartaSans_500Medium', fontSize: 13 }}>(optional)</Text>
+                  </Text>
+                  {(rating <= 2 ? [false, true] : [true, false]).map((positive) => (
+                    <View key={String(positive)} style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
+                      {REVIEW_TAGS.filter((t) => t.positive === positive).map((t) => {
+                        const selected = tags.includes(t.slug);
+                        const atMax = !selected && tags.length >= MAX_REVIEW_TAGS;
+                        return (
+                          <Chip
+                            key={t.slug}
+                            label={t.label}
+                            icon={t.icon}
+                            active={selected}
+                            onPress={() => toggleTag(t.slug)}
+                            style={atMax ? { opacity: 0.4 } : undefined}
+                          />
+                        );
+                      })}
+                    </View>
+                  ))}
+                </View>
+              )}
 
               {/* Review text */}
               <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', marginTop: 32, marginBottom: 10 }}>

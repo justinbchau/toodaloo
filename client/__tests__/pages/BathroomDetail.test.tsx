@@ -484,3 +484,30 @@ describe('BathroomDetail — report a review', () => {
     expect(screen.getByText('Report this review')).toBeTruthy();
   });
 });
+
+describe('BathroomDetail — hours & review tags (0009)', () => {
+  it('shows the weekly hours table when the listing has hours', async () => {
+    setupDefaultMocks({
+      bathroom: { ...mockBathroomData, is_24_hours: false, hours: { mon: { open: '08:00', close: '20:00' }, sat: null } },
+    });
+    render(<BathroomDetail />);
+    await waitFor(() => expect(screen.getByText('Hours')).toBeTruthy());
+    expect(screen.getByText('8 AM – 8 PM')).toBeTruthy();
+    expect(screen.queryByText('Open 24/7')).toBeNull();
+  });
+
+  it('summarises the most-mentioned review tags and shows them on each review', async () => {
+    setupDefaultMocks({
+      reviews: [
+        { ...mockReview, id: 'r1', tags: ['clean', 'long_wait'] },
+        { ...mockReview, id: 'r2', user_id: 'someone-else', tags: ['clean'] },
+      ],
+    });
+    render(<BathroomDetail />);
+    await waitFor(() => expect(screen.getByText('People mention')).toBeTruthy());
+    // One summary pill + one chip per review that used the tag.
+    expect(screen.getAllByText('Clean').length).toBe(3);
+    expect(screen.getAllByText('Long wait').length).toBe(2);
+  });
+});
+

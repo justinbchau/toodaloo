@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useThemeContext } from '../context/ThemeContext';
-import { BathroomCardData } from './BathroomCard';
+import { BathroomCardData, statusColor } from './BathroomCard';
 import { StarRating } from './ui/StarRating';
 import { PrimaryButton } from './ui/PrimaryButton';
 import { SecondaryButton } from './ui/SecondaryButton';
@@ -51,7 +51,13 @@ export function NearestCard({ data, eyebrow = 'Nearest to you', onDirections, on
             <StarRating rating={data.rating} size={12} />
             <Text style={[styles.score, { color: colors.text1 }]}>{data.score}</Text>
             <View style={[styles.dot, { backgroundColor: colors.text3 }]} />
-            <Text style={[styles.meta, { color: colors.text2 }]} numberOfLines={1}>{data.sub}</Text>
+            <Text style={[styles.meta, { color: colors.text2 }]} numberOfLines={1}>
+              {data.statusText ? (
+                <Text style={{ color: statusColor(data.openState, colors), fontFamily: 'PlusJakartaSans_700Bold' }}>
+                  {data.statusText}
+                </Text>
+              ) : data.sub}
+            </Text>
           </View>
         </View>
         {onClose ? (

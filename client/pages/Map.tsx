@@ -10,7 +10,7 @@ import { useNavigation } from '@react-navigation/native';
 import LottieView from 'lottie-react-native';
 import LocationSearch from '../components/LocationSearch';
 import { BathroomSheet } from '../components/BathroomSheet';
-import { BathroomCardData } from '../components/BathroomCard';
+import { toCardData, ListBathroom } from '../lib/bathroomCard';
 import { Chip } from '../components/ui/Chip';
 import { IconButton } from '../components/ui/IconButton';
 import { NearestCard } from '../components/NearestCard';
@@ -38,10 +38,7 @@ const MANUAL_REGION = { latitude: 39.5, longitude: -98.35, latitudeDelta: 38, lo
 type MapNavProp = NativeStackNavigationProp<RootStackParamList>;
 type TabNavProp = BottomTabNavigationProp<MainTabParamList>;
 
-type MapBathroom = BathroomCardData & {
-    accessType: string | null;
-    is24: boolean;
-};
+type MapBathroom = ListBathroom;
 
 const ACCESS_FILTERS: { label: string; value: string }[] = [
     { label: 'Public', value: 'public' },
@@ -54,26 +51,8 @@ const DEFAULT_RADIUS_KM = 5.0;
 const SEARCH_HERE_THRESHOLD_KM = 1.0;
 const MILES_TO_KM = 1.60934;
 
-const transformBathroom = (b: any): MapBathroom => ({
-    id: b.id,
-    name: b.name,
-    icon: ACCESS_ICON[b.access_type] ?? DEFAULT_ACCESS_ICON,
-    sub: b.access_type == null
-        ? (b.address ?? 'Nearby')
-        : b.access_type === 'public'
-            ? `Public${b.is_24_hours ? ' · Open 24h' : ''}`
-            : b.access_type === 'key_required'
-                ? 'Key Required'
-                : 'Purchase Required',
-    rating: Math.round(Number(b.rating_avg) || 0),
-    score: (Number(b.rating_avg) || 0).toFixed(1),
-    reviewCount: `(${b.review_count ?? 0})`,
-    distance: b.distance_km != null ? formatWalkTime(b.distance_km * KM_TO_MILES) : 'Nearby',
-    lat: b.lat,
-    lng: b.lng,
-    accessType: b.access_type ?? null,
-    is24: !!b.is_24_hours,
-});
+const transformBathroom = (b: any): MapBathroom =>
+    toCardData(b, b.distance_km != null ? formatWalkTime(b.distance_km * KM_TO_MILES) : 'Nearby');
 
 // Approximate the visible radius (km) from the region's latitude span.
 const radiusFromRegion = (region: Region): number => {
@@ -91,7 +70,8 @@ export function Map() {
     const [fetchError, setFetchError] = useState(false);
     const [showSearchHere, setShowSearchHere] = useState(false);
     const [accessFilter, setAccessFilter] = useState<string | null>(null);
-    const [open24Filter, setOpen24Filter] = useState(false);
+    // "Open now" uses opening hours (incl. 24h places); unknown hours are excluded.
+    const [openNowFilter, setOpenNowFilter] = useState(false);
     // Bumped to tell LocationSearch to clear its query/✕ when the map is reset from
     // outside the search box (e.g. the ◎ recenter FAB).
     const [searchResetSignal, setSearchResetSignal] = useState(0);
@@ -281,11 +261,11 @@ export function Map() {
         setSearchResetSignal((n) => n + 1);
     }, [refetchAroundGps, location, requestPermission]);
 
-    const activeFilterCount = (accessFilter ? 1 : 0) + (open24Filter ? 1 : 0);
+    const activeFilterCount = (accessFilter ? 1 : 0) + (openNowFilter ? 1 : 0);
 
     const visibleBathrooms = bathrooms.filter((b) => {
         if (accessFilter && b.accessType !== accessFilter) return false;
-        if (open24Filter && !b.is24) return false;
+        if (openNowFilter && b.openState !== 'open' && b.openState !== 'closing_soon') return false;
         return true;
     });
 
@@ -473,15 +453,15 @@ export function Map() {
                             label="Clear"
                             icon="close"
                             active={false}
-                            onPress={() => { setAccessFilter(null); setOpen24Filter(false); }}
+                            onPress={() => { setAccessFilter(null); setOpenNowFilter(false); }}
                         />
                     )}
                     <Chip
                         floating
-                        label="Open 24h"
+                        label="Open now"
                         icon="clock-outline"
-                        active={open24Filter}
-                        onPress={() => setOpen24Filter((v) => !v)}
+                        active={openNowFilter}
+                        onPress={() => setOpenNowFilter((v) => !v)}
                     />
                     {ACCESS_FILTERS.map((opt) => (
                         <Chip

@@ -244,6 +244,7 @@ describe('WriteReview — Supabase submission (new review)', () => {
         user_id: mockUser.id,
         rating: 4,
         body: 'Very clean!',
+        tags: [],
       });
     });
   });
@@ -389,7 +390,7 @@ describe('WriteReview — edit flow (existing review)', () => {
     });
 
     await waitFor(() => {
-      expect(mockUpdate).toHaveBeenCalledWith({ rating: 5, body: 'Actually great!' });
+      expect(mockUpdate).toHaveBeenCalledWith({ rating: 5, body: 'Actually great!', tags: [] });
       expect(mockUpdateEq).toHaveBeenCalledWith('id', 'review-1');
       expect(mockInsert).not.toHaveBeenCalled();
       expect(mockGoBack).toHaveBeenCalledTimes(1);
@@ -408,6 +409,68 @@ describe('WriteReview — edit flow (existing review)', () => {
     await waitFor(() => {
       expect(mockUpdate).toHaveBeenCalled();
       expect(mockGoBack).not.toHaveBeenCalled();
+    });
+  });
+});
+
+describe('WriteReview — quick tags', () => {
+  it('reveals tags only after a rating, positive group first for a high rating', async () => {
+    await renderWriteReview();
+    expect(screen.queryByText('What stood out?')).toBeNull();
+
+    fireEvent.press(screen.getAllByText('☆')[4]); // 5 stars
+    expect(screen.getByText('Clean')).toBeTruthy();
+    expect(screen.getByText('Long wait')).toBeTruthy();
+  });
+
+  it('sends the selected tags with the review', async () => {
+    await renderWriteReview();
+    fireEvent.press(screen.getAllByText('☆')[3]); // 4 stars
+    fireEvent.press(screen.getByText('Clean'));
+    fireEvent.press(screen.getByText('No wait'));
+    fireEvent.press(screen.getByText('No wait')); // toggles off again
+
+    await act(async () => {
+      fireEvent.press(screen.getByText('Submit Review'));
+    });
+
+    await waitFor(() => {
+      expect(mockInsert).toHaveBeenCalledWith(expect.objectContaining({ rating: 4, tags: ['clean'] }));
+    });
+  });
+
+  it('caps the selection at 6 tags', async () => {
+    await renderWriteReview();
+    fireEvent.press(screen.getAllByText('☆')[2]);
+    ['Clean', 'Well stocked', 'No wait', 'Spacious', 'Private', 'Feels safe', 'Dirty'].forEach((l) =>
+      fireEvent.press(screen.getByText(l)),
+    );
+
+    await act(async () => {
+      fireEvent.press(screen.getByText('Submit Review'));
+    });
+
+    await waitFor(() => {
+      const sent = mockInsert.mock.calls[0][0].tags;
+      expect(sent).toHaveLength(6);
+      expect(sent).not.toContain('dirty');
+    });
+  });
+
+  it('prefills saved tags when editing (dropping unknown values) and resends them', async () => {
+    mockMaybeSingle.mockResolvedValueOnce({
+      data: { id: 'review-1', rating: 2, body: 'meh', tags: ['smelly', 'not-a-tag'] },
+      error: null,
+    });
+    await renderWriteReview();
+    await waitFor(() => expect(screen.getByText('Update Review')).toBeTruthy());
+
+    await act(async () => {
+      fireEvent.press(screen.getByText('Update Review'));
+    });
+
+    await waitFor(() => {
+      expect(mockUpdate).toHaveBeenCalledWith({ rating: 2, body: 'meh', tags: ['smelly'] });
     });
   });
 });

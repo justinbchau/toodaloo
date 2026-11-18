@@ -259,6 +259,7 @@ describe('AddBathroom — Supabase insert payload', () => {
         tags: ['Handicap'],
         access_type: 'public',
         is_24_hours: false,
+        hours: null,
         created_by: mockUser.id,
       });
     });
@@ -289,6 +290,53 @@ describe('AddBathroom — Supabase insert payload', () => {
       expect(mockInsert).toHaveBeenCalledWith(
         expect.objectContaining({ access_type: 'key_required' }),
       );
+    });
+  });
+});
+
+describe('AddBathroom — opening hours', () => {
+  it('sends a weekday/weekend schedule when hours are enabled', async () => {
+    renderAddBathroom();
+    fireEvent(screen.getByTestId('has-hours-toggle'), 'valueChange', true);
+    // Weekends closed.
+    fireEvent.press(screen.getByLabelText('Weekends closed'));
+
+    await fillAndSubmit();
+
+    await waitFor(() => {
+      expect(mockInsert).toHaveBeenCalledWith(expect.objectContaining({
+        hours: {
+          mon: { open: '08:00', close: '20:00' }, tue: { open: '08:00', close: '20:00' },
+          wed: { open: '08:00', close: '20:00' }, thu: { open: '08:00', close: '20:00' },
+          fri: { open: '08:00', close: '20:00' }, sat: null, sun: null,
+        },
+      }));
+    });
+  });
+
+  it('lets the user pick a time from the half-hour list', async () => {
+    renderAddBathroom();
+    fireEvent(screen.getByTestId('has-hours-toggle'), 'valueChange', true);
+    fireEvent.press(screen.getByLabelText('Weekdays closing time: 8 PM'));
+    fireEvent.press(screen.getByText('10:30 PM'));
+
+    await fillAndSubmit();
+
+    await waitFor(() => {
+      expect(mockInsert.mock.calls[0][0].hours.mon).toEqual({ open: '08:00', close: '22:30' });
+    });
+  });
+
+  it('hides hours and sends null when the place is open 24 hours', async () => {
+    renderAddBathroom();
+    fireEvent(screen.getByTestId('has-hours-toggle'), 'valueChange', true);
+    fireEvent(screen.getByTestId('is-24-hours-toggle'), 'valueChange', true);
+    expect(screen.queryByTestId('has-hours-toggle')).toBeNull();
+
+    await fillAndSubmit();
+
+    await waitFor(() => {
+      expect(mockInsert).toHaveBeenCalledWith(expect.objectContaining({ is_24_hours: true, hours: null }));
     });
   });
 });

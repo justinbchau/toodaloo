@@ -11,7 +11,7 @@ import { ErrorState } from '../components/ErrorState';
 import { EmptyState } from '../components/ui/EmptyState';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { SkeletonBathroomCard } from '../components/SkeletonBathroomCard';
-import { ACCESS_ICON, DEFAULT_ACCESS_ICON } from '../lib/accessIcons';
+import { toCardData } from '../lib/bathroomCard';
 import { RootStackParamList } from '../RootStackParams';
 import { FlashList } from '@shopify/flash-list';
 import { useFocusedFetch } from '../hooks/useFocusedFetch';
@@ -57,23 +57,7 @@ export function Saved() {
     return (data ?? [])
       .map((row: any) => row.bathrooms)
       .filter(Boolean)
-      .map((b: any) => ({
-        id: b.id,
-        name: b.name,
-        icon: ACCESS_ICON[b.access_type] ?? DEFAULT_ACCESS_ICON,
-        sub:
-          b.access_type === 'public'
-            ? `Public${b.is_24_hours ? ' · Open 24h' : ''}`
-            : b.access_type === 'key_required'
-            ? 'Key Required'
-            : 'Purchase Required',
-        rating: Math.round(Number(b.rating_avg) || 0),
-        score: (Number(b.rating_avg) || 0).toFixed(1),
-        reviewCount: `(${b.review_count ?? 0})`,
-        distance: '',
-        lat: b.lat,
-        lng: b.lng,
-      }));
+      .map((b: any) => toCardData(b));
   }, [user?.id]);
 
   // Refetch on focus so newly saved/unsaved bathrooms reflect on return.

@@ -28,6 +28,9 @@ import { SkeletonReviewCard } from '../components/SkeletonReviewCard';
 import { SkeletonDetail } from '../components/SkeletonDetail';
 import ReportSheet, { ReportTarget } from '../components/ReportSheet';
 import { openDirections } from '../lib/directions';
+import { getOpenStatus, statusLine, weekRows } from '../lib/hours';
+import { sanitizeTags, tagBySlug, tallyTags } from '../lib/reviewTags';
+import { statusColor } from '../components/BathroomCard';
 
 type DetailRoute = RouteProp<RootStackParamList, 'BathroomDetail'>;
 
@@ -41,6 +44,8 @@ export function BathroomDetail() {
   const { showToast } = useToast();
   // Little "pop" on the bookmark when the saved state flips.
   const bookmarkScale = useRef(new Animated.Value(1)).current;
+  // Drives the solid header that fades in once the hero scrolls away (Airbnb-style).
+  const scrollY = useRef(new Animated.Value(0)).current;
   const popBookmark = () => {
     bookmarkScale.setValue(0.6);
     Animated.spring(bookmarkScale, { toValue: 1, useNativeDriver: true, speed: 20, bounciness: 14 }).start();
@@ -235,6 +240,12 @@ export function BathroomDetail() {
   const avgRating = Number(bathroomData?.rating_avg ?? 0);
   const reviewCount = bathroomData?.review_count ?? 0;
   const amenities: string[] = bathroomData?.tags ?? [];
+  const openStatus = getOpenStatus({ hours: bathroomData?.hours, is24: bathroomData?.is_24_hours });
+  const hoursRows = weekRows(bathroomData?.hours);
+  const tagTally = tallyTags(reviews);
+  const statusFg = statusColor(openStatus.state, colors);
+  const statusBg =
+    openStatus.state === 'open' ? colors.greenDim : openStatus.state === 'closing_soon' ? colors.yellowDim : colors.redDim;
   const access = bathroomData?.access_type ?? null;
   const address: string | null = bathroomData?.address ?? null;
 
@@ -261,10 +272,12 @@ export function BathroomDetail() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <ScrollView
+      <Animated.ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}
         showsVerticalScrollIndicator={false}
+        scrollEventThrottle={16}
+        onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: true })}
       >
         {/* ── Hero map ── */}
         <View style={{ height: HERO_HEIGHT + insets.top }}>
@@ -302,9 +315,16 @@ export function BathroomDetail() {
               fg={colors.text1}
               bg={colors.surface2}
             />
-            {bathroomData?.is_24_hours && (
+            {bathroomData?.is_24_hours ? (
               <Badge icon="clock-check-outline" label="Open 24/7" fg={colors.green} bg={colors.greenDim} />
-            )}
+            ) : openStatus.state !== 'unknown' ? (
+              <Badge
+                icon={openStatus.state === 'closed' ? 'clock-alert-outline' : 'clock-outline'}
+                label={statusLine(openStatus)}
+                fg={statusFg}
+                bg={statusBg}
+              />
+            ) : null}
           </View>
 
           <Text style={[styles.title, { color: colors.text1 }]}>{name}</Text>
@@ -374,6 +394,28 @@ export function BathroomDetail() {
         </View>
 
         <View style={[styles.divider, { backgroundColor: colors.border }]} />
+
+        {/* ── Hours ── */}
+        {hoursRows.length > 0 && (
+          <>
+            <View style={{ paddingHorizontal: 20 }}>
+              <SectionLabel label="Hours" style={{ marginBottom: 12 }} />
+              <View style={[styles.hoursCard, { backgroundColor: colors.surface1, borderColor: colors.cardBorder }]}>
+                {hoursRows.map((r) => (
+                  <View key={r.key} style={styles.hoursRow}>
+                    <Text style={{ width: 52, color: r.isToday ? colors.text1 : colors.text2, fontFamily: r.isToday ? 'PlusJakartaSans_800ExtraBold' : 'PlusJakartaSans_500Medium', fontSize: 14 }}>
+                      {r.day}
+                    </Text>
+                    <Text style={{ flex: 1, textAlign: 'right', color: r.text === 'Closed' ? colors.text3 : r.isToday ? colors.text1 : colors.text2, fontFamily: r.isToday ? 'PlusJakartaSans_700Bold' : 'PlusJakartaSans_500Medium', fontSize: 14 }}>
+                      {r.text}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+            <View style={[styles.divider, { backgroundColor: colors.border }]} />
+          </>
+        )}
 
         {/* ── Amenities ── */}
         <View style={{ paddingHorizontal: 20 }}>
@@ -467,6 +509,27 @@ export function BathroomDetail() {
                 </View>
               </View>
 
+              {/* What reviewers tag most (from one-tap review tags) */}
+              {tagTally.length > 0 && (
+                <View style={{ marginTop: 14 }}>
+                  <Text style={{ color: colors.text2, fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13, marginBottom: 8 }}>
+                    People mention
+                  </Text>
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                    {tagTally.slice(0, 6).map(({ tag, count }) => (
+                      <View
+                        key={tag.slug}
+                        style={[styles.tagPill, { backgroundColor: tag.positive ? colors.greenDim : colors.redDim }]}
+                      >
+                        <MaterialCommunityIcons name={tag.icon} size={14} color={tag.positive ? colors.green : colors.red} />
+                        <Text style={{ color: colors.text1, fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 13 }}>{tag.label}</Text>
+                        <Text style={{ color: colors.text2, fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12 }}>{count}</Text>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              )}
+
               {reviews.map((review) => (
                 <View key={review.id} style={[styles.review, { borderBottomColor: colors.border }]}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
@@ -498,6 +561,19 @@ export function BathroomDetail() {
                       </Pressable>
                     )}
                   </View>
+                  {sanitizeTags(review.tags).length > 0 && (
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 10 }}>
+                      {sanitizeTags(review.tags).map((slug) => {
+                        const t = tagBySlug(slug)!;
+                        return (
+                          <View key={slug} style={[styles.tagMini, { borderColor: colors.borderMed }]}>
+                            <MaterialCommunityIcons name={t.icon} size={12} color={t.positive ? colors.green : colors.red} />
+                            <Text style={{ color: colors.text2, fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 12 }}>{t.label}</Text>
+                          </View>
+                        );
+                      })}
+                    </View>
+                  )}
                   {review.body ? (
                     <Text style={{ color: colors.text1, fontSize: 14, fontFamily: 'PlusJakartaSans_400Regular', marginTop: 10, lineHeight: 21 }}>
                       {review.body}
@@ -508,7 +584,28 @@ export function BathroomDetail() {
             </>
           )}
         </View>
-      </ScrollView>
+      </Animated.ScrollView>
+
+      {/* Solid header that fades in as the hero scrolls out, so the controls never sit on text */}
+      <Animated.View
+        pointerEvents="none"
+        // Decorative duplicate of the page title — keep it out of the a11y tree.
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+        style={[
+          styles.headerBar,
+          {
+            height: insets.top + 56,
+            backgroundColor: colors.bg,
+            borderBottomColor: colors.borderMed,
+            opacity: scrollY.interpolate({ inputRange: [HERO_HEIGHT - 110, HERO_HEIGHT - 40], outputRange: [0, 1], extrapolate: 'clamp' }),
+          },
+        ]}
+      >
+        <Text numberOfLines={1} style={{ color: colors.text1, fontFamily: 'PlusJakartaSans_700Bold', fontSize: 16, marginHorizontal: 116, textAlign: 'center' }}>
+          {name}
+        </Text>
+      </Animated.View>
 
       {/* Floating top controls stay put while the page scrolls */}
       <View style={[styles.topControls, { top: insets.top + 8 }]} pointerEvents="box-none">
@@ -572,6 +669,15 @@ const styles = StyleSheet.create({
     borderLeftColor: 'transparent',
     borderRightColor: 'transparent',
   },
+  headerBar: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    justifyContent: 'flex-end',
+    paddingBottom: 18,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
   topControls: {
     position: 'absolute',
     left: 16,
@@ -605,6 +711,10 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 4,
   },
+  hoursCard: { borderRadius: 18, borderWidth: 1, paddingHorizontal: 16, paddingVertical: 8 },
+  hoursRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 7 },
+  tagPill: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 14, paddingHorizontal: 10, paddingVertical: 6 },
+  tagMini: { flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 10, borderWidth: 1, paddingHorizontal: 8, paddingVertical: 3 },
   review: {
     paddingVertical: 16,
     borderBottomWidth: StyleSheet.hairlineWidth,

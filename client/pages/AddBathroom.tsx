@@ -16,6 +16,11 @@ import { FormInput } from '../components/ui/FormInput';
 import { PrimaryButton } from '../components/ui/PrimaryButton';
 import { Chip } from '../components/ui/Chip';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
+import { TimeSelect } from '../components/TimeSelect';
+import { buildHours, DayHours } from '../lib/hours';
+
+const DEFAULT_WEEKDAYS: DayHours = { open: '08:00', close: '20:00' };
+const DEFAULT_WEEKENDS: DayHours = { open: '09:00', close: '18:00' };
 import { AMENITY_ICON, DEFAULT_AMENITY_ICON } from '../lib/format';
 
 // AddBathroom is a Tab.Screen but needs to navigate to Success on the root stack.
@@ -54,6 +59,10 @@ export function AddBathroom() {
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [accessType, setAccessType] = useState('Public');
   const [is24Hours, setIs24Hours] = useState(false);
+  // Optional opening hours (weekday / weekend), only when not open 24h.
+  const [hasHours, setHasHours] = useState(false);
+  const [weekdays, setWeekdays] = useState<DayHours>(DEFAULT_WEEKDAYS);
+  const [weekends, setWeekends] = useState<DayHours>(DEFAULT_WEEKENDS);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [geocodeError, setGeocodeError] = useState<string | null>(null);
 
@@ -82,6 +91,7 @@ export function AddBathroom() {
         tags: selectedTags,
         access_type: ACCESS_TYPE_MAP[accessType] ?? 'public',
         is_24_hours: is24Hours,
+        hours: !is24Hours && hasHours ? buildHours(weekdays, weekends) : null,
         created_by: user?.id ?? null,
       });
 
@@ -95,6 +105,9 @@ export function AddBathroom() {
       setSelectedTags([]);
       setAccessType('Public');
       setIs24Hours(false);
+      setHasHours(false);
+      setWeekdays(DEFAULT_WEEKDAYS);
+      setWeekends(DEFAULT_WEEKENDS);
 
       rootNavigation.navigate('Success');
     } catch (err) {
@@ -290,6 +303,37 @@ export function AddBathroom() {
                 ios_backgroundColor={colors.surface3}
               />
             </View>
+
+            {/* Opening hours — powers "Open now" on the map */}
+            {!is24Hours && (
+              <View style={{ gap: 12 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                  <View style={{ width: 38, height: 38, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface2 }}>
+                    <MaterialCommunityIcons name="store-clock-outline" size={20} color={colors.text1} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 15, color: colors.text1 }}>Opening hours</Text>
+                    <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12, color: colors.text2, marginTop: 1 }}>
+                      Optional — lets people filter by "Open now"
+                    </Text>
+                  </View>
+                  <Switch
+                    testID="has-hours-toggle"
+                    value={hasHours}
+                    onValueChange={setHasHours}
+                    trackColor={{ false: colors.surface3, true: colors.accent }}
+                    thumbColor="#fff"
+                    ios_backgroundColor={colors.surface3}
+                  />
+                </View>
+                {hasHours && (
+                  <View style={{ backgroundColor: colors.surface2, borderRadius: 14, padding: 4 }}>
+                    <HoursRow label="Mon – Fri" a11y="Weekdays" value={weekdays} onChange={setWeekdays} fallback={DEFAULT_WEEKDAYS!} />
+                    <HoursRow label="Sat – Sun" a11y="Weekends" value={weekends} onChange={setWeekends} fallback={DEFAULT_WEEKENDS!} />
+                  </View>
+                )}
+              </View>
+            )}
           </FormCard>
 
           {/* ── Amenities ── */}
@@ -323,6 +367,48 @@ export function AddBathroom() {
 
       </KeyboardAvoidingView>
     </SafeAreaView>
+  );
+}
+
+/** One schedule row: label · opens – closes · Closed toggle. */
+function HoursRow({ label, a11y, value, onChange, fallback }: {
+  label: string; a11y: string; value: DayHours; onChange: (v: DayHours) => void; fallback: { open: string; close: string };
+}) {
+  const { colors } = useThemeContext();
+  const closed = value === null;
+  const v = value ?? fallback;
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: colors.surface1, borderRadius: 11, padding: 8, margin: 2 }}>
+      <Text style={{ width: 72, fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13, color: colors.text1 }}>{label}</Text>
+      {closed ? (
+        <Text style={{ flex: 1, fontFamily: 'PlusJakartaSans_500Medium', fontSize: 14, color: colors.text3 }}>Closed</Text>
+      ) : (
+        <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+          <TimeSelect label={`${a11y} opening time`} value={v.open} onChange={(open) => onChange({ ...v, open })} />
+          <Text style={{ color: colors.text3 }}>–</Text>
+          <TimeSelect label={`${a11y} closing time`} value={v.close} onChange={(close) => onChange({ ...v, close })} />
+        </View>
+      )}
+      <Pressable
+        onPress={() => onChange(closed ? fallback : null)}
+        accessibilityRole="switch"
+        accessibilityState={{ checked: closed }}
+        accessibilityLabel={`${a11y} closed`}
+        hitSlop={6}
+        style={{
+          paddingHorizontal: 9,
+          paddingVertical: 6,
+          borderRadius: 9,
+          borderWidth: 1,
+          borderColor: closed ? colors.red : colors.borderMed,
+          backgroundColor: closed ? colors.redDim : 'transparent',
+        }}
+      >
+        <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12, color: closed ? colors.red : colors.text3 }}>
+          Closed
+        </Text>
+      </Pressable>
+    </View>
   );
 }
 

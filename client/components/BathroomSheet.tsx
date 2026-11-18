@@ -1,9 +1,10 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { View, Text, StyleSheet, Dimensions } from 'react-native';
 import BottomSheet, { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import Animated, { useAnimatedStyle, useSharedValue, interpolate, Extrapolation } from 'react-native-reanimated';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useThemeContext } from '../context/ThemeContext';
+import { useInsets } from '../hooks/useInsets';
 import { shadows } from '../theme/shadows';
 import { BathroomCard, BathroomCardData } from './BathroomCard';
 import { SkeletonBathroomCard } from './SkeletonBathroomCard';
@@ -15,7 +16,9 @@ const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 // Peek is tall enough for the header + the "Nearest" card on small phones; half
 // and full are for browsing. Built on @gorhom/bottom-sheet so dragging the list
 // hands off to the sheet (and back) like Apple/Google Maps.
-const SNAP_POINTS = [Math.max(280, SCREEN_HEIGHT * 0.33), SCREEN_HEIGHT * 0.55, SCREEN_HEIGHT * 0.86];
+const PEEK = Math.max(280, SCREEN_HEIGHT * 0.33);
+// Height of the map's floating chrome (search pill + chip row) below the inset.
+const TOP_CHROME = 8 + 50 + 10 + 36 + 16;
 
 interface Props {
   bathrooms?: BathroomCardData[];
@@ -43,6 +46,15 @@ export function BathroomSheet({
   accessory,
 }: Props) {
   const { colors } = useThemeContext();
+  const insets = useInsets();
+  // Snap heights are measured against the sheet's container (the map screen,
+  // which ends above the tab bar) — not the window — so measure it.
+  const [containerH, setContainerH] = useState(SCREEN_HEIGHT - 84);
+  // Full height stops just below the search + filter chips so they stay usable.
+  const snapPoints = useMemo(() => {
+    const half = containerH * 0.55;
+    return [Math.min(PEEK, half - 1), half, Math.max(half + 1, containerH - insets.top - TOP_CHROME)];
+  }, [containerH, insets.top]);
   const position = useSharedValue(SCREEN_HEIGHT);
 
   // Ride the accessory on the sheet's top edge; fade it out as the sheet nears full height.
@@ -57,6 +69,14 @@ export function BathroomSheet({
 
   return (
     <>
+      <View
+        pointerEvents="none"
+        style={StyleSheet.absoluteFill}
+        onLayout={(e) => {
+          const h = Math.round(e.nativeEvent.layout.height);
+          if (h > 0 && h !== containerH) setContainerH(h);
+        }}
+      />
       {accessory ? (
         <Animated.View pointerEvents="box-none" style={[styles.accessory, accessoryStyle]}>
           {accessory}
@@ -65,7 +85,7 @@ export function BathroomSheet({
 
       <BottomSheet
         index={0}
-        snapPoints={SNAP_POINTS}
+        snapPoints={snapPoints}
         enableDynamicSizing={false}
         animatedPosition={position}
         handleIndicatorStyle={handleIndicatorStyle}
