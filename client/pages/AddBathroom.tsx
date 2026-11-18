@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, KeyboardAvoidingView, Platform, Alert, Switch } from 'react-native';
+import { View, Text, ScrollView, KeyboardAvoidingView, Platform, Alert, Switch, Pressable, StyleSheet } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -11,12 +12,11 @@ import * as Location from 'expo-location';
 import { useThemeContext } from '../context/ThemeContext';
 import { useUser } from '../context/UserContext';
 import { supabase } from '../lib/supabase';
-import BackButton from '../components/BackButton';
 import { FormInput } from '../components/ui/FormInput';
 import { PrimaryButton } from '../components/ui/PrimaryButton';
 import { Chip } from '../components/ui/Chip';
-import { AmenityToggle } from '../components/AmenityToggle';
-import { SectionLabel } from '../components/ui/SectionLabel';
+import { ScreenHeader } from '../components/ui/ScreenHeader';
+import { AMENITY_ICON, DEFAULT_AMENITY_ICON } from '../lib/format';
 
 // AddBathroom is a Tab.Screen but needs to navigate to Success on the root stack.
 // useNavigation returns the tab nav, but React Navigation bubbles unrecognized routes
@@ -28,7 +28,11 @@ const TAG_OPTIONS = [
   'Handicap', 'Keypad Locked', 'Baby Friendly',
 ];
 
-const ACCESS_OPTIONS = ['Public', 'Key Required', 'Purchase Required'];
+const ACCESS_OPTIONS: { label: string; icon: keyof typeof MaterialCommunityIcons.glyphMap; description: string }[] = [
+  { label: 'Public', icon: 'toilet', description: 'Anyone can walk in' },
+  { label: 'Key Required', icon: 'key', description: 'Ask staff for a key or door code' },
+  { label: 'Purchase Required', icon: 'cart', description: 'Customers only' },
+];
 
 const ACCESS_TYPE_MAP: Record<string, string> = {
   'Public': 'public',
@@ -180,117 +184,135 @@ export function AddBathroom() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
+    <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: colors.bg }}>
       {/* KAV wraps ScrollView + footer in normal flow — no position:absolute on footer.
           See Engineering Trap #5 in CLAUDE.md: absolute footers end up behind keyboard on iOS. */}
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
 
-        {/* Header */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 8, gap: 12 }}>
-          <BackButton />
-          <Text style={{ fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 20, color: colors.text1, flex: 1 }}>
-            add a bathroom
-          </Text>
-        </View>
+        <ScreenHeader variant="large" title="Add a bathroom" subtitle="Help the next person in need." />
 
         <ScrollView
           style={{ flex: 1 }}
-          contentContainerStyle={{ padding: 20, gap: 20, paddingBottom: 20 }}
+          contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 4, paddingBottom: 24, gap: 14 }}
           keyboardShouldPersistTaps="handled"
           contentInsetAdjustmentBehavior="automatic"
         >
-          {/* Name field */}
-          <Controller<FormValues>
-            control={control}
-            name="title"
-            render={({ field: { onChange, onBlur, value }, fieldState: { error } }) => (
-              <FormInput
-                label="Bathroom name"
-                placeholder="e.g. Starbucks on 5th Ave"
-                onChangeText={onChange}
-                onBlur={onBlur}
-                value={value}
-                error={error?.message}
+          {/* ── Details ── */}
+          <FormCard title="Details" icon="information-outline">
+            <Controller<FormValues>
+              control={control}
+              name="title"
+              render={({ field: { onChange, onBlur, value }, fieldState: { error } }) => (
+                <FormInput
+                  label="Bathroom name"
+                  icon="tag-outline"
+                  placeholder="e.g. Starbucks on 5th Ave"
+                  onChangeText={onChange}
+                  onBlur={onBlur}
+                  value={value}
+                  error={error?.message}
+                />
+              )}
+            />
+            <Controller<FormValues>
+              control={control}
+              name="address"
+              render={({ field: { onChange, onBlur, value }, fieldState: { error } }) => (
+                <FormInput
+                  label="Address"
+                  icon="map-marker-outline"
+                  placeholder="Street address or area"
+                  onChangeText={onChange}
+                  onBlur={onBlur}
+                  value={value}
+                  error={error?.message ?? geocodeError ?? undefined}
+                  hint="We'll drop a pin on the map from this address."
+                />
+              )}
+            />
+          </FormCard>
+
+          {/* ── Access ── */}
+          <FormCard title="Who can use it?" icon="door-open">
+            <View style={{ gap: 8 }}>
+              {ACCESS_OPTIONS.map((opt) => {
+                const selected = accessType === opt.label;
+                return (
+                  <Pressable
+                    key={opt.label}
+                    onPress={() => setAccessType(opt.label)}
+                    accessibilityRole="radio"
+                    accessibilityState={{ checked: selected }}
+                    style={({ pressed }: { pressed: boolean }) => ({
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 12,
+                      padding: 12,
+                      borderRadius: 14,
+                      borderWidth: selected ? 1.5 : 1,
+                      borderColor: selected ? colors.purple : colors.borderMed,
+                      backgroundColor: selected ? colors.purpleDim : 'transparent',
+                      opacity: pressed ? 0.8 : 1,
+                    })}
+                  >
+                    <View style={{ width: 38, height: 38, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: selected ? colors.purple : colors.surface2 }}>
+                      <MaterialCommunityIcons name={opt.icon} size={20} color={selected ? '#fff' : colors.text2} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 15, color: colors.text1 }}>{opt.label}</Text>
+                      <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12, color: colors.text2, marginTop: 1 }}>{opt.description}</Text>
+                    </View>
+                    <MaterialCommunityIcons
+                      name={selected ? 'radiobox-marked' : 'radiobox-blank'}
+                      size={22}
+                      color={selected ? colors.purple : colors.text3}
+                    />
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            {/* 24-hour availability toggle */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 4, paddingTop: 14, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.borderMed }}>
+              <View style={{ width: 38, height: 38, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.greenDim }}>
+                <MaterialCommunityIcons name="clock-check-outline" size={20} color={colors.green} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 15, color: colors.text1 }}>Open 24 hours</Text>
+                <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12, color: colors.text2, marginTop: 1 }}>Accessible any time of day</Text>
+              </View>
+              <Switch
+                testID="is-24-hours-toggle"
+                value={is24Hours}
+                onValueChange={setIs24Hours}
+                trackColor={{ false: colors.surface3, true: colors.purple }}
+                thumbColor="#fff"
+                ios_backgroundColor={colors.surface3}
               />
-            )}
-          />
+            </View>
+          </FormCard>
 
-          {/* Address field */}
-          <Controller<FormValues>
-            control={control}
-            name="address"
-            render={({ field: { onChange, onBlur, value }, fieldState: { error } }) => (
-              <FormInput
-                label="Address"
-                placeholder="Street address or area"
-                onChangeText={onChange}
-                onBlur={onBlur}
-                value={value}
-                error={error?.message}
-              />
-            )}
-          />
-
-          {geocodeError && (
-            <Text style={{
-              color: colors.red,
-              fontSize: 12,
-              fontFamily: 'PlusJakartaSans_400Regular',
-              marginTop: -12,
-            }}>
-              {geocodeError}
-            </Text>
-          )}
-
-          {/* Access type chips */}
-          <View style={{ gap: 8 }}>
-            <SectionLabel label="Access type" />
-            <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
-              {ACCESS_OPTIONS.map(opt => (
+          {/* ── Amenities ── */}
+          <FormCard title="Amenities" icon="star-four-points-outline" caption="Select all that apply">
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+              {TAG_OPTIONS.map(tag => (
                 <Chip
-                  key={opt}
-                  label={opt}
-                  active={accessType === opt}
-                  onPress={() => setAccessType(opt)}
+                  key={tag}
+                  label={tag}
+                  icon={(AMENITY_ICON[tag] ?? DEFAULT_AMENITY_ICON) as keyof typeof MaterialCommunityIcons.glyphMap}
+                  active={selectedTags.includes(tag)}
+                  onPress={() => toggleTag(tag)}
                 />
               ))}
             </View>
-          </View>
-
-          {/* 24-hour availability toggle */}
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-            <SectionLabel label="Open 24 hours" />
-            <Switch
-              testID="is-24-hours-toggle"
-              value={is24Hours}
-              onValueChange={setIs24Hours}
-              trackColor={{ false: colors.surface3, true: colors.purple }}
-              thumbColor={colors.text1}
-            />
-          </View>
-
-          {/* Amenities 2-col grid */}
-          <View style={{ gap: 8 }}>
-            <SectionLabel label="Amenities" />
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-              {TAG_OPTIONS.map(tag => (
-                <View key={tag} style={{ width: '48%' }}>
-                  <AmenityToggle
-                    label={tag}
-                    active={selectedTags.includes(tag)}
-                    onToggle={() => toggleTag(tag)}
-                  />
-                </View>
-              ))}
-            </View>
-          </View>
+          </FormCard>
         </ScrollView>
 
         {/* Footer in normal document flow — sits below the flex:1 ScrollView */}
         <View style={{
-          padding: 20, paddingBottom: 32,
+          paddingHorizontal: 16, paddingTop: 12, paddingBottom: 12,
           backgroundColor: colors.bg,
-          borderTopWidth: 1, borderTopColor: colors.border,
+          borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.borderMed,
         }}>
           <PrimaryButton
             title={isSubmitting ? 'Submitting...' : 'Submit bathroom →'}
@@ -301,5 +323,19 @@ export function AddBathroom() {
 
       </KeyboardAvoidingView>
     </SafeAreaView>
+  );
+}
+
+function FormCard({ title, icon, caption, children }: { title: string; icon: keyof typeof MaterialCommunityIcons.glyphMap; caption?: string; children: React.ReactNode }) {
+  const { colors } = useThemeContext();
+  return (
+    <View style={{ backgroundColor: colors.surface1, borderRadius: 20, borderWidth: 1, borderColor: colors.border, padding: 16, gap: 14 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        <MaterialCommunityIcons name={icon} size={18} color={colors.purpleText} />
+        <Text style={{ flex: 1, fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 16, color: colors.text1, letterSpacing: -0.3 }}>{title}</Text>
+        {caption ? <Text style={{ fontFamily: 'PlusJakartaSans_500Medium', fontSize: 12, color: colors.text3 }}>{caption}</Text> : null}
+      </View>
+      {children}
+    </View>
   );
 }

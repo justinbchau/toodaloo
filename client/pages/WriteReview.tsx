@@ -1,15 +1,18 @@
 import React, { useEffect, useState } from 'react';
 import {
   View, Text, TextInput, Pressable, StyleSheet,
-  SafeAreaView, ScrollView, Alert, KeyboardAvoidingView, Platform,
+  ScrollView, Alert, KeyboardAvoidingView, Platform,
   ActivityIndicator,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { RootStackParamList } from '../RootStackParams';
 import { useThemeContext } from '../context/ThemeContext';
 import { useUser } from '../context/UserContext';
 import { supabase } from '../lib/supabase';
 import { PrimaryButton } from '../components/ui/PrimaryButton';
+import { ScreenHeader } from '../components/ui/ScreenHeader';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 type WriteReviewRoute = RouteProp<RootStackParamList, 'WriteReview'>;
 
@@ -28,6 +31,7 @@ export function WriteReview() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [existingReviewId, setExistingReviewId] = useState<string | null>(null);
   const [isLoadingExisting, setIsLoadingExisting] = useState(true);
+  const [focused, setFocused] = useState(false);
 
   // One review per user per bathroom (unique constraint in the DB) — if the
   // user already reviewed this bathroom, prefill the form and update instead.
@@ -107,24 +111,16 @@ export function WriteReview() {
     ? (isEditing ? 'Updating...' : 'Submitting...')
     : (isEditing ? 'Update Review' : 'Submit Review');
 
+  const caption = rating === 0 ? 'Tap a star to rate' : RATING_LABELS[rating - 1];
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
 
-        {/* Header */}
-        <View style={styles.header}>
-          <Pressable
-            onPress={() => navigation.goBack()}
-            accessibilityRole="button"
-            accessibilityLabel="Go back"
-            style={({ pressed }: { pressed: boolean }) => [styles.backBtn, { opacity: pressed ? 0.7 : 1 }]}
-          >
-            <Text style={{ color: colors.text1, fontSize: 22 }}>‹</Text>
-          </Pressable>
-          <Text style={[styles.headerTitle, { color: colors.text1 }]}>
-            {isEditing ? 'Edit Your Review' : 'Write a Review'}
-          </Text>
-        </View>
+        <ScreenHeader
+          title={isEditing ? 'Edit Your Review' : 'Write a Review'}
+          leadingIcon="close"
+        />
 
         {isLoadingExisting ? (
           <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
@@ -132,22 +128,39 @@ export function WriteReview() {
           </View>
         ) : (
           <>
-            <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20, paddingBottom: 20 }} contentInsetAdjustmentBehavior="automatic">
-
-              {/* Bathroom name */}
-              <Text style={[styles.bathroomName, { color: colors.text1 }]}>{bathroomName}</Text>
+            <ScrollView
+              style={{ flex: 1 }}
+              contentContainerStyle={{ padding: 20, paddingBottom: 24 }}
+              keyboardShouldPersistTaps="handled"
+            >
+              {/* Bathroom being reviewed */}
+              <View style={[styles.subject, { backgroundColor: colors.surface1, borderColor: colors.border }]}>
+                <View style={[styles.subjectIcon, { backgroundColor: colors.purpleDim }]}>
+                  <MaterialCommunityIcons name="toilet" size={22} color={colors.purpleText} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.bathroomName, { color: colors.text1 }]} numberOfLines={2}>{bathroomName}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
+                    <MaterialCommunityIcons name="earth" size={12} color={colors.text3} />
+                    <Text style={{ fontFamily: 'PlusJakartaSans_500Medium', fontSize: 12, color: colors.text2 }}>
+                      Posted publicly under your username
+                    </Text>
+                  </View>
+                </View>
+              </View>
 
               {/* Star rating */}
-              <Text style={[styles.label, { color: colors.text3 }]}>How would you rate it?</Text>
+              <Text style={[styles.question, { color: colors.text1 }]}>How was it?</Text>
               <View style={styles.starsRow}>
                 {[1, 2, 3, 4, 5].map((star) => (
                   <Pressable
                     key={star}
                     onPress={() => setRating(star)}
+                    hitSlop={4}
                     accessibilityRole="button"
                     accessibilityLabel={`Rate ${star} ${star === 1 ? 'star' : 'stars'}`}
                     accessibilityState={{ selected: star <= rating }}
-                    style={({ pressed }: { pressed: boolean }) => ({ opacity: pressed ? 0.7 : 1 })}
+                    style={({ pressed }: { pressed: boolean }) => ({ transform: [{ scale: pressed ? 0.9 : 1 }] })}
                   >
                     <Text style={[
                       styles.star,
@@ -158,12 +171,15 @@ export function WriteReview() {
                   </Pressable>
                 ))}
               </View>
+              <Text style={[styles.caption, { color: rating === 0 ? colors.text3 : colors.text1 }]}>{caption}</Text>
 
               {/* Review text */}
-              <Text style={[styles.label, { color: colors.text3, marginTop: 24 }]}>
-                Your thoughts? <Text style={{ color: colors.text3, fontSize: 12 }}>(optional)</Text>
-              </Text>
-              <View style={[styles.textAreaContainer, { backgroundColor: colors.surface2, borderColor: colors.borderMed }]}>
+              <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', marginTop: 32, marginBottom: 10 }}>
+                <Text style={[styles.label, { color: colors.text1 }]}>
+                  Tell others more <Text style={{ color: colors.text3, fontFamily: 'PlusJakartaSans_500Medium', fontSize: 13 }}>(optional)</Text>
+                </Text>
+              </View>
+              <View style={[styles.textAreaContainer, { backgroundColor: colors.surface1, borderColor: focused ? colors.purple : colors.borderMed, borderWidth: focused ? 1.5 : 1 }]}>
                 <TextInput
                   style={[styles.textArea, { color: colors.text1, fontFamily: 'PlusJakartaSans_400Regular' }]}
                   multiline
@@ -173,10 +189,15 @@ export function WriteReview() {
                   placeholderTextColor={colors.text3}
                   value={body}
                   onChangeText={setBody}
+                  onFocus={() => setFocused(true)}
+                  onBlur={() => setFocused(false)}
                   textAlignVertical="top"
                 />
-                <Text style={[styles.charCount, { color: colors.text3 }]}>{body.length}/280</Text>
+                <Text style={[styles.charCount, { color: body.length >= 260 ? colors.yellow : colors.text3 }]}>{body.length}/280</Text>
               </View>
+              <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12, color: colors.text3, marginTop: 10, lineHeight: 17 }}>
+                Cleanliness, supplies, wait time, how to get the key — anything that helps the next person.
+              </Text>
             </ScrollView>
 
             {/* Sticky submit */}
@@ -195,58 +216,72 @@ export function WriteReview() {
   );
 }
 
+const RATING_LABELS = ['Awful', 'Not great', 'It was okay', 'Pretty good', 'Spotless!'];
+
 const styles = StyleSheet.create({
-  header: {
+  subject: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingTop: 8,
-    paddingBottom: 12,
     gap: 12,
+    padding: 12,
+    borderRadius: 18,
+    borderWidth: 1,
   },
-  backBtn: {
-    width: 40, height: 40, borderRadius: 10,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  headerTitle: {
-    fontFamily: 'PlusJakartaSans_800ExtraBold',
-    fontSize: 20,
+  subjectIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   bathroomName: {
     fontFamily: 'PlusJakartaSans_700Bold',
-    fontSize: 18,
-    marginBottom: 24,
+    fontSize: 16,
+  },
+  question: {
+    fontFamily: 'PlusJakartaSans_800ExtraBold',
+    fontSize: 24,
+    letterSpacing: -0.6,
+    textAlign: 'center',
+    marginTop: 32,
   },
   label: {
-    fontFamily: 'PlusJakartaSans_600SemiBold',
-    fontSize: 14,
-    marginBottom: 12,
+    fontFamily: 'PlusJakartaSans_700Bold',
+    fontSize: 15,
   },
   starsRow: {
     flexDirection: 'row',
-    gap: 12,
+    justifyContent: 'center',
+    gap: 10,
+    marginTop: 16,
   },
   star: {
-    fontSize: 40,
+    fontSize: 48,
+    lineHeight: 56,
+  },
+  caption: {
+    fontFamily: 'PlusJakartaSans_600SemiBold',
+    fontSize: 15,
+    textAlign: 'center',
+    marginTop: 6,
   },
   textAreaContainer: {
-    borderRadius: 14,
-    borderWidth: 1,
+    borderRadius: 16,
     padding: 14,
   },
   textArea: {
-    fontSize: 14,
+    fontSize: 15,
     lineHeight: 22,
-    minHeight: 100,
+    minHeight: 110,
   },
   charCount: {
-    fontSize: 11,
-    fontFamily: 'PlusJakartaSans_400Regular',
+    fontSize: 12,
+    fontFamily: 'PlusJakartaSans_500Medium',
     textAlign: 'right',
     marginTop: 8,
   },
   footer: {
-    padding: 20, paddingBottom: 32,
-    borderTopWidth: 1,
+    paddingHorizontal: 20, paddingTop: 12, paddingBottom: 16,
+    borderTopWidth: StyleSheet.hairlineWidth,
   },
 });

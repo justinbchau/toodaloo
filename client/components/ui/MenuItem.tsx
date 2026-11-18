@@ -9,23 +9,43 @@ interface Props {
   sublabel?: string;
   onPress?: () => void;
   destructive?: boolean;
+  /** Icon tile tint; defaults to the brand purple. */
+  tint?: string;
+  /** Trailing value text (e.g. a count) shown before the chevron. */
+  value?: string;
+  /** Custom trailing node (e.g. a Switch); replaces value + chevron. */
+  right?: React.ReactNode;
+  /** Set by ListGroup — hides the hairline under the last row. */
+  isLast?: boolean;
+  testID?: string;
 }
 
-export function MenuItem({ icon, label, sublabel, onPress, destructive }: Props) {
+export function MenuItem({ icon, label, sublabel, onPress, destructive, tint, value, right, isLast, testID }: Props) {
   const { colors } = useThemeContext();
+  const iconColor = destructive ? colors.red : tint ?? colors.purpleText;
   return (
     <Pressable
+      testID={testID}
       onPress={onPress}
-      style={({ pressed }: { pressed: boolean }) => [styles.row, { borderBottomColor: colors.border, opacity: pressed ? 0.7 : 1 }]}
+      disabled={!onPress}
+      accessibilityRole={onPress ? 'button' : undefined}
+      style={({ pressed }: { pressed: boolean }) => [styles.row, { backgroundColor: pressed && onPress ? colors.surface2 : 'transparent' }]}
     >
-      <View style={[styles.iconWrap, { backgroundColor: destructive ? 'rgba(240,90,90,0.12)' : colors.surface2 }]}>
-        <MaterialCommunityIcons name={icon} size={19} color={destructive ? colors.red : colors.text2} />
+      <View style={[styles.iconWrap, { backgroundColor: destructive ? colors.redDim : colors.purpleDim }]}>
+        <MaterialCommunityIcons name={icon} size={18} color={iconColor} />
       </View>
-      <View style={styles.text}>
-        <Text style={[styles.label, { color: destructive ? colors.red : colors.text1 }]}>{label}</Text>
-        {sublabel ? <Text style={[styles.sublabel, { color: colors.text3 }]}>{sublabel}</Text> : null}
+      <View style={[styles.body, !isLast && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.borderMed }]}>
+        <View style={styles.text}>
+          <Text style={[styles.label, { color: destructive ? colors.red : colors.text1 }]}>{label}</Text>
+          {sublabel ? <Text style={[styles.sublabel, { color: colors.text2 }]}>{sublabel}</Text> : null}
+        </View>
+        {right ?? (
+          <>
+            {value ? <Text style={[styles.value, { color: colors.text2 }]}>{value}</Text> : null}
+            {onPress && !destructive ? <MaterialCommunityIcons name="chevron-right" size={20} color={colors.text3} /> : null}
+          </>
+        )}
       </View>
-      <Text style={[styles.chevron, { color: colors.text3 }]}>›</Text>
     </Pressable>
   );
 }
@@ -34,31 +54,37 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 13,
-    paddingHorizontal: 16,
-    borderBottomWidth: 1,
+    paddingLeft: 14,
     gap: 12,
   },
   iconWrap: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
+    width: 32,
+    height: 32,
+    borderRadius: 9,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  icon: { fontSize: 18, fontFamily: undefined },
+  body: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 14,
+    paddingRight: 14,
+    minHeight: 54,
+  },
   text: { flex: 1 },
   label: {
     fontSize: 15,
-    fontFamily: 'PlusJakartaSans_500Medium',
+    fontFamily: 'PlusJakartaSans_600SemiBold',
   },
   sublabel: {
     fontSize: 12,
     fontFamily: 'PlusJakartaSans_400Regular',
-    marginTop: 1,
+    marginTop: 2,
   },
-  chevron: {
-    fontSize: 22,
-    fontFamily: 'PlusJakartaSans_400Regular',
+  value: {
+    fontSize: 14,
+    fontFamily: 'PlusJakartaSans_500Medium',
   },
 });

@@ -9,6 +9,14 @@ import { mockColors, mockUser } from '../helpers/mocks';
 
 const mockNavigate = jest.fn();
 
+// Skeletons pull in reanimated, whose native worklets runtime isn't available in jest.
+jest.mock('../../components/SkeletonBathroomCard', () => ({
+  SkeletonBathroomCard: () => {
+    const { View } = require('react-native');
+    return <View testID="skeleton-bathroom-card" />;
+  },
+}));
+
 jest.mock('@react-navigation/native', () => {
   const ReactActual = require('react');
   return {

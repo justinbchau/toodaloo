@@ -1,5 +1,5 @@
 import React, { useContext, useCallback, useEffect, useRef, useState } from 'react';
-import { StyleSheet, View, Text, Pressable, Linking } from 'react-native';
+import { StyleSheet, View, Text, Pressable, Linking, ScrollView } from 'react-native';
 import MapView, { Marker, Region } from 'react-native-maps';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { ACCESS_ICON, DEFAULT_ACCESS_ICON } from '../lib/accessIcons';
@@ -12,6 +12,10 @@ import LocationSearch from '../components/LocationSearch';
 import { BathroomSheet } from '../components/BathroomSheet';
 import { BathroomCardData } from '../components/BathroomCard';
 import { Chip } from '../components/ui/Chip';
+import { IconButton } from '../components/ui/IconButton';
+import { PrimaryButton } from '../components/ui/PrimaryButton';
+import { Fade } from '../components/ui/Fade';
+import { shadows } from '../theme/shadows';
 import { useThemeContext } from '../context/ThemeContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '../lib/supabase';
@@ -80,7 +84,6 @@ export function Map() {
     const [isFetchingBathrooms, setIsFetchingBathrooms] = useState(false);
     const [fetchError, setFetchError] = useState(false);
     const [showSearchHere, setShowSearchHere] = useState(false);
-    const [showFilters, setShowFilters] = useState(false);
     const [accessFilter, setAccessFilter] = useState<string | null>(null);
     const [open24Filter, setOpen24Filter] = useState(false);
     // Bumped to tell LocationSearch to clear its query/✕ when the map is reset from
@@ -234,18 +237,19 @@ export function Map() {
         return true;
     });
 
-    // --- Requesting state: spinner ---
+    // --- Requesting state: branded loader ---
     if (locationStatus === 'requesting') {
         return (
-            <View style={[styles.container, { backgroundColor: colors.bg }]}>
-                <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-                    <LottieView
-                        style={styles.animation}
-                        source={require('../assets/67056-spinner-edited.json')}
-                        autoPlay
-                        loop
-                    />
-                </View>
+            <View style={[styles.container, { backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' }]}>
+                <LottieView
+                    style={styles.animation}
+                    source={require('../assets/67056-spinner-edited.json')}
+                    autoPlay
+                    loop
+                />
+                <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 15, color: colors.text2, marginTop: 4 }}>
+                    Finding bathrooms near you…
+                </Text>
             </View>
         );
     }
@@ -253,35 +257,36 @@ export function Map() {
     // --- Denied state: permission prompt ---
     if (locationStatus === 'denied') {
         return (
-            <View style={{ flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 }}>
-                <MaterialCommunityIcons name="map-marker-radius" size={56} color={colors.purple} />
-                <Text style={{
-                    fontFamily: 'PlusJakartaSans_800ExtraBold',
-                    fontSize: 20, color: colors.text1,
-                    marginTop: 20, textAlign: 'center',
-                }}>
-                    We need your location
-                </Text>
-                <Text style={{
-                    fontFamily: 'PlusJakartaSans_400Regular',
-                    fontSize: 14, color: colors.text2,
-                    marginTop: 8, textAlign: 'center', lineHeight: 22,
-                }}>
-                    TooDaLoo uses your location to find bathrooms nearby.
-                </Text>
-                <Pressable
-                    onPress={() => Linking.openSettings()}
-                    style={({ pressed }: { pressed: boolean }) => ({
-                        marginTop: 28, backgroundColor: colors.purple,
-                        borderRadius: 14, paddingHorizontal: 28, paddingVertical: 14,
-                        width: '100%', alignItems: 'center',
-                        opacity: pressed ? 0.85 : 1,
-                    })}
-                >
-                    <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 15, color: '#fff' }}>
-                        Open Settings
+            <View style={{ flex: 1, backgroundColor: colors.bg, paddingHorizontal: 28, paddingTop: insets.top, paddingBottom: 24 }}>
+                <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+                    {/* Concentric "radar" rings around the pin */}
+                    <View style={{ width: 168, height: 168, borderRadius: 84, backgroundColor: colors.purpleDim, alignItems: 'center', justifyContent: 'center' }}>
+                        <View style={{ width: 118, height: 118, borderRadius: 59, backgroundColor: colors.purpleDim, alignItems: 'center', justifyContent: 'center' }}>
+                            <View style={{
+                                width: 72, height: 72, borderRadius: 36, backgroundColor: colors.purple,
+                                alignItems: 'center', justifyContent: 'center',
+                                ...shadows.md, shadowColor: colors.purple, shadowOpacity: 0.45,
+                            }}>
+                                <MaterialCommunityIcons name="map-marker-radius" size={36} color="#fff" />
+                            </View>
+                        </View>
+                    </View>
+                    <Text style={{
+                        fontFamily: 'PlusJakartaSans_800ExtraBold',
+                        fontSize: 24, letterSpacing: -0.6, color: colors.text1,
+                        marginTop: 28, textAlign: 'center',
+                    }}>
+                        We need your location
                     </Text>
-                </Pressable>
+                    <Text style={{
+                        fontFamily: 'PlusJakartaSans_400Regular',
+                        fontSize: 15, color: colors.text2,
+                        marginTop: 8, textAlign: 'center', lineHeight: 22, maxWidth: 300,
+                    }}>
+                        TooDaLoo uses your location to find bathrooms nearby. It's only used while the app is open.
+                    </Text>
+                </View>
+                <PrimaryButton title="Open Settings" icon="cog-outline" onPress={() => Linking.openSettings()} />
                 <Pressable
                     onPress={() => {
                         // Fallback: show NYC as default region, let user browse
@@ -289,15 +294,19 @@ export function Map() {
                         setLocation(fallback);
                         setLocationStatus('granted');
                     }}
-                    style={({ pressed }: { pressed: boolean }) => ({ marginTop: 14, paddingVertical: 10, opacity: pressed ? 0.7 : 1 })}
+                    accessibilityRole="button"
+                    style={({ pressed }: { pressed: boolean }) => ({ marginTop: 6, paddingVertical: 14, alignItems: 'center', opacity: pressed ? 0.7 : 1 })}
                 >
-                    <Text style={{ fontFamily: 'PlusJakartaSans_500Medium', fontSize: 14, color: colors.text2 }}>
+                    <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 15, color: colors.text2 }}>
                         Maybe later
                     </Text>
                 </Pressable>
             </View>
         );
     }
+
+    // Floating chrome stacks below the search pill + chip row.
+    const overlayTop = insets.top + 8 + 50 + 10 + 36 + 12;
 
     // --- Granted state: full map ---
     return (
@@ -313,158 +322,114 @@ export function Map() {
                 }}
                 onRegionChangeComplete={onRegionChangeComplete}
                 showsUserLocation
+                showsMyLocationButton={false}
+                userInterfaceStyle={isDark ? 'dark' : 'light'}
                 style={StyleSheet.absoluteFill}
             >
-                {visibleBathrooms.map((b) => (
-                    <Marker
-                        key={b.id}
-                        coordinate={{ latitude: b.lat, longitude: b.lng }}
-                        onPress={() => navigation.navigate('BathroomDetail', {
-                            id: b.id, name: b.name, lat: b.lat, lng: b.lng,
-                        })}
-                    >
-                        <View style={{
-                            width: 40, height: 40, borderRadius: 10,
-                            backgroundColor: colors.purple,
-                            alignItems: 'center', justifyContent: 'center',
-                            shadowColor: 'rgba(123,110,246,0.35)',
-                            shadowOffset: { width: 0, height: 4 },
-                            shadowOpacity: 1, shadowRadius: 10,
-                            elevation: 6,
-                        }}>
-                            <MaterialCommunityIcons name="toilet" size={22} color="#fff" />
-                        </View>
-                    </Marker>
-                ))}
+                {visibleBathrooms.map((b) => {
+                    const rated = Number(b.score) > 0;
+                    return (
+                        <Marker
+                            key={b.id}
+                            coordinate={{ latitude: b.lat, longitude: b.lng }}
+                            anchor={{ x: 0.5, y: 1 }}
+                            onPress={() => navigation.navigate('BathroomDetail', {
+                                id: b.id, name: b.name, lat: b.lat, lng: b.lng,
+                            })}
+                        >
+                            <View style={{ alignItems: 'center' }}>
+                                <View style={[styles.pin, {
+                                    backgroundColor: colors.purple,
+                                    borderColor: '#fff',
+                                    paddingHorizontal: rated ? 9 : 0,
+                                    width: rated ? undefined : 34,
+                                }]}>
+                                    <MaterialCommunityIcons
+                                        name={(b.icon as keyof typeof MaterialCommunityIcons.glyphMap) ?? 'toilet'}
+                                        size={15}
+                                        color="#fff"
+                                    />
+                                    {rated && (
+                                        <Text style={styles.pinText}>{b.score}</Text>
+                                    )}
+                                </View>
+                                <View style={[styles.pinTail, { borderTopColor: colors.purple }]} />
+                            </View>
+                        </Marker>
+                    );
+                })}
             </MapView>
 
-            {/* TOP BAR — absolute, top 0 */}
-            <View style={[
-                styles.topBar,
-                {
-                    paddingTop: insets.top + 8,
-                    backgroundColor: isDark
-                        ? 'rgba(11,11,15,0.88)'
-                        : 'rgba(246,244,255,0.9)',
-                },
-            ]}>
-                <View style={styles.topBarInner}>
-                    <LocationSearch onLocationSelected={onSearchLocation} onReset={onResetLocation} resetSignal={searchResetSignal} />
-                    <Pressable
-                        onPress={() => setShowFilters((v) => !v)}
-                        style={({ pressed }: { pressed: boolean }) => ({
-                            width: 42,
-                            height: 42,
-                            backgroundColor: showFilters || activeFilterCount > 0 ? colors.purple : colors.surface2,
-                            borderWidth: 1,
-                            borderColor: showFilters || activeFilterCount > 0 ? colors.purple : colors.borderMed,
-                            borderRadius: 12,
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            opacity: pressed ? 0.7 : 1,
-                        })}
-                    >
-                        <View style={{ gap: 3.5, width: 16 }}>
-                            {[1, 2, 3].map((_, i) => (
-                                <View
-                                    key={i}
-                                    style={{
-                                        height: 1.5,
-                                        width: i === 2 ? '65%' : '100%',
-                                        backgroundColor: showFilters || activeFilterCount > 0 ? '#fff' : colors.text2,
-                                        borderRadius: 1,
-                                    }}
-                                />
-                            ))}
-                        </View>
-                        {activeFilterCount > 0 && !showFilters && (
-                            <View style={{
-                                position: 'absolute', top: -4, right: -4,
-                                minWidth: 16, height: 16, borderRadius: 8,
-                                backgroundColor: colors.red,
-                                alignItems: 'center', justifyContent: 'center',
-                                paddingHorizontal: 3,
-                            }}>
-                                <Text style={{ color: '#fff', fontSize: 10, fontFamily: 'PlusJakartaSans_700Bold' }}>
-                                    {activeFilterCount}
-                                </Text>
-                            </View>
-                        )}
-                    </Pressable>
-                </View>
+            {/* Scrim so the status bar + search stay legible over busy map tiles */}
+            <Fade
+                color={colors.bg}
+                from={isDark ? 0.85 : 0.7}
+                style={{ position: 'absolute', top: 0, left: 0, right: 0, height: insets.top + 110 }}
+            />
 
-                {/* Filter panel */}
-                {showFilters && (
-                    <View style={{
-                        marginTop: 10,
-                        backgroundColor: colors.surface1,
-                        borderRadius: 14,
-                        borderWidth: 1,
-                        borderColor: colors.borderMed,
-                        padding: 12,
-                        gap: 10,
-                    }}>
-                        <Text style={{ fontSize: 11, fontFamily: 'PlusJakartaSans_700Bold', letterSpacing: 0.8, color: colors.text2 }}>
-                            ACCESS TYPE
-                        </Text>
-                        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-                            {ACCESS_FILTERS.map((opt) => (
-                                <Chip
-                                    key={opt.value}
-                                    label={opt.label}
-                                    active={accessFilter === opt.value}
-                                    onPress={() =>
-                                        setAccessFilter((prev) => (prev === opt.value ? null : opt.value))
-                                    }
-                                />
-                            ))}
-                        </View>
-                        <Pressable
-                            onPress={() => setOpen24Filter((v) => !v)}
-                            style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 2 }}
-                        >
-                            <Text style={{ fontSize: 13, fontFamily: 'PlusJakartaSans_500Medium', color: colors.text1 }}>
-                                Open 24 hours only
-                            </Text>
-                            <View style={{
-                                width: 22, height: 22, borderRadius: 6,
-                                borderWidth: 1.5,
-                                borderColor: open24Filter ? colors.purple : colors.borderMed,
-                                backgroundColor: open24Filter ? colors.purple : 'transparent',
-                                alignItems: 'center', justifyContent: 'center',
-                            }}>
-                                {open24Filter && <Text style={{ color: '#fff', fontSize: 13 }}>✓</Text>}
-                            </View>
-                        </Pressable>
-                        {activeFilterCount > 0 && (
-                            <Pressable onPress={() => { setAccessFilter(null); setOpen24Filter(false); }}>
-                                <Text style={{ fontSize: 12, fontFamily: 'PlusJakartaSans_600SemiBold', color: colors.purpleText, marginTop: 2 }}>
-                                    Clear filters
-                                </Text>
-                            </Pressable>
-                        )}
-                    </View>
-                )}
+            {/* TOP CHROME — floating search pill + filter chips */}
+            <View style={[styles.topBar, { paddingTop: insets.top + 8 }]} pointerEvents="box-none">
+                <View style={{ paddingHorizontal: 16 }}>
+                    <LocationSearch onLocationSelected={onSearchLocation} onReset={onResetLocation} resetSignal={searchResetSignal} />
+                </View>
+                <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    keyboardShouldPersistTaps="handled"
+                    style={{ marginTop: 10, flexGrow: 0 }}
+                    contentContainerStyle={{ paddingHorizontal: 16, gap: 8, paddingBottom: 6 }}
+                >
+                    {activeFilterCount > 0 && (
+                        <Chip
+                            floating
+                            label="Clear"
+                            icon="close"
+                            active={false}
+                            onPress={() => { setAccessFilter(null); setOpen24Filter(false); }}
+                        />
+                    )}
+                    <Chip
+                        floating
+                        label="Open 24h"
+                        icon="clock-outline"
+                        active={open24Filter}
+                        onPress={() => setOpen24Filter((v) => !v)}
+                    />
+                    {ACCESS_FILTERS.map((opt) => (
+                        <Chip
+                            key={opt.value}
+                            floating
+                            label={opt.label}
+                            icon={(ACCESS_ICON[opt.value] ?? DEFAULT_ACCESS_ICON) as keyof typeof MaterialCommunityIcons.glyphMap}
+                            active={accessFilter === opt.value}
+                            onPress={() =>
+                                setAccessFilter((prev) => (prev === opt.value ? null : opt.value))
+                            }
+                        />
+                    ))}
+                </ScrollView>
             </View>
 
             {/* Search this area button */}
-            {showSearchHere && !isFetchingBathrooms && (
-                <View style={{ position: 'absolute', top: insets.top + 64, left: 0, right: 0, alignItems: 'center', zIndex: 999 }}>
+            {showSearchHere && !isFetchingBathrooms && !fetchError && (
+                <View style={{ position: 'absolute', top: overlayTop, left: 0, right: 0, alignItems: 'center', zIndex: 999 }} pointerEvents="box-none">
                     <Pressable
                         onPress={searchThisArea}
+                        accessibilityRole="button"
                         style={({ pressed }: { pressed: boolean }) => ({
-                            backgroundColor: colors.purple,
+                            backgroundColor: colors.glass,
                             borderRadius: 20,
-                            paddingHorizontal: 18,
-                            paddingVertical: 10,
+                            paddingHorizontal: 16,
+                            height: 40,
                             flexDirection: 'row', alignItems: 'center', gap: 6,
-                            shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-                            shadowOpacity: 0.2, shadowRadius: 6, elevation: 6,
+                            ...shadows.md,
+                            shadowColor: colors.shadow,
                             opacity: pressed ? 0.85 : 1,
                         })}
                     >
-                        <Text style={{ color: '#fff', fontSize: 13, fontFamily: 'PlusJakartaSans_700Bold' }}>
-                            ⟳ Search this area
+                        <MaterialCommunityIcons name="refresh" size={17} color={colors.purpleText} />
+                        <Text style={{ color: colors.text1, fontSize: 14, fontFamily: 'PlusJakartaSans_700Bold' }}>
+                            Search this area
                         </Text>
                     </Pressable>
                 </View>
@@ -472,24 +437,28 @@ export function Map() {
 
             {/* Error banner + retry */}
             {fetchError && (
-                <View style={{ position: 'absolute', top: insets.top + 64, left: 16, right: 16, alignItems: 'center', zIndex: 999 }}>
+                <View style={{ position: 'absolute', top: overlayTop, left: 16, right: 16, alignItems: 'center', zIndex: 999 }}>
                     <View style={{
-                        backgroundColor: colors.surface1,
-                        borderColor: colors.red,
-                        borderWidth: 1,
-                        borderRadius: 14,
-                        paddingHorizontal: 16, paddingVertical: 12,
-                        flexDirection: 'row', alignItems: 'center', gap: 12,
-                        maxWidth: 360,
+                        backgroundColor: colors.glass,
+                        borderRadius: 16,
+                        paddingLeft: 14, paddingRight: 8, paddingVertical: 8,
+                        flexDirection: 'row', alignItems: 'center', gap: 10,
+                        maxWidth: 380, alignSelf: 'stretch',
+                        ...shadows.md,
+                        shadowColor: colors.shadow,
                     }}>
-                        <Text style={{ flex: 1, color: colors.text1, fontSize: 13, fontFamily: 'PlusJakartaSans_500Medium' }}>
+                        <View style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: colors.redDim, alignItems: 'center', justifyContent: 'center' }}>
+                            <MaterialCommunityIcons name="wifi-off" size={16} color={colors.red} />
+                        </View>
+                        <Text style={{ flex: 1, color: colors.text1, fontSize: 13, fontFamily: 'PlusJakartaSans_600SemiBold' }}>
                             Couldn't load nearby bathrooms.
                         </Text>
                         <Pressable
                             onPress={retryFetch}
+                            accessibilityRole="button"
                             style={({ pressed }: { pressed: boolean }) => ({
-                                backgroundColor: colors.purple, borderRadius: 10,
-                                paddingHorizontal: 14, paddingVertical: 8, opacity: pressed ? 0.85 : 1,
+                                backgroundColor: colors.purple, borderRadius: 12,
+                                paddingHorizontal: 14, height: 34, justifyContent: 'center', opacity: pressed ? 0.85 : 1,
                             })}
                         >
                             <Text style={{ color: '#fff', fontSize: 13, fontFamily: 'PlusJakartaSans_700Bold' }}>Retry</Text>
@@ -498,49 +467,25 @@ export function Map() {
                 </View>
             )}
 
-            {/* FABs — absolute, right 14, bottom 260 */}
-            <View style={styles.fabContainer}>
-                {/* Add FAB (purple) */}
-                <Pressable
-                    style={({ pressed }: { pressed: boolean }) => [styles.fab, {
-                        backgroundColor: colors.purple,
-                        shadowColor: colors.purpleGlow ?? 'rgba(123,110,246,0.35)',
-                        shadowOffset: { width: 0, height: 4 },
-                        shadowOpacity: 1,
-                        shadowRadius: 18,
-                        elevation: 8,
-                        opacity: pressed ? 0.85 : 1,
-                    }]}
-                    onPress={() => tabNavigation.navigate('Add')}
-                >
-                    <Text style={styles.fabAddText}>+</Text>
-                </Pressable>
-
-                {/* Location FAB (surface) */}
-                <Pressable
-                    style={({ pressed }: { pressed: boolean }) => [
-                        styles.fab,
-                        {
-                            backgroundColor: colors.surface1,
-                            borderWidth: 1,
-                            borderColor: colors.borderMed,
-                            opacity: pressed ? 0.85 : 1,
-                        },
-                    ]}
-                    onPress={recenterToGps}
-                >
-                    <Text style={[styles.fabLocText, { color: colors.text2 }]}>◎</Text>
-                </Pressable>
-            </View>
-
-            {/* BATHROOM SHEET */}
+            {/* BATHROOM SHEET — recenter FAB rides on its top edge */}
             <BathroomSheet
                 bathrooms={visibleBathrooms}
                 isLoading={isFetchingBathrooms}
+                onAddPress={() => tabNavigation.navigate('Add')}
                 onCardPress={(id) => {
                     const b = visibleBathrooms.find(x => x.id === id);
                     if (b) navigation.navigate('BathroomDetail', { id: b.id, name: b.name, lat: b.lat, lng: b.lng });
                 }}
+                accessory={
+                    <IconButton
+                        variant="glass"
+                        size={46}
+                        icon="crosshairs-gps"
+                        iconColor={colors.purpleText}
+                        accessibilityLabel="Recenter on my location"
+                        onPress={recenterToGps}
+                    />
+                }
             />
         </View>
     );
@@ -555,43 +500,36 @@ const styles = StyleSheet.create({
         top: 0,
         left: 0,
         right: 0,
-        paddingHorizontal: 14,
-        paddingBottom: 12,
         zIndex: 1000,
     },
-    topBarInner: {
+    pin: {
+        height: 34,
+        borderRadius: 17,
+        borderWidth: 2,
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 8,
-    },
-    fabContainer: {
-        position: 'absolute',
-        right: 14,
-        bottom: 260,
-        gap: 10,
-        zIndex: 1000,
-    },
-    fab: {
-        width: 44,
-        height: 44,
-        borderRadius: 14,
-        alignItems: 'center',
         justifyContent: 'center',
+        gap: 4,
         shadowColor: '#000',
-        shadowOpacity: 0.18,
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.25,
         shadowRadius: 6,
-        shadowOffset: { width: 0, height: 2 },
-        elevation: 4,
+        elevation: 6,
     },
-    fabAddText: {
+    pinText: {
         color: '#fff',
-        fontSize: 24,
-        lineHeight: 28,
-        fontFamily: 'PlusJakartaSans_400Regular',
+        fontSize: 13,
+        fontFamily: 'PlusJakartaSans_800ExtraBold',
     },
-    fabLocText: {
-        fontSize: 20,
-        lineHeight: 24,
+    pinTail: {
+        width: 0,
+        height: 0,
+        marginTop: -1,
+        borderLeftWidth: 6,
+        borderRightWidth: 6,
+        borderTopWidth: 7,
+        borderLeftColor: 'transparent',
+        borderRightColor: 'transparent',
     },
     animation: {
         width: 100,

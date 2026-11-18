@@ -42,11 +42,6 @@ jest.mock('@shopify/flash-list', () => {
   };
 });
 
-jest.mock('../../components/BackButton', () => {
-  const { View } = require('react-native');
-  return { __esModule: true, default: () => <View testID="back-button" /> };
-});
-
 jest.mock('../../context/ThemeContext', () => ({
   useThemeContext: () => ({ colors: mockColors, isDark: false }),
 }));

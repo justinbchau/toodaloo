@@ -28,10 +28,9 @@ jest.mock('../../context/UserContext', () => ({
   }),
 }));
 
-jest.mock('../../components/BackButton', () => {
-  const { View } = require('react-native');
-  return { __esModule: true, default: () => <View testID="back-button" /> };
-});
+jest.mock('@react-navigation/native', () => ({
+  useNavigation: () => ({ goBack: jest.fn(), navigate: jest.fn() }),
+}));
 
 jest.mock('react-native-safe-area-context', () => {
   const { View } = require('react-native');

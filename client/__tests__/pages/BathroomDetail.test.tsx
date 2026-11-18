@@ -145,16 +145,16 @@ describe('BathroomDetail — populated state', () => {
     await waitFor(() => expect(screen.getByText('Test Bathroom')).toBeTruthy());
   });
 
-  it('shows the Open badge when is_24_hours=true', async () => {
+  it('shows the Open 24/7 badge when is_24_hours=true', async () => {
     render(<BathroomDetail />);
-    await waitFor(() => expect(screen.getByText('Open')).toBeTruthy());
+    await waitFor(() => expect(screen.getByText('Open 24/7')).toBeTruthy());
   });
 
-  it('hides the Open badge when is_24_hours=false', async () => {
+  it('hides the Open 24/7 badge when is_24_hours=false', async () => {
     setupDefaultMocks({ bathroom: { ...mockBathroomData, is_24_hours: false } });
     render(<BathroomDetail />);
     await waitFor(() => expect(screen.getByText('Test Bathroom')).toBeTruthy());
-    expect(screen.queryByText('Open')).toBeNull();
+    expect(screen.queryByText('Open 24/7')).toBeNull();
   });
 
   it('shows distance computed from haversine when location matches route coords', async () => {
@@ -242,14 +242,14 @@ describe('BathroomDetail — action buttons', () => {
     shareSpy.mockRestore();
   });
 
-  it('opens maps directions to the bathroom coords when Navigate is pressed', async () => {
+  it('opens maps directions to the bathroom coords when Directions is pressed', async () => {
     const canOpenSpy = jest.spyOn(Linking, 'canOpenURL').mockResolvedValue(true);
     const openSpy = jest.spyOn(Linking, 'openURL').mockResolvedValue(undefined);
     render(<BathroomDetail />);
     await waitFor(() => expect(screen.getByText('Test Bathroom')).toBeTruthy());
 
     await act(async () => {
-      fireEvent.press(screen.getByText('Navigate ›'));
+      fireEvent.press(screen.getByText('Directions'));
     });
 
     expect(openSpy).toHaveBeenCalledWith(expect.stringContaining('40.7128,-74.006'));
@@ -273,7 +273,7 @@ describe('BathroomDetail — action buttons', () => {
     render(<BathroomDetail />);
     await waitFor(() => expect(screen.getByText('Test Bathroom')).toBeTruthy());
 
-    fireEvent.press(screen.getByText('‹'));
+    fireEvent.press(screen.getByLabelText('Go back'));
     expect(mockGoBack).toHaveBeenCalledTimes(1);
   });
 });

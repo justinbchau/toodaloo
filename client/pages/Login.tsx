@@ -1,13 +1,12 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View } from 'react-native';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { AuthStackParamList } from '../RootStackParams';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useNavigation } from '@react-navigation/native';
-import { Page } from '../templates/Page';
-import { useThemeContext } from '../context/ThemeContext';
+import { AuthLayout, AuthNotice, AuthSwitch } from '../components/AuthLayout';
 import { PrimaryButton } from '../components/ui/PrimaryButton';
 import { FormInput } from '../components/ui/FormInput';
 import { supabase } from '../lib/supabase';
@@ -24,7 +23,6 @@ type FormValues = z.infer<typeof schema>;
 
 export function Login() {
     const navigation = useNavigation<loginScreenProp>();
-    const { colors } = useThemeContext();
     const { sessionExpired, clearSessionExpired } = useUser();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [authError, setAuthError] = useState<string | null>(null);
@@ -55,59 +53,60 @@ export function Login() {
     };
 
     return (
-        <Page>
-            <View style={styles.container}>
-                <Text style={[styles.title, { color: colors.text1 }]}>Welcome back</Text>
-                <Text style={[styles.subtitle, { color: colors.text2 }]}>Enter your email to receive a login code</Text>
-
-                {sessionExpired && (
-                    <Text testID="session-expired-notice" style={[styles.errorText, { color: colors.red }]}>
-                        Your session expired. Please sign in again.
-                    </Text>
-                )}
-
-                <View style={styles.fields}>
-                    <Controller<FormValues>
-                        control={control}
-                        name="email"
-                        render={({ field: { onChange, onBlur, value }, fieldState: { error } }) => (
-                            <FormInput
-                                testID="login-email"
-                                label="Email"
-                                onChangeText={onChange}
-                                onBlur={onBlur}
-                                value={value}
-                                autoCapitalize="none"
-                                keyboardType="email-address"
-                                error={error?.message}
-                            />
-                        )}
+        <AuthLayout
+            icon="email-fast-outline"
+            title="Welcome back"
+            subtitle="Enter your email and we'll send you a 6-digit login code. No password needed."
+            footer={
+                <>
+                    <PrimaryButton
+                        testID="send-code"
+                        title="Send code →"
+                        onPress={handleSubmit(onSubmit)}
+                        disabled={isSubmitting}
+                        loading={isSubmitting}
                     />
+                    <AuthSwitch
+                        prompt="New to toodaloo?"
+                        action="Create an account"
+                        onPress={() => navigation.replace('SignUp')}
+                    />
+                </>
+            }
+        >
+            {sessionExpired && (
+                <View style={{ marginTop: -12, marginBottom: 16 }}>
+                    <AuthNotice tone="error" testID="session-expired-notice">
+                        Your session expired. Please sign in again.
+                    </AuthNotice>
                 </View>
+            )}
 
-                {authError && (
-                    <Text style={[styles.errorText, { color: colors.red }]}>
-                        {authError}
-                    </Text>
+            <Controller<FormValues>
+                control={control}
+                name="email"
+                render={({ field: { onChange, onBlur, value }, fieldState: { error } }) => (
+                    <FormInput
+                        testID="login-email"
+                        label="Email"
+                        icon="email-outline"
+                        placeholder="you@example.com"
+                        onChangeText={onChange}
+                        onBlur={onBlur}
+                        value={value}
+                        autoCapitalize="none"
+                        autoComplete="email"
+                        textContentType="emailAddress"
+                        keyboardType="email-address"
+                        returnKeyType="send"
+                        onSubmitEditing={handleSubmit(onSubmit)}
+                        autoFocus
+                        error={error?.message}
+                    />
                 )}
+            />
 
-                <PrimaryButton
-                    testID="send-code"
-                    title="Send code →"
-                    onPress={handleSubmit(onSubmit)}
-                    style={styles.button}
-                    disabled={isSubmitting}
-                />
-            </View>
-        </Page>
+            {authError && <AuthNotice tone="error">{authError}</AuthNotice>}
+        </AuthLayout>
     );
 }
-
-const styles = StyleSheet.create({
-    container: { flex: 1, paddingHorizontal: 24 },
-    title: { marginTop: 32, fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 28 },
-    subtitle: { fontSize: 14, fontFamily: 'PlusJakartaSans_400Regular', marginTop: 8 },
-    fields: { marginTop: 28, gap: 16 },
-    errorText: { fontSize: 13, fontFamily: 'PlusJakartaSans_400Regular', textAlign: 'center', marginTop: 12 },
-    button: { marginTop: 16 },
-});

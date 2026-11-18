@@ -65,9 +65,10 @@ jest.mock('lottie-react-native', () => {
   return { __esModule: true, default: (props: any) => <View {...props} /> };
 });
 jest.mock('../../components/BathroomSheet', () => ({
-  BathroomSheet: () => {
+  // Render the accessory slot — the recenter FAB rides on the sheet's top edge.
+  BathroomSheet: ({ accessory }: any) => {
     const { View } = require('react-native');
-    return <View testID="bathroom-sheet" />;
+    return <View testID="bathroom-sheet">{accessory}</View>;
   },
 }));
 jest.mock('../../components/ui/Chip', () => ({
@@ -188,7 +189,7 @@ describe('Map — recenter (◎) FAB', () => {
     const signalBefore = Number(screen.getByTestId('ls-reset-signal').props.children);
     mockRpc.mockClear();
 
-    fireEvent.press(screen.getByText('◎'));
+    fireEvent.press(screen.getByLabelText('Recenter on my location'));
     await flush();
 
     expect(mockRpc).toHaveBeenCalledWith('bathrooms_nearby', nearbyArgs(GPS.lat, GPS.lng));

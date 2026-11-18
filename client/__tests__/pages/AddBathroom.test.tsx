@@ -84,7 +84,7 @@ async function fillAndSubmit({
 describe('AddBathroom — initial render', () => {
   it('renders the page heading', () => {
     renderAddBathroom();
-    expect(screen.getByText('add a bathroom')).toBeTruthy();
+    expect(screen.getByText('Add a bathroom')).toBeTruthy();
   });
 
   it('renders title and address inputs', () => {
@@ -108,7 +108,7 @@ describe('AddBathroom — initial render', () => {
   it('renders the Open 24 hours toggle section', () => {
     renderAddBathroom();
     // SectionLabel renders label text uppercased
-    expect(screen.getByText('OPEN 24 HOURS')).toBeTruthy();
+    expect(screen.getByText('Open 24 hours')).toBeTruthy();
   });
 });
 

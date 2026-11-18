@@ -8,144 +8,141 @@ import {
   PanResponder,
   Dimensions,
 } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useThemeContext } from '../context/ThemeContext';
+import { shadows } from '../theme/shadows';
 import { BathroomCard, BathroomCardData } from './BathroomCard';
 import { SkeletonBathroomCard } from './SkeletonBathroomCard';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { PrimaryButton } from './ui/PrimaryButton';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
-// Snap positions as fractions of screen height (measured from bottom of screen)
-const SNAP_25 = SCREEN_HEIGHT * 0.25;
-const SNAP_50 = SCREEN_HEIGHT * 0.50;
-
-const DRAG_HANDLE_HEIGHT = 28; // visual height of the handle area
-const DRAG_THRESHOLD = 60; // px of drag before snapping to next position
+// Snap heights (px from the bottom of the tab screen). Peek shows the header
+// plus ~1.5 rows so the map stays the hero; half and full are for browsing.
+const SNAPS = [SCREEN_HEIGHT * 0.3, SCREEN_HEIGHT * 0.52, SCREEN_HEIGHT * 0.8];
+const HANDLE_AREA = 22;
+const FLICK_VELOCITY = 0.6;
 
 interface Props {
   bathrooms?: BathroomCardData[];
   onCardPress?: (id: string) => void;
   isLoading?: boolean;
+  /** Empty-state CTA (e.g. jump to the Add tab). */
+  onAddPress?: () => void;
+  /** Floating controls pinned just above the sheet's top edge (e.g. recenter). */
+  accessory?: React.ReactNode;
 }
 
-export function BathroomSheet({ bathrooms = [], onCardPress, isLoading = false }: Props) {
+export function BathroomSheet({ bathrooms = [], onCardPress, isLoading = false, onAddPress, accessory }: Props) {
   const { colors } = useThemeContext();
 
-  // sheetHeight drives the height of the sheet
-  const sheetHeight = useRef(new Animated.Value(SNAP_25)).current;
-  const currentSnap = useRef<'25' | '50'>('25');
-  const dragStartHeight = useRef(SNAP_25);
+  const sheetHeight = useRef(new Animated.Value(SNAPS[0])).current;
+  const snapIndex = useRef(0);
+  const dragStart = useRef(SNAPS[0]);
 
-  const snapTo = useCallback((target: number, label: '25' | '50') => {
-    currentSnap.current = label;
+  const snapTo = useCallback((index: number) => {
+    snapIndex.current = index;
     Animated.spring(sheetHeight, {
-      toValue: target,
+      toValue: SNAPS[index],
       useNativeDriver: false,
-      bounciness: 4,
+      bounciness: 3,
+      speed: 14,
     }).start();
   }, [sheetHeight]);
 
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: (_, gestureState) =>
-        Math.abs(gestureState.dy) > 3,
+      onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dy) > 4,
       onPanResponderGrant: () => {
-        // Capture the current animated value before dragging
-        dragStartHeight.current =
-          currentSnap.current === '25' ? SNAP_25 : SNAP_50;
+        dragStart.current = SNAPS[snapIndex.current];
         sheetHeight.stopAnimation();
       },
-      onPanResponderMove: (_, gestureState) => {
-        // dy is positive when dragging DOWN, so subtract to shrink/grow
-        const next = dragStartHeight.current - gestureState.dy;
-        const clamped = Math.max(SNAP_25 * 0.9, Math.min(SNAP_50 * 1.05, next));
-        sheetHeight.setValue(clamped);
+      onPanResponderMove: (_, g) => {
+        const next = dragStart.current - g.dy;
+        sheetHeight.setValue(Math.max(SNAPS[0] * 0.85, Math.min(SNAPS[SNAPS.length - 1] * 1.03, next)));
       },
-      onPanResponderRelease: (_, gestureState) => {
-        const draggingUp = gestureState.dy < -DRAG_THRESHOLD;
-        const draggingDown = gestureState.dy > DRAG_THRESHOLD;
-
-        if (currentSnap.current === '25' && draggingUp) {
-          snapTo(SNAP_50, '50');
-        } else if (currentSnap.current === '50' && draggingDown) {
-          snapTo(SNAP_25, '25');
-        } else {
-          // Snap back to current position
-          snapTo(
-            currentSnap.current === '25' ? SNAP_25 : SNAP_50,
-            currentSnap.current,
-          );
+      onPanResponderRelease: (_, g) => {
+        // A tap on the header toggles between peek and half.
+        if (Math.abs(g.dy) < 4) {
+          snapTo(snapIndex.current === 0 ? 1 : 0);
+          return;
         }
+        // A flick moves one stop in its direction; a slow drag lands on the nearest stop.
+        if (g.vy < -FLICK_VELOCITY) {
+          snapTo(Math.min(SNAPS.length - 1, snapIndex.current + 1));
+          return;
+        }
+        if (g.vy > FLICK_VELOCITY) {
+          snapTo(Math.max(0, snapIndex.current - 1));
+          return;
+        }
+        const current = dragStart.current - g.dy;
+        let nearest = 0;
+        SNAPS.forEach((s, i) => {
+          if (Math.abs(s - current) < Math.abs(SNAPS[nearest] - current)) nearest = i;
+        });
+        snapTo(nearest);
       },
     }),
   ).current;
 
-  return (
-    <Animated.View
-      style={[
-        styles.sheet,
-        {
-          height: sheetHeight,
-          backgroundColor: colors.surface1,
-          borderColor: colors.borderMed ?? 'rgba(255,255,255,0.08)',
-        },
-      ]}
-    >
-      {/* Drag handle */}
-      <View style={styles.handleArea} {...panResponder.panHandlers}>
-        <View style={[styles.handle, { backgroundColor: colors.surface3 }]} />
-      </View>
+  const count = bathrooms.length;
 
-      {/* Content */}
-      <View style={styles.content}>
-        <View style={styles.headingRow}>
-          <Text style={[styles.heading, { color: colors.text2 }]}>NEARBY</Text>
-          {!isLoading && bathrooms.length > 0 && (
-            <Text style={[styles.headingCount, { color: colors.purpleText }]}>
-              {bathrooms.length} {bathrooms.length === 1 ? 'location' : 'locations'}
-            </Text>
-          )}
+  return (
+    <Animated.View style={[styles.wrapper, { height: sheetHeight }]}>
+      {accessory ? <View style={styles.accessory} pointerEvents="box-none">{accessory}</View> : null}
+
+      <View
+        style={[
+          styles.sheet,
+          { backgroundColor: colors.bg, borderColor: colors.border, shadowColor: colors.shadow },
+        ]}
+      >
+        {/* Drag area: grabber + header */}
+        <View {...panResponder.panHandlers}>
+          <View style={styles.handleArea}>
+            <View style={[styles.handle, { backgroundColor: colors.surface3 }]} />
+          </View>
+          <View style={styles.headingRow}>
+            <Text style={[styles.heading, { color: colors.text1 }]}>Nearby bathrooms</Text>
+            {!isLoading && count > 0 && (
+              <View style={[styles.countPill, { backgroundColor: colors.purpleDim }]}>
+                <Text style={[styles.headingCount, { color: colors.purpleText }]}>
+                  {count} {count === 1 ? 'location' : 'locations'}
+                </Text>
+              </View>
+            )}
+          </View>
         </View>
 
         {isLoading ? (
-          /* Loading: 3 skeleton cards */
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.scroll}
-            contentInsetAdjustmentBehavior="automatic"
-          >
+          <View style={styles.list}>
             <SkeletonBathroomCard />
             <SkeletonBathroomCard />
             <SkeletonBathroomCard />
-          </ScrollView>
-        ) : bathrooms.length === 0 ? (
-          /* Empty state */
-          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingBottom: 16 }}>
-            <MaterialCommunityIcons testID="empty-state-icon" name="toilet" size={40} color={colors.text3} />
-            <Text style={{
-              fontFamily: 'PlusJakartaSans_600SemiBold',
-              fontSize: 15, color: colors.text1,
-              marginTop: 12, textAlign: 'center',
-            }}>
-              No bathrooms nearby yet.
-            </Text>
-            <Text style={{
-              fontFamily: 'PlusJakartaSans_400Regular',
-              fontSize: 13, color: colors.text2,
-              marginTop: 4, textAlign: 'center',
-            }}>
-              Add the first one!
-            </Text>
+          </View>
+        ) : count === 0 ? (
+          // Compact row layout so the CTA still fits at the peek height.
+          <View style={styles.list}>
+            <View style={[styles.emptyRow, { backgroundColor: colors.surface1, borderColor: colors.border }]}>
+              <View style={[styles.emptyIcon, { backgroundColor: colors.purpleDim }]}>
+                <MaterialCommunityIcons testID="empty-state-icon" name="toilet" size={26} color={colors.purpleText} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.emptyTitle, { color: colors.text1 }]}>No bathrooms nearby yet.</Text>
+                <Text style={[styles.emptySub, { color: colors.text2 }]}>Add the first one!</Text>
+              </View>
+            </View>
+            {onAddPress ? (
+              <PrimaryButton title="Add a bathroom" icon="plus" size="md" onPress={onAddPress} />
+            ) : null}
           </View>
         ) : (
-          /* Real data */
           <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.scroll}
-            contentInsetAdjustmentBehavior="automatic"
+            style={{ flex: 1 }}
+            contentContainerStyle={[styles.list, { paddingBottom: 24 }]}
+            showsVerticalScrollIndicator={false}
           >
             {bathrooms.map((b, i) => (
               <BathroomCard
@@ -163,56 +160,81 @@ export function BathroomSheet({ bathrooms = [], onCardPress, isLoading = false }
 }
 
 const styles = StyleSheet.create({
-  sheet: {
+  wrapper: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    borderTopLeftRadius: 26,
-    borderTopRightRadius: 26,
+  },
+  accessory: {
+    position: 'absolute',
+    top: -60,
+    left: 16,
+    right: 16,
+    height: 48,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: 10,
+  },
+  sheet: {
+    flex: 1,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
     borderTopWidth: 1,
-    borderLeftWidth: 1,
-    borderRightWidth: 1,
-    overflow: 'hidden',
-    // Subtle shadow for depth
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -3 },
-    shadowOpacity: 0.18,
-    shadowRadius: 8,
-    elevation: 12,
+    ...shadows.lg,
   },
   handleArea: {
-    height: DRAG_HANDLE_HEIGHT,
+    height: HANDLE_AREA,
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingTop: 8,
+    justifyContent: 'flex-end',
   },
   handle: {
-    width: 32,
-    height: 3,
-    borderRadius: 2,
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: 16,
-    paddingBottom: 12,
-    gap: 12,
+    width: 40,
+    height: 5,
+    borderRadius: 3,
   },
   headingRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 12,
   },
   heading: {
-    fontSize: 12,
-    fontFamily: 'PlusJakartaSans_700Bold',
-    letterSpacing: 0.8,
+    fontSize: 20,
+    fontFamily: 'PlusJakartaSans_800ExtraBold',
+    letterSpacing: -0.5,
+  },
+  countPill: {
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
   },
   headingCount: {
-    fontSize: 11,
-    fontFamily: 'PlusJakartaSans_600SemiBold',
+    fontSize: 12,
+    fontFamily: 'PlusJakartaSans_700Bold',
   },
-  scroll: {
-    paddingBottom: 4,
+  list: {
+    paddingHorizontal: 16,
+    gap: 10,
   },
+  emptyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    padding: 14,
+    borderRadius: 18,
+    borderWidth: 1,
+  },
+  emptyIcon: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyTitle: { fontSize: 15, fontFamily: 'PlusJakartaSans_700Bold' },
+  emptySub: { fontSize: 13, fontFamily: 'PlusJakartaSans_400Regular', marginTop: 2 },
 });

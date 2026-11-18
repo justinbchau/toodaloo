@@ -21,6 +21,14 @@ const REPORT_REASONS = [
   'Other',
 ];
 
+const REASON_ICON: Record<string, keyof typeof MaterialCommunityIcons.glyphMap> = {
+  'Inappropriate or offensive': 'emoticon-angry-outline',
+  'Inaccurate or misleading': 'map-marker-question-outline',
+  'Spam or fake': 'robot-outline',
+  'Safety concern': 'shield-alert-outline',
+  Other: 'dots-horizontal-circle-outline',
+};
+
 // Postgres unique_violation — the reporter already filed this exact report.
 // Treated as success: the outcome the user wants (it's reported) already holds.
 const UNIQUE_VIOLATION = '23505';
@@ -97,22 +105,22 @@ export default function ReportSheet({ target, onClose }: Props) {
       <Pressable
         onPress={onClose}
         accessibilityLabel="Dismiss report"
-        style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}
+        style={{ flex: 1, backgroundColor: colors.overlay ?? 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}
       >
         {/* Sheet body. Stop propagation so taps inside don't dismiss. */}
         <Pressable
           onPress={(e) => e.stopPropagation()}
           style={{
             backgroundColor: colors.surface1,
-            borderTopLeftRadius: 20,
-            borderTopRightRadius: 20,
+            borderTopLeftRadius: 28,
+            borderTopRightRadius: 28,
             paddingHorizontal: 20,
-            paddingTop: 12,
-            paddingBottom: 36,
+            paddingTop: 10,
+            paddingBottom: 40,
           }}
         >
           {/* Grabber */}
-          <View style={{ alignSelf: 'center', width: 36, height: 4, borderRadius: 2, backgroundColor: colors.borderMed, marginBottom: 16 }} />
+          <View style={{ alignSelf: 'center', width: 40, height: 5, borderRadius: 3, backgroundColor: colors.surface3, marginBottom: 18 }} />
 
           {!user ? (
             <View style={{ alignItems: 'center', paddingVertical: 12 }}>
@@ -126,7 +134,9 @@ export default function ReportSheet({ target, onClose }: Props) {
             </View>
           ) : submitted ? (
             <View style={{ alignItems: 'center', paddingVertical: 12 }}>
-              <MaterialCommunityIcons name="check-circle-outline" size={32} color={colors.green} />
+              <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: colors.greenDim ?? 'rgba(52,199,122,0.14)', alignItems: 'center', justifyContent: 'center' }}>
+                <MaterialCommunityIcons name="check-bold" size={30} color={colors.green} />
+              </View>
               <Text style={{ color: colors.text1, fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 16, marginTop: 12, textAlign: 'center' }}>
                 Thanks — we'll take a look
               </Text>
@@ -144,10 +154,10 @@ export default function ReportSheet({ target, onClose }: Props) {
             </View>
           ) : (
             <>
-              <Text style={{ color: colors.text1, fontFamily: 'PlusJakartaSans_700Bold', fontSize: 17 }}>
+              <Text style={{ color: colors.text1, fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 20, letterSpacing: -0.4 }}>
                 Report this {targetNoun}
               </Text>
-              <Text style={{ color: colors.text2, fontFamily: 'PlusJakartaSans_400Regular', fontSize: 13, marginTop: 4, marginBottom: 12 }}>
+              <Text style={{ color: colors.text2, fontFamily: 'PlusJakartaSans_400Regular', fontSize: 14, marginTop: 4, marginBottom: 16 }}>
                 Why are you reporting this?
               </Text>
 
@@ -161,16 +171,17 @@ export default function ReportSheet({ target, onClose }: Props) {
                   style={({ pressed }) => ({
                     flexDirection: 'row',
                     alignItems: 'center',
-                    justifyContent: 'space-between',
-                    backgroundColor: colors.surface2,
-                    borderRadius: 12,
-                    paddingHorizontal: 16,
-                    paddingVertical: 14,
+                    gap: 12,
+                    backgroundColor: pressed ? colors.surface3 : colors.surface2,
+                    borderRadius: 14,
+                    paddingHorizontal: 14,
+                    paddingVertical: 13,
                     marginBottom: 8,
-                    opacity: pressed || submitting ? 0.6 : 1,
+                    opacity: submitting ? 0.6 : 1,
                   })}
                 >
-                  <Text style={{ color: colors.text1, fontFamily: 'PlusJakartaSans_500Medium', fontSize: 14 }}>
+                  <MaterialCommunityIcons name={REASON_ICON[reason] ?? 'flag-outline'} size={20} color={colors.text2} />
+                  <Text style={{ flex: 1, color: colors.text1, fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 15 }}>
                     {reason}
                   </Text>
                   <MaterialCommunityIcons name="chevron-right" size={18} color={colors.text3} />

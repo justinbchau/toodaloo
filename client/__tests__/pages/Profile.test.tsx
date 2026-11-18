@@ -68,9 +68,9 @@ beforeEach(() => {
 describe('Profile — stats', () => {
   it('renders the stat counts once loaded', async () => {
     render(<Profile />);
-    await waitFor(() => expect(screen.getByText('SAVED')).toBeTruthy());
-    expect(screen.getByText('REVIEWS')).toBeTruthy();
-    expect(screen.getByText('ADDED')).toBeTruthy();
+    await waitFor(() => expect(screen.getByText('Saved')).toBeTruthy());
+    expect(screen.getByText('Reviews')).toBeTruthy();
+    expect(screen.getByText('Added')).toBeTruthy();
     // Every count resolved to 3.
     expect(screen.getAllByText('3')).toHaveLength(3);
   });
@@ -83,13 +83,13 @@ describe('Profile — stats', () => {
     render(<Profile />);
     await waitFor(() => expect(screen.getByText("Couldn't load your stats")).toBeTruthy());
     // Never render a misleading stats row on failure.
-    expect(screen.queryByText('SAVED')).toBeNull();
+    expect(screen.queryByText('Saved')).toBeNull();
 
     await act(async () => {
       fireEvent.press(screen.getByLabelText('Retry loading stats'));
     });
 
-    await waitFor(() => expect(screen.getByText('SAVED')).toBeTruthy());
+    await waitFor(() => expect(screen.getByText('Saved')).toBeTruthy());
     expect(screen.queryByText("Couldn't load your stats")).toBeNull();
     errSpy.mockRestore();
   });

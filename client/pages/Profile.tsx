@@ -11,7 +11,11 @@ import { useUser } from '../context/UserContext';
 import { supabase } from '../lib/supabase';
 import { SkeletonProfileHero } from '../components/SkeletonProfileHero';
 import { MenuItem } from '../components/ui/MenuItem';
-import { SectionLabel } from '../components/ui/SectionLabel';
+import { ListGroup } from '../components/ui/ListGroup';
+import { ScreenHeader } from '../components/ui/ScreenHeader';
+import { IconButton } from '../components/ui/IconButton';
+import { initial } from '../lib/format';
+import { openLegal } from '../lib/legalUrl';
 
 type profileScreenProp = NativeStackNavigationProp<ProfileStackParamList>;
 
@@ -71,55 +75,57 @@ export function Profile() {
     }
   };
 
+  const displayName = profile?.username ?? user?.email?.split('@')[0] ?? 'User';
+  const goToSaved = () => (navigation as any).getParent()?.navigate('Saved');
+
+  const statTiles: { key: string; label: string; value: number; icon: keyof typeof MaterialCommunityIcons.glyphMap; onPress: () => void }[] = [
+    { key: 'saved', label: 'Saved', value: stats.saved, icon: 'bookmark-outline', onPress: goToSaved },
+    { key: 'reviews', label: 'Reviews', value: stats.reviews, icon: 'star-outline', onPress: () => navigation.navigate('MyReviews') },
+    { key: 'added', label: 'Added', value: stats.added, icon: 'map-marker-plus-outline', onPress: () => navigation.navigate('Submitted') },
+  ];
+
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
-      <ScrollView contentContainerStyle={{ paddingBottom: 40 }}>
+    <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: colors.bg }}>
+      <ScrollView contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+
+        <ScreenHeader
+          variant="large"
+          title="Profile"
+          right={
+            <IconButton icon="cog-outline" accessibilityLabel="Open settings" onPress={() => navigation.navigate('Settings')} />
+          }
+        />
 
         {/* Hero section */}
         {isLoadingStats ? (
           <SkeletonProfileHero />
         ) : (
-          <View style={{
-            backgroundColor: colors.surface1,
-            alignItems: 'center',
-            paddingTop: 40,
-            paddingBottom: 28,
-            borderBottomWidth: 1,
-            borderBottomColor: colors.border,
-          }}>
-            {/* Purple glow behind avatar */}
-            <View style={{
-              position: 'absolute', top: 20, width: 120, height: 120,
-              borderRadius: 60, backgroundColor: colors.purpleDim,
-            }} />
-
-            {/* Avatar */}
-            <View style={{
-              width: 72, height: 72, borderRadius: 22,
-              backgroundColor: colors.purple,
-              alignItems: 'center', justifyContent: 'center',
-              marginBottom: 12,
-              shadowColor: colors.purpleGlow ?? 'rgba(123,110,246,0.35)',
-              shadowOffset: { width: 0, height: 8 },
-              shadowOpacity: 1,
-              shadowRadius: 22,
-              elevation: 8,
-            }}>
-              <MaterialCommunityIcons name="toilet" size={34} color="#fff" />
+          <View style={{ alignItems: 'center', paddingTop: 12, paddingHorizontal: 16 }}>
+            {/* Avatar with brand ring */}
+            <View style={{ padding: 4, borderRadius: 52, borderWidth: 2, borderColor: colors.purpleGlow }}>
+              <View style={{
+                width: 88, height: 88, borderRadius: 44,
+                backgroundColor: colors.purple,
+                alignItems: 'center', justifyContent: 'center',
+              }}>
+                <Text style={{ fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 36, color: '#fff' }}>
+                  {initial(displayName)}
+                </Text>
+              </View>
             </View>
 
-            <Text style={{ fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 20, color: colors.text1 }}>
-              {profile?.username ?? user?.email?.split('@')[0] ?? 'User'}
+            <Text style={{ fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 22, letterSpacing: -0.5, color: colors.text1, marginTop: 14 }}>
+              {displayName}
             </Text>
             <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 14, color: colors.text2, marginTop: 2 }}>
               {user?.email ?? ''}
             </Text>
 
-            {/* Stats row — or a retry affordance if the counts failed to load,
+            {/* Stats — or a retry affordance if the counts failed to load,
                 so we never render a misleading 0. */}
             {statsError ? (
-              <View style={{ marginTop: 18, paddingTop: 16, borderTopWidth: 1, borderTopColor: colors.border, alignSelf: 'stretch', marginHorizontal: 24, alignItems: 'center' }}>
-                <Text style={{ fontSize: 13, fontFamily: 'PlusJakartaSans_400Regular', color: colors.text3 }}>
+              <View style={{ marginTop: 20, alignSelf: 'stretch', alignItems: 'center', backgroundColor: colors.surface1, borderRadius: 18, borderWidth: 1, borderColor: colors.border, paddingVertical: 16 }}>
+                <Text style={{ fontSize: 14, fontFamily: 'PlusJakartaSans_500Medium', color: colors.text2 }}>
                   Couldn't load your stats
                 </Text>
                 <Pressable
@@ -128,31 +134,37 @@ export function Profile() {
                   accessibilityLabel="Retry loading stats"
                   style={({ pressed }: { pressed: boolean }) => ({ marginTop: 6, paddingVertical: 4, paddingHorizontal: 8, opacity: pressed ? 0.6 : 1 })}
                 >
-                  <Text style={{ fontSize: 13, fontFamily: 'PlusJakartaSans_600SemiBold', color: colors.purpleText }}>
+                  <Text style={{ fontSize: 14, fontFamily: 'PlusJakartaSans_700Bold', color: colors.purpleText }}>
                     Retry
                   </Text>
                 </Pressable>
               </View>
             ) : (
-              <View style={{ flexDirection: 'row', marginTop: 18, paddingTop: 16, borderTopWidth: 1, borderTopColor: colors.border, alignSelf: 'stretch', marginHorizontal: 24 }}>
-                {[
-                  { stat: String(stats.saved), label: 'SAVED' },
-                  { stat: String(stats.reviews), label: 'REVIEWS' },
-                  { stat: String(stats.added), label: 'ADDED' },
-                ].map((item, i) => (
-                  <View key={item.label} style={{
-                    flex: 1,
-                    alignItems: 'center',
-                    borderRightWidth: i < 2 ? 1 : 0,
-                    borderRightColor: colors.border,
-                  }}>
-                    <Text style={{ fontSize: 20, fontFamily: 'PlusJakartaSans_800ExtraBold', color: colors.text1, letterSpacing: -0.8 }}>
-                      {item.stat}
+              <View style={{ flexDirection: 'row', gap: 10, marginTop: 20, alignSelf: 'stretch' }}>
+                {statTiles.map((t) => (
+                  <Pressable
+                    key={t.key}
+                    onPress={t.onPress}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${t.value} ${t.label}`}
+                    style={({ pressed }: { pressed: boolean }) => ({
+                      flex: 1,
+                      backgroundColor: pressed ? colors.surface2 : colors.surface1,
+                      borderRadius: 18,
+                      borderWidth: 1,
+                      borderColor: colors.border,
+                      paddingVertical: 14,
+                      paddingHorizontal: 12,
+                    })}
+                  >
+                    <MaterialCommunityIcons name={t.icon} size={18} color={colors.purpleText} />
+                    <Text style={{ fontSize: 24, fontFamily: 'PlusJakartaSans_800ExtraBold', color: colors.text1, letterSpacing: -0.8, marginTop: 8 }}>
+                      {String(t.value)}
                     </Text>
-                    <Text style={{ fontSize: 10, fontFamily: 'PlusJakartaSans_600SemiBold', color: colors.text3, letterSpacing: 1.2, marginTop: 2 }}>
-                      {item.label}
+                    <Text style={{ fontSize: 12, fontFamily: 'PlusJakartaSans_600SemiBold', color: colors.text2, marginTop: 1 }}>
+                      {t.label}
                     </Text>
-                  </View>
+                  </Pressable>
                 ))}
               </View>
             )}
@@ -160,47 +172,21 @@ export function Profile() {
         )}
 
         {/* Menu sections */}
-        <View style={{ paddingHorizontal: 20, paddingTop: 24 }}>
+        <View style={{ paddingHorizontal: 16, paddingTop: 28 }}>
+          <ListGroup title="Your activity">
+            <MenuItem icon="star-outline" label="My Reviews" onPress={() => navigation.navigate('MyReviews')} />
+            <MenuItem icon="map-marker-plus-outline" label="Submitted" sublabel="Bathrooms you've added" onPress={() => navigation.navigate('Submitted')} />
+            <MenuItem icon="bookmark-outline" label="Saved Places" onPress={goToSaved} />
+          </ListGroup>
 
-          {/* Account */}
-          <SectionLabel label="Account" />
-          <View style={{ marginTop: 8, backgroundColor: colors.surface1, borderRadius: 16, overflow: 'hidden', marginBottom: 20, borderWidth: 1, borderColor: colors.border }}>
-            <MenuItem
-              icon="cog"
-              label="Settings"
-              sublabel="Username, theme"
-              onPress={() => navigation.navigate('Settings')}
-            />
-          </View>
+          <ListGroup title="Account">
+            <MenuItem icon="cog-outline" label="Settings" sublabel="Username, appearance, account" onPress={() => navigation.navigate('Settings')} />
+            <MenuItem icon="file-document-outline" label="Terms & Privacy" onPress={openLegal} />
+          </ListGroup>
 
-          {/* Activity */}
-          <SectionLabel label="Activity" />
-          <View style={{ marginTop: 8, backgroundColor: colors.surface1, borderRadius: 16, overflow: 'hidden', marginBottom: 20, borderWidth: 1, borderColor: colors.border }}>
-            <MenuItem
-              icon="bookmark"
-              label="Saved Places"
-              onPress={() => {
-                (navigation as any).getParent()?.navigate('Saved');
-              }}
-            />
-            <MenuItem
-              icon="note-text"
-              label="My Reviews"
-              onPress={() => navigation.navigate('MyReviews')}
-            />
-            <MenuItem
-              icon="map-marker"
-              label="Submitted"
-              onPress={() => navigation.navigate('Submitted')}
-            />
-          </View>
-
-          {/* More */}
-          <SectionLabel label="More" />
-          <View style={{ marginTop: 8, backgroundColor: colors.surface1, borderRadius: 16, overflow: 'hidden', borderWidth: 1, borderColor: colors.border }}>
+          <ListGroup>
             <MenuItem icon="logout" label="Log Out" onPress={handleLogOut} destructive />
-          </View>
-
+          </ListGroup>
         </View>
       </ScrollView>
     </SafeAreaView>

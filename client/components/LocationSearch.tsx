@@ -3,6 +3,7 @@ import { ActivityIndicator, Pressable, Text, TextInput, View } from 'react-nativ
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { useThemeContext } from '../context/ThemeContext';
+import { shadows } from '../theme/shadows';
 
 // Minimal geocode search (FAF-28). Deliberately NOT autocomplete — on submit we
 // forward-geocode the typed text and hand the coordinates up to the Map, which
@@ -97,18 +98,18 @@ export default function LocationSearch({ onLocationSelected, onReset, resetSigna
             <View style={{
                 flexDirection: 'row',
                 alignItems: 'center',
-                gap: 8,
-                height: 44,
-                backgroundColor: colors.surface2,
-                borderRadius: 14,
-                borderWidth: 1,
-                borderColor: colors.borderMed,
-                paddingHorizontal: 12,
+                gap: 10,
+                height: 50,
+                backgroundColor: colors.glass,
+                borderRadius: 25,
+                paddingHorizontal: 16,
+                ...shadows.md,
+                shadowColor: colors.shadow,
             }}>
-                <MaterialCommunityIcons name="magnify" size={18} color={colors.text3} />
+                <MaterialCommunityIcons name="magnify" size={22} color={colors.text1} />
                 <TextInput
                     placeholder="Search location"
-                    placeholderTextColor={colors.text3}
+                    placeholderTextColor={colors.text2}
                     value={value}
                     onChangeText={setValue}
                     onSubmitEditing={handleSubmit}
@@ -119,8 +120,8 @@ export default function LocationSearch({ onLocationSelected, onReset, resetSigna
                     style={{
                         flex: 1,
                         color: colors.text1,
-                        fontFamily: 'PlusJakartaSans_400Regular',
-                        fontSize: 14,
+                        fontFamily: 'PlusJakartaSans_600SemiBold',
+                        fontSize: 15,
                         padding: 0,
                     }}
                 />
@@ -132,7 +133,7 @@ export default function LocationSearch({ onLocationSelected, onReset, resetSigna
                         accessibilityRole="button"
                         accessibilityLabel="Clear search"
                     >
-                        <MaterialCommunityIcons name="close-circle" size={18} color={colors.text3} />
+                        <MaterialCommunityIcons name="close-circle" size={20} color={colors.text3} />
                     </Pressable>
                 )}
             </View>
@@ -143,13 +144,13 @@ export default function LocationSearch({ onLocationSelected, onReset, resetSigna
                     top: '100%',
                     left: 0,
                     right: 0,
-                    marginTop: 6,
-                    backgroundColor: colors.surface1,
-                    borderRadius: 12,
-                    borderWidth: 1,
-                    borderColor: colors.borderMed,
-                    paddingHorizontal: 12,
-                    paddingVertical: 8,
+                    marginTop: 8,
+                    backgroundColor: colors.glass,
+                    borderRadius: 14,
+                    paddingHorizontal: 14,
+                    paddingVertical: 10,
+                    ...shadows.md,
+                    shadowColor: colors.shadow,
                 }}>
                     <Text style={{
                         color: colors.text2,
