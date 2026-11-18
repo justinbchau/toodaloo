@@ -10,6 +10,55 @@ _Nothing yet._
 
 ---
 
+## [Review fixes] — 2026-11-18 · `9c26062`
+
+**Fixes from the PR #49 review (code-review skill + automated Claude review)**
+
+### Fixed
+- **A new toast could be wiped by the previous one's fade-out.** The toast now only
+  unmounts after a fade that actually finished.
+- **Review delete undo window:**
+  - A pending delete now commits when the app goes to the background, instead of
+    being lost if iOS suspends the app.
+  - Deleted reviews stay hidden if My Reviews is reopened inside the window
+    (`lib/pendingDeletes.ts`).
+- **"Open now" no longer freezes at fetch time.** Map and Detail recompute open
+  status on render, using `hooks/useNow` (ticks every minute and on return to the
+  foreground).
+- **A failed location-permission request** now falls back to search mode instead of
+  leaving the user stuck on the priming screen.
+
+### Performance
+- Map pins only redraw for about 400 ms after they appear or change, instead of
+  every frame (matters with hundreds of seeded pins).
+- The results sheet list is virtualized (`BottomSheetFlatList`); the Nearest card is
+  its header.
+
+### Changed
+- **Migration `0010`:** the `hours` CHECK now also validates each day as `null` or
+  `{open, close}` 24-hour `HH:MM` strings.
+  - It was verified on Postgres (PGlite) against 14 good and bad shapes.
+  - That testing caught numeric times slipping past a regex-only check.
+  - `0010` hadn't been applied anywhere yet, so it was edited in place.
+- `db-staging.yml` uses the runner's preinstalled `psql` and only installs it, after
+  `apt-get update`, if missing.
+- `MILES_TO_KM` moved into `utils/geo`; the unused `formatDistance` and its tests
+  were removed.
+- Color tokens are now required: `??` fallbacks removed, and the test color mock is
+  the real typed palette.
+
+### Deferred (not worth the churn now)
+- Moving the welcome-screen illustration colors into theme tokens (cosmetic; dark
+  mode already works).
+- Having `ListGroup` draw its own dividers instead of passing `isLast` into each child.
+
+### Notes
+- `main` (with #48's `0009_fix_rating_aggregation_authz`) is merged in, so the
+  branch now has `0009` → `0010` in order.
+- 31 suites, 299 tests: 10 new, and the removed formatter's tests dropped.
+
+---
+
 ## [Staging] — 2026-11-18 · `0a6c7ee`
 
 **TestFlight testers use a staging Supabase project**
