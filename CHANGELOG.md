@@ -10,6 +10,38 @@ _Nothing yet._
 
 ---
 
+## [Staging] — 2026-11-18 · `0a6c7ee`
+
+**TestFlight testers use a staging Supabase project**
+
+### Added
+- `.github/workflows/db-staging.yml`: a manually started workflow (`dry-run` / `apply` /
+  `seed`) that applies `client/supabase/migrations` to the **staging** project, with
+  optional seed data (`seed.sql` + `seed/sf.sql`). It reads only the `staging` GitHub
+  environment, and refuses to run if the database URL doesn't belong to the staging
+  project ref or that ref equals the production ref. Adapted from Faros's
+  `db-migrate.yml`.
+
+### Changed
+- `TESTFLIGHT.md` S6 rewritten for staging:
+  - create the project
+  - copy production's auth setup (email template with `{{ .Token }}`, 6-digit OTP, no
+    email confirmation)
+  - built-in email only reaches Supabase team members
+  - migrate and seed via the workflow
+  - point EAS `preview` at staging, and confirm `production` still points at production
+- `TESTFLIGHT.md`: the command-line fallback now uses `--profile testflight` only.
+  `production` would point TestFlight at the production database.
+- `TESTFLIGHT.md`: added a first-upload build-number check (App Store Connect's
+  TestFlight tab).
+
+### Notes
+- Owner-only setup: create the staging project, configure its auth, create the
+  `staging` GitHub environment (`SUPABASE_DB_URL` secret, `SUPABASE_PROJECT_REF`
+  variable), and set the EAS `preview` variables to staging.
+
+---
+
 ## [Release pipeline] — 2026-11-18 · `6299095`
 
 **TestFlight pipeline modeled on the Faros app**
