@@ -3,7 +3,7 @@
  * commit are mutually exclusive, and every toast settles exactly once.
  */
 import React from 'react';
-import { Pressable, Text } from 'react-native';
+import { AppState, Pressable, Text } from 'react-native';
 import { render, screen, fireEvent, act } from '@testing-library/react-native';
 import { mockColors } from '../helpers/mocks';
 
@@ -64,5 +64,30 @@ describe('ToastProvider', () => {
     const onCommit = jest.fn();
     fallback({ message: 'x', onCommit });
     expect(onCommit).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps a new toast that appears while the previous one is fading out', () => {
+    renderHost();
+    act(() => show({ message: 'First', durationMs: 1000 }));
+    act(() => { jest.advanceTimersByTime(1000); }); // First times out → fade starts
+    act(() => show({ message: 'Second' }));         // interrupts the fade
+    act(() => { jest.advanceTimersByTime(300); });  // past the old fade duration
+    expect(screen.getByText('Second')).toBeTruthy();
+  });
+
+  it('commits the pending toast when the app goes to the background', () => {
+    const listeners: ((s: string) => void)[] = [];
+    const spy = jest.spyOn(AppState, 'addEventListener').mockImplementation((_t: any, fn: any) => {
+      listeners.push(fn);
+      return { remove: jest.fn() } as any;
+    });
+    renderHost();
+    const onCommit = jest.fn();
+    act(() => show({ message: 'Review deleted', actionLabel: 'Undo', onCommit }));
+
+    act(() => listeners.forEach((fn) => fn('background')));
+
+    expect(onCommit).toHaveBeenCalledTimes(1);
+    spy.mockRestore();
   });
 });

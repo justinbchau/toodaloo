@@ -6,6 +6,7 @@ import React from 'react';
 import { Alert } from 'react-native';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react-native';
 import { MyReviews } from '../../pages/MyReviews';
+import { pendingDeletes } from '../../lib/pendingDeletes';
 import { mockColors, mockUser } from '../helpers/mocks';
 
 // ---------------------------------------------------------------------------
@@ -172,6 +173,7 @@ describe('MyReviews — edit action', () => {
 });
 
 describe('MyReviews — delete action (undo window)', () => {
+  beforeEach(() => pendingDeletes.clear());
   const lastToast = () => mockShowToast.mock.calls[mockShowToast.mock.calls.length - 1][0];
 
   it('removes the review immediately and offers Undo, without deleting yet', async () => {
@@ -217,5 +219,19 @@ describe('MyReviews — delete action (undo window)', () => {
     expect(alertSpy).toHaveBeenCalledWith('Error', expect.any(String));
     await waitFor(() => expect(screen.getByText('Test Bathroom')).toBeTruthy());
     alertSpy.mockRestore();
+  });
+
+  it('keeps a pending delete hidden if the screen is left and reopened inside the undo window', async () => {
+    const first = await renderMyReviews();
+    fireEvent.press(screen.getAllByText('Delete')[0]);
+    await waitFor(() => expect(screen.queryByText('Test Bathroom')).toBeNull());
+    first.unmount();
+
+    // The server still returns the row (delete not committed yet).
+    render(<MyReviews />);
+    await waitFor(() => expect(screen.getByText('Other Bathroom')).toBeTruthy());
+
+    expect(screen.queryByText('Test Bathroom')).toBeNull();
+    expect(mockDeleteEq).not.toHaveBeenCalled();
   });
 });

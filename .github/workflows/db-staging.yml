@@ -97,7 +97,10 @@ jobs:
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
         run: |
-          sudo apt-get install -y -qq postgresql-client > /dev/null
+          # ubuntu-latest ships psql; install it only if a runner image lacks it.
+          if ! command -v psql > /dev/null; then
+            sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client
+          fi
           psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f supabase/seed.sql -f supabase/seed/sf.sql
 
       - name: Run record

@@ -1,5 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
-import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, AppState, Pressable, StyleSheet, Text, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useThemeContext } from './ThemeContext';
 import { useInsets } from '../hooks/useInsets';
@@ -50,7 +50,11 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const hide = useCallback(() => {
-    Animated.timing(anim, { toValue: 0, duration: 180, useNativeDriver: true }).start(() => setToast(null));
+    // Only unmount when the fade really finished: a new toast's setValue() stops
+    // this animation early, and clearing then would wipe the new toast.
+    Animated.timing(anim, { toValue: 0, duration: 180, useNativeDriver: true }).start(({ finished }) => {
+      if (finished) setToast(null);
+    });
   }, [anim]);
 
   const showToast = useCallback(
@@ -70,6 +74,18 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
 
   // Never lose a pending commit if the host goes away.
   useEffect(() => () => settle(false), [settle]);
+
+  // Backgrounding ends the undo window: commit now, while JS is still running.
+  // (iOS may suspend or kill the app before a timer would ever fire.)
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'background' && current.current) {
+        settle(false);
+        hide();
+      }
+    });
+    return () => sub.remove();
+  }, [settle, hide]);
 
   return (
     <ToastContext.Provider value={{ showToast }}>

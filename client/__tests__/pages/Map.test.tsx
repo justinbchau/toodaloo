@@ -239,6 +239,22 @@ describe('Map — location permission priming', () => {
   });
 });
 
+describe('Map — permission request failure', () => {
+  it('falls back to search mode instead of stranding the user on the priming screen', async () => {
+    mockGetPerms.mockResolvedValue({ status: 'undetermined', canAskAgain: true });
+    mockRequestPerms.mockRejectedValue(new Error('native boom'));
+    jest.spyOn(console, 'error').mockImplementation(() => {});
+    render(<Map />);
+    await flush();
+
+    fireEvent.press(screen.getByText('Allow location'));
+    await flush();
+
+    expect(screen.getByTestId('ls-search')).toBeTruthy();
+    expect(screen.getByLabelText('Use my location')).toBeTruthy();
+  });
+});
+
 describe('Map — tapping a pin', () => {
   const ROW = {
     id: 'b1', name: 'Pin Bathroom', address: '1 Main St', access_type: 'public', is_24_hours: false,
@@ -260,5 +276,16 @@ describe('Map — tapping a pin', () => {
     fireEvent.press(screen.getByLabelText('Close preview'));
     await flush();
     expect(screen.getByTestId('bathroom-sheet')).toBeTruthy();
+  });
+
+  it('markers stop tracking view changes once settled (perf with hundreds of pins)', async () => {
+    mockRpc.mockResolvedValue({ data: [ROW], error: null });
+    await renderMap();
+    const { View } = require('react-native');
+    const marker = () =>
+      screen.UNSAFE_getAllByType(View).find((n: any) => n.props.tracksViewChanges !== undefined)!;
+    expect(marker().props.tracksViewChanges).toBe(true); // snapshots while laying out
+    await act(async () => { await new Promise((r) => setTimeout(r, 500)); });
+    expect(marker().props.tracksViewChanges).toBe(false);
   });
 });

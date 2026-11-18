@@ -8,6 +8,7 @@ import { FlashList } from '@shopify/flash-list';
 import { useThemeContext } from '../context/ThemeContext';
 import { useUser } from '../context/UserContext';
 import { useToast } from '../context/ToastContext';
+import { pendingDeletes } from '../lib/pendingDeletes';
 import { supabase } from '../lib/supabase';
 import { RootStackParamList } from '../RootStackParams';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
@@ -43,7 +44,7 @@ export function MyReviews() {
 
     if (error) throw error;
 
-    return (data ?? []).map((r: any) => ({
+    return (data ?? []).filter((r: any) => !pendingDeletes.has(r.id)).map((r: any) => ({
       id: r.id,
       rating: r.rating,
       body: r.body,
@@ -73,19 +74,23 @@ export function MyReviews() {
   // DELETE only runs once the toast times out without "Undo" being tapped.
   const handleDelete = useCallback(
     (item: MyReview) => {
+      pendingDeletes.add(item.id);
       setData((prev) => (prev ?? []).filter((r) => r.id !== item.id));
       showToast({
         message: 'Review deleted',
         icon: 'trash-can-outline',
         actionLabel: 'Undo',
-        onAction: () =>
+        onAction: () => {
+          pendingDeletes.remove(item.id);
           setData((prev) =>
             [...(prev ?? []).filter((r) => r.id !== item.id), item].sort((x, y) =>
               y.created_at.localeCompare(x.created_at),
             ),
-          ),
+          );
+        },
         onCommit: async () => {
           const { error } = await supabase.from('reviews').delete().eq('id', item.id);
+          pendingDeletes.remove(item.id);
           if (error) {
             Alert.alert('Error', 'Could not delete your review. Please try again.');
             refetch();

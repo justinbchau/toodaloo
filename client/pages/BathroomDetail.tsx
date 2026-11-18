@@ -22,6 +22,7 @@ import { SectionLabel } from '../components/ui/SectionLabel';
 import { supabase } from '../lib/supabase';
 import { useUser } from '../context/UserContext';
 import { useToast } from '../context/ToastContext';
+import { useNow } from '../hooks/useNow';
 import { LocationCtx } from '../context/context';
 import { haversine, formatWalkTime } from '../utils/geo';
 import { SkeletonReviewCard } from '../components/SkeletonReviewCard';
@@ -42,6 +43,7 @@ export function BathroomDetail() {
   const { id, name, lat, lng } = route.params;
   const { user } = useUser();
   const { showToast } = useToast();
+  const now = useNow();
   // Little "pop" on the bookmark when the saved state flips.
   const bookmarkScale = useRef(new Animated.Value(1)).current;
   // Drives the solid header that fades in once the hero scrolls away (Airbnb-style).
@@ -240,8 +242,8 @@ export function BathroomDetail() {
   const avgRating = Number(bathroomData?.rating_avg ?? 0);
   const reviewCount = bathroomData?.review_count ?? 0;
   const amenities: string[] = bathroomData?.tags ?? [];
-  const openStatus = getOpenStatus({ hours: bathroomData?.hours, is24: bathroomData?.is_24_hours });
-  const hoursRows = weekRows(bathroomData?.hours);
+  const openStatus = getOpenStatus({ hours: bathroomData?.hours, is24: bathroomData?.is_24_hours }, now);
+  const hoursRows = weekRows(bathroomData?.hours, now);
   const tagTally = tallyTags(reviews);
   const statusFg = statusColor(openStatus.state, colors);
   const statusBg =

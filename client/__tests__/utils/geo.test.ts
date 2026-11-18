@@ -1,4 +1,4 @@
-import { haversine, formatDistance, formatWalkTime } from '../../utils/geo';
+import { haversine, formatWalkTime } from '../../utils/geo';
 
 describe('haversine()', () => {
   it('returns 0 for identical coordinates', () => {
@@ -37,62 +37,6 @@ describe('haversine()', () => {
     const dist = haversine(-33.8688, 151.2093, -37.8136, 144.9631);
     expect(dist).toBeGreaterThan(400);
     expect(dist).toBeLessThan(600);
-  });
-});
-
-describe('formatDistance()', () => {
-  it('returns feet for distances under 0.1 miles', () => {
-    const result = formatDistance(0.05);
-    expect(result).toBe('264 ft away');
-  });
-
-  it('returns feet for very short distance', () => {
-    // 0.01 miles = 52.8 ft → rounds to 53
-    const result = formatDistance(0.01);
-    expect(result).toBe('53 ft away');
-  });
-
-  it('returns miles with 1 decimal at exactly 0.1 miles', () => {
-    const result = formatDistance(0.1);
-    expect(result).toBe('0.1 mi away');
-  });
-
-  it('returns miles with 1 decimal for longer distances', () => {
-    expect(formatDistance(0.5)).toBe('0.5 mi away');
-    expect(formatDistance(1.0)).toBe('1.0 mi away');
-    expect(formatDistance(2.7)).toBe('2.7 mi away');
-  });
-
-  it('rounds miles to 1 decimal place', () => {
-    expect(formatDistance(1.25)).toBe('1.3 mi away');
-    expect(formatDistance(1.24)).toBe('1.2 mi away');
-  });
-
-  it('handles zero distance as feet', () => {
-    const result = formatDistance(0);
-    expect(result).toBe('0 ft away');
-  });
-
-  it('rounds feet to nearest whole number', () => {
-    // 0.076 miles = 401.28 ft → rounds to 401
-    const result = formatDistance(0.076);
-    expect(result).toBe('401 ft away');
-  });
-});
-
-describe('haversine + formatDistance integration', () => {
-  it('formats a close distance as feet', () => {
-    // Two points ~200 feet apart
-    const milesApart = haversine(40.7128, -74.006, 40.7129, -74.006);
-    const formatted = formatDistance(milesApart);
-    expect(formatted).toMatch(/ft away$/);
-  });
-
-  it('formats a distant point as miles', () => {
-    // Two points ~0.5 miles apart
-    const milesApart = haversine(40.7128, -74.006, 40.7200, -74.006);
-    const formatted = formatDistance(milesApart);
-    expect(formatted).toMatch(/mi away$/);
   });
 });
 

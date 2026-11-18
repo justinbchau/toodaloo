@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { View, Text, StyleSheet, Dimensions } from 'react-native';
-import BottomSheet, { BottomSheetScrollView } from '@gorhom/bottom-sheet';
+import BottomSheet, { BottomSheetScrollView, BottomSheetFlatList } from '@gorhom/bottom-sheet';
 import Animated, { useAnimatedStyle, useSharedValue, interpolate, Extrapolation } from 'react-native-reanimated';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useThemeContext } from '../context/ThemeContext';
@@ -102,50 +102,66 @@ export function BathroomSheet({
           )}
         </View>
 
-        <BottomSheetScrollView contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
-          {isLoading ? (
-            <>
-              <SkeletonBathroomCard />
-              <SkeletonBathroomCard />
-              <SkeletonBathroomCard />
-            </>
-          ) : count === 0 ? (
-            // Compact row layout so the CTA still fits at the peek height.
-            <>
-              <View style={[styles.emptyRow, { backgroundColor: colors.surface1, borderColor: colors.cardBorder }]}>
-                <View style={[styles.emptyIcon, { backgroundColor: colors.surface2 }]}>
-                  <MaterialCommunityIcons testID="empty-state-icon" name="toilet" size={26} color={colors.text1} />
+        {isLoading || count === 0 ? (
+          <BottomSheetScrollView contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
+            {isLoading ? (
+              <>
+                <SkeletonBathroomCard />
+                <SkeletonBathroomCard />
+                <SkeletonBathroomCard />
+              </>
+            ) : (
+              // Compact row layout so the CTA still fits at the peek height.
+              <>
+                <View style={[styles.emptyRow, { backgroundColor: colors.surface1, borderColor: colors.cardBorder }]}>
+                  <View style={[styles.emptyIcon, { backgroundColor: colors.surface2 }]}>
+                    <MaterialCommunityIcons testID="empty-state-icon" name="toilet" size={26} color={colors.text1} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.emptyTitle, { color: colors.text1 }]}>{emptyTitle}</Text>
+                    <Text style={[styles.emptySub, { color: colors.text2 }]}>{emptyMessage}</Text>
+                  </View>
                 </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.emptyTitle, { color: colors.text1 }]}>{emptyTitle}</Text>
-                  <Text style={[styles.emptySub, { color: colors.text2 }]}>{emptyMessage}</Text>
-                </View>
+                {onAddPress ? (
+                  <PrimaryButton title="Add a bathroom" icon="plus" size="md" onPress={onAddPress} />
+                ) : null}
+              </>
+            )}
+          </BottomSheetScrollView>
+        ) : (
+          // Virtualized: a 5 km search in a seeded city can return hundreds of rows.
+          <BottomSheetFlatList
+            data={rest}
+            keyExtractor={(b: BathroomCardData) => b.id}
+            contentContainerStyle={styles.list}
+            showsVerticalScrollIndicator={false}
+            initialNumToRender={8}
+            windowSize={7}
+            ItemSeparatorComponent={RowGap}
+            ListHeaderComponent={
+              <View style={{ gap: 10, marginBottom: rest.length > 0 ? 10 : 0 }}>
+                {/* The urgent path: one tap to walking directions. */}
+                <NearestCard
+                  data={nearest}
+                  onDirections={onDirections ? () => onDirections(nearest) : undefined}
+                  onPress={() => onCardPress?.(nearest.id)}
+                />
+                {rest.length > 0 && (
+                  <Text style={[styles.subheading, { color: colors.text2 }]}>More nearby</Text>
+                )}
               </View>
-              {onAddPress ? (
-                <PrimaryButton title="Add a bathroom" icon="plus" size="md" onPress={onAddPress} />
-              ) : null}
-            </>
-          ) : (
-            <>
-              {/* The urgent path: one tap to walking directions. */}
-              <NearestCard
-                data={nearest}
-                onDirections={onDirections ? () => onDirections(nearest) : undefined}
-                onPress={() => onCardPress?.(nearest.id)}
-              />
-              {rest.length > 0 && (
-                <Text style={[styles.subheading, { color: colors.text2 }]}>More nearby</Text>
-              )}
-              {rest.map((b) => (
-                <BathroomCard key={b.id} data={b} onPress={() => onCardPress?.(b.id)} />
-              ))}
-            </>
-          )}
-        </BottomSheetScrollView>
+            }
+            renderItem={({ item }: { item: BathroomCardData }) => (
+              <BathroomCard data={item} onPress={() => onCardPress?.(item.id)} />
+            )}
+          />
+        )}
       </BottomSheet>
     </>
   );
 }
+
+const RowGap = () => <View style={{ height: 10 }} />;
 
 const styles = StyleSheet.create({
   accessory: {

@@ -105,7 +105,7 @@ export default function ReportSheet({ target, onClose }: Props) {
       <Pressable
         onPress={onClose}
         accessibilityLabel="Dismiss report"
-        style={{ flex: 1, backgroundColor: colors.overlay ?? 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}
+        style={{ flex: 1, backgroundColor: colors.overlay, justifyContent: 'flex-end' }}
       >
         {/* Sheet body. Stop propagation so taps inside don't dismiss. */}
         <Pressable
@@ -134,7 +134,7 @@ export default function ReportSheet({ target, onClose }: Props) {
             </View>
           ) : submitted ? (
             <View style={{ alignItems: 'center', paddingVertical: 12 }}>
-              <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: colors.greenDim ?? 'rgba(52,199,122,0.14)', alignItems: 'center', justifyContent: 'center' }}>
+              <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: colors.greenDim, alignItems: 'center', justifyContent: 'center' }}>
                 <MaterialCommunityIcons name="check-bold" size={30} color={colors.green} />
               </View>
               <Text style={{ color: colors.text1, fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 16, marginTop: 12, textAlign: 'center' }}>

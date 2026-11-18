@@ -19,18 +19,6 @@ export function haversine(
   return R * c;
 }
 
-/**
- * Format a distance in miles to a human-readable string.
- * < 0.1 mi → shows feet
- * >= 0.1 mi → shows miles with 1 decimal
- */
-export function formatDistance(miles: number): string {
-  if (miles < 0.1) {
-    return `${Math.round(miles * 5280)} ft away`;
-  }
-  return `${miles.toFixed(1)} mi away`;
-}
-
 // Average walking pace used for ETA copy (~3 mph, the usual maps-app default).
 const WALK_MPH = 3;
 // Past this, "walk" stops being a useful framing — show plain distance instead.
@@ -48,3 +36,4 @@ export function formatWalkTime(miles: number): string {
 }
 
 export const KM_TO_MILES = 0.621371;
+export const MILES_TO_KM = 1.60934;

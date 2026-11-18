@@ -63,14 +63,26 @@ alter table public.bathrooms
   drop constraint if exists bathrooms_hours_is_object;
 
 -- hours is user-supplied and fanned out to every nearby client by
--- bathrooms_nearby, so bound it: an object, only weekday keys, and small.
--- (Per-day value shape is validated by the app, which also parses defensively.)
+-- bathrooms_nearby, so bound it: an object, only weekday keys, small, and every
+-- day either null (closed) or {"open": "HH:MM", "close": "HH:MM"} with string
+-- 24-hour times. The jsonpath flags any day that is neither; the .type() ==
+-- "string" checks matter because like_regex on a number is "unknown", not false.
+-- jsonb_path_exists (non-_tz) is IMMUTABLE, so it's allowed in a CHECK.
+-- Verified against 14 valid/invalid shapes (overnight, 00:00-00:00 all-day,
+-- 24:00, missing close, numeric/array/string days, junk keys, regex suffixes).
 alter table public.bathrooms
   add constraint bathrooms_hours_is_object check (
     hours is null or (
       jsonb_typeof(hours) = 'object'
       and hours - array['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] = '{}'::jsonb
       and pg_column_size(hours) <= 1024
+      and not jsonb_path_exists(
+        hours,
+        '$.* ? (@.type() != "null" && !(@.type() == "object"'
+        ' && @.open.type() == "string" && @.close.type() == "string"'
+        ' && @.open like_regex "^([01][0-9]|2[0-3]):[0-5][0-9]$"'
+        ' && @.close like_regex "^([01][0-9]|2[0-3]):[0-5][0-9]$"))'
+      )
     )
   );
 

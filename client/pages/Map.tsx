@@ -1,4 +1,4 @@
-import React, { useContext, useCallback, useEffect, useRef, useState } from 'react';
+import React, { useContext, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { StyleSheet, View, Text, Pressable, Linking, ScrollView, AppState, Animated } from 'react-native';
 import MapView, { Marker, Region } from 'react-native-maps';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -11,6 +11,7 @@ import LottieView from 'lottie-react-native';
 import LocationSearch from '../components/LocationSearch';
 import { BathroomSheet } from '../components/BathroomSheet';
 import { toCardData, ListBathroom } from '../lib/bathroomCard';
+import { useNow } from '../hooks/useNow';
 import { Chip } from '../components/ui/Chip';
 import { IconButton } from '../components/ui/IconButton';
 import { NearestCard } from '../components/NearestCard';
@@ -24,7 +25,7 @@ import { supabase } from '../lib/supabase';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { RootStackParamList, MainTabParamList } from '../RootStackParams';
 import { LocationCtx } from '../context/context';
-import { haversine, formatWalkTime, KM_TO_MILES } from '../utils/geo';
+import { haversine, formatWalkTime, KM_TO_MILES, MILES_TO_KM } from '../utils/geo';
 
 // checking — reading the current permission without prompting
 // prompt   — never asked: show our priming screen before the one-shot OS prompt
@@ -49,10 +50,9 @@ const ACCESS_FILTERS: { label: string; value: string }[] = [
 const DEFAULT_RADIUS_KM = 5.0;
 // How far the user must pan (km) before the "Search this area" button appears.
 const SEARCH_HERE_THRESHOLD_KM = 1.0;
-const MILES_TO_KM = 1.60934;
 
-const transformBathroom = (b: any): MapBathroom =>
-    toCardData(b, b.distance_km != null ? formatWalkTime(b.distance_km * KM_TO_MILES) : 'Nearby');
+const transformBathroom = (b: any, now: Date): MapBathroom =>
+    toCardData(b, b.distance_km != null ? formatWalkTime(b.distance_km * KM_TO_MILES) : 'Nearby', now);
 
 // Approximate the visible radius (km) from the region's latitude span.
 const radiusFromRegion = (region: Region): number => {
@@ -65,7 +65,11 @@ export function Map() {
     // The pin the user tapped; shows a floating preview instead of the sheet.
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const [location, setLocalLocation] = useState<LocationObject | null>(null);
-    const [bathrooms, setBathrooms] = useState<MapBathroom[]>([]);
+    // Raw RPC rows; cards (incl. open/closed status) are derived from them on
+    // every clock tick so "Open now" never freezes at fetch time.
+    const [rows, setRows] = useState<any[]>([]);
+    const now = useNow();
+    const bathrooms = useMemo(() => rows.map((r) => transformBathroom(r, now)), [rows, now]);
     const [isFetchingBathrooms, setIsFetchingBathrooms] = useState(false);
     const [fetchError, setFetchError] = useState(false);
     const [showSearchHere, setShowSearchHere] = useState(false);
@@ -108,7 +112,7 @@ export function Map() {
 
             if (error) throw error;
 
-            setBathrooms((data ?? []).map(transformBathroom));
+            setRows(data ?? []);
             lastFetchedCenter.current = { lat, lng };
             setShowSearchHere(false);
         } catch (err) {
@@ -149,12 +153,18 @@ export function Map() {
     }, [acquirePosition]);
 
     const requestPermission = useCallback(async () => {
-        const { status, canAskAgain } = await Location.requestForegroundPermissionsAsync();
-        if (status === 'granted') {
-            setLocationStatus('checking');
-            await acquirePosition();
-        } else {
-            setLocationStatus(canAskAgain ? 'manual' : 'denied');
+        try {
+            const { status, canAskAgain } = await Location.requestForegroundPermissionsAsync();
+            if (status === 'granted') {
+                setLocationStatus('checking');
+                await acquirePosition();
+            } else {
+                setLocationStatus(canAskAgain ? 'manual' : 'denied');
+            }
+        } catch (err) {
+            // Never strand the user on the priming screen: fall back to search.
+            console.error('Location permission request failed:', err);
+            setLocationStatus('manual');
         }
     }, [acquirePosition]);
 
@@ -381,45 +391,17 @@ export function Map() {
                 userInterfaceStyle={isDark ? 'dark' : 'light'}
                 style={StyleSheet.absoluteFill}
             >
-                {visibleBathrooms.map((b, i) => {
-                    const rated = Number(b.score) > 0;
-                    // Pins are neutral; the accent marks the tapped pin, or — when
-                    // nothing is selected — the nearest result (the sheet's hero).
-                    const featured = selected ? b.id === selected.id : i === 0;
-                    const pinBg = featured ? colors.accent : colors.surface1;
-                    const pinFg = featured ? colors.onAccent : colors.text1;
-                    return (
-                        <Marker
-                            key={b.id}
-                            coordinate={{ latitude: b.lat, longitude: b.lng }}
-                            anchor={{ x: 0.5, y: 1 }}
-                            zIndex={featured ? 2 : 1}
-                            onPress={(e: any) => {
-                                e?.stopPropagation?.();
-                                setSelectedId(b.id);
-                            }}
-                        >
-                            <View style={{ alignItems: 'center' }}>
-                                <View style={[styles.pin, {
-                                    backgroundColor: pinBg,
-                                    borderColor: featured ? colors.accent : colors.borderMed,
-                                    paddingHorizontal: rated ? 10 : 0,
-                                    width: rated ? undefined : 32,
-                                }]}>
-                                    <MaterialCommunityIcons
-                                        name={(b.icon as keyof typeof MaterialCommunityIcons.glyphMap) ?? 'toilet'}
-                                        size={14}
-                                        color={featured ? colors.onAccent : colors.text2}
-                                    />
-                                    {rated && (
-                                        <Text style={[styles.pinText, { color: pinFg }]}>{b.score}</Text>
-                                    )}
-                                </View>
-                                <View style={[styles.pinTail, { borderTopColor: pinBg }]} />
-                            </View>
-                        </Marker>
-                    );
-                })}
+                {visibleBathrooms.map((b, i) => (
+                    <BathroomMarker
+                        key={b.id}
+                        data={b}
+                        // Pins are neutral; the accent marks the tapped pin, or — when
+                        // nothing is selected — the nearest result (the sheet's hero).
+                        featured={selected ? b.id === selected.id : i === 0}
+                        colors={colors}
+                        onSelect={setSelectedId}
+                    />
+                ))}
             </MapView>
 
             {/* Scrim so the status bar + search stay legible over busy map tiles */}
@@ -565,6 +547,64 @@ export function Map() {
         </View>
     );
 }
+
+// How long a marker keeps re-snapshotting its custom view after it changes.
+// Long enough for icon fonts/text to lay out; after that it's a static bitmap.
+const MARKER_TRACK_MS = 400;
+
+/**
+ * One map pin. react-native-maps re-renders custom-view markers every frame
+ * while `tracksViewChanges` is on, which with hundreds of seeded pins tanks
+ * pan/zoom performance — so track only briefly after mount or a visual change.
+ */
+const BathroomMarker = React.memo(function BathroomMarker({ data: b, featured, colors, onSelect }: {
+    data: MapBathroom;
+    featured: boolean;
+    colors: ReturnType<typeof useThemeContext>['colors'];
+    onSelect: (id: string) => void;
+}) {
+    const [tracking, setTracking] = useState(true);
+    useEffect(() => {
+        setTracking(true);
+        const t = setTimeout(() => setTracking(false), MARKER_TRACK_MS);
+        return () => clearTimeout(t);
+    }, [featured, b.score, b.icon, colors]);
+
+    const rated = Number(b.score) > 0;
+    const pinBg = featured ? colors.accent : colors.surface1;
+    const pinFg = featured ? colors.onAccent : colors.text1;
+    return (
+        <Marker
+            coordinate={{ latitude: b.lat, longitude: b.lng }}
+            anchor={{ x: 0.5, y: 1 }}
+            zIndex={featured ? 2 : 1}
+            tracksViewChanges={tracking}
+            onPress={(e: any) => {
+                e?.stopPropagation?.();
+                onSelect(b.id);
+            }}
+        >
+            <View style={{ alignItems: 'center' }}>
+                <View style={[styles.pin, {
+                    backgroundColor: pinBg,
+                    borderColor: featured ? colors.accent : colors.borderMed,
+                    paddingHorizontal: rated ? 10 : 0,
+                    width: rated ? undefined : 32,
+                }]}>
+                    <MaterialCommunityIcons
+                        name={(b.icon as keyof typeof MaterialCommunityIcons.glyphMap) ?? 'toilet'}
+                        size={14}
+                        color={featured ? colors.onAccent : colors.text2}
+                    />
+                    {rated && (
+                        <Text style={[styles.pinText, { color: pinFg }]}>{b.score}</Text>
+                    )}
+                </View>
+                <View style={[styles.pinTail, { borderTopColor: pinBg }]} />
+            </View>
+        </Marker>
+    );
+});
 
 /** Slides the selected-pin card up from the bottom, with floating controls above it. */
 function PinPreview({ children, accessory }: { children: React.ReactNode; accessory?: React.ReactNode }) {
