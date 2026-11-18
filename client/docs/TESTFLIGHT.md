@@ -27,7 +27,8 @@ and manual GitHub workflows.
 | `ITSAppUsesNonExemptEncryption = false` in `ios/toodaloo/Info.plist` (+ `app.json` mirror) | In repo |
 | `ios/toodaloo/Supporting/Expo.plist` committed with updates enabled (synced via `expo-updates configuration:syncnative`) | In repo |
 | `DEVELOPMENT_TEAM` / `appleTeamId` | **Not set, intentionally.** EAS-managed signing doesn't need it. Add `CPHGQNPK2S` only after confirming toodaloo is on the same Apple team as Faros (only needed for local Xcode archives) |
-| `EXPO_TOKEN` GitHub secret, EAS `preview` env vars, ASC API key on EAS, signing credentials | **Justin, one time** (setup checklist below) |
+| `.github/workflows/db-staging.yml` (dry-run / apply / seed the staging Supabase project) | In repo. Needs the `staging` GitHub environment (S6c) |
+| Staging Supabase project, auth email template, EAS `preview` → staging, `EXPO_TOKEN`, ASC API key on EAS, signing credentials | **Justin, one time** (setup checklist below) |
 
 Until the pending repo changes land, use the CLI fallback in "Fastest path".
 
@@ -109,22 +110,60 @@ Manage your API Key**. ASC API keys belong to the team, so you can **reuse the
 key Faros already uses** rather than making a new one. The `.p8` stays out of
 git (`*.p8` is gitignored); never put the Key ID or Issuer ID in `eas.json`.
 
-**S6. Supabase variables in the EAS `preview` environment.** The `testflight`
-profile reads `environment: "preview"`. `EXPO_PUBLIC_*` values are inlined into
-the JS bundle at build time, and `lib/supabase.ts` throws at startup if they're
-missing, so **a build without them crashes on launch.**
+**S6. Staging Supabase project for TestFlight (decided: testers use staging, never production).**
+The `testflight` profile reads `environment: "preview"`, so EAS `preview` must
+point at a **separate staging project**. EAS `production` stays on the
+production project. `EXPO_PUBLIC_*` values are inlined into the JS bundle at
+build time, and `lib/supabase.ts` throws at startup if they're missing, so
+**a build without them crashes on launch.**
+
+*S6a. Create the project [Justin].* In the Supabase dashboard create
+`toodaloo-staging`, on the same org and region as production. Note its
+**project ref** and its database connection string (Project Settings →
+Database → Connection string → URI; the session pooler URI is fine).
+
+*S6b. Configure auth the same way as production [Justin]. A new project won't do this for you.*
+- **Email OTP code:** toodaloo signs in with a 6-digit code (`otp_length = 6`,
+  `config.toml`). Supabase's default "Magic Link" email sends a link, not the
+  code. In Authentication → Email Templates → **Magic Link**, include
+  `{{ .Token }}` in the body, copying production's template. The template isn't
+  in the repo, so copy it by hand. Also set Authentication → Providers → Email:
+  OTP length **6**, and "Confirm email" **off** (`enable_confirmations = false`).
+- **Email delivery:** Supabase's built-in email only reaches **members of the
+  project's team**, and it's rate-limited. That's fine while you're the only
+  tester. Before adding other internal testers, either add them to the Supabase
+  team or set custom SMTP (Authentication → SMTP Settings).
+
+*S6c. Bring the schema and data up to date [Justin dispatches].*
+Create a GitHub **environment** named `staging` (repo Settings → Environments):
+- secret `SUPABASE_DB_URL`: the staging connection string from S6a
+- variable `SUPABASE_PROJECT_REF`: the staging project ref
+- optional: a repository variable `SUPABASE_PROD_PROJECT_REF` set to the
+  production ref, so the workflow refuses if the two are ever the same.
+
+Then run **Actions → Staging database**, first with `dry-run`, then with
+`seed`. That applies every migration (including `0009` ratings fix and `0010`
+tags/hours) and loads the idempotent seed data (`supabase/seed.sql` NYC samples
+plus `supabase/seed/sf.sql` San Francisco launch set). The workflow only reads the
+`staging` environment, and rejects any URL that isn't the staging project.
+Re-run it with `apply` whenever a new migration lands, **before** building
+TestFlight from code that needs it. (Same as the Faros flow, pointed at staging.)
+
+*S6d. Point EAS `preview` at staging [Justin].*
 
 ```bash
 cd client
-eas env:list --environment preview                       # check what's there
-# If missing (paste values when prompted; use the anon/publishable key, NEVER service_role):
-eas env:create --environment preview --name EXPO_PUBLIC_SUPABASE_URL      --visibility plaintext
-eas env:create --environment preview --name EXPO_PUBLIC_SUPABASE_ANON_KEY --visibility plaintext
+eas env:list --environment preview                       # see what's there now (may be production values!)
+# Replace with the STAGING values (anon/publishable key, NEVER service_role):
+eas env:update --environment preview --name EXPO_PUBLIC_SUPABASE_URL        # or env:create if absent
+eas env:update --environment preview --name EXPO_PUBLIC_SUPABASE_ANON_KEY
+eas env:list --environment production                    # confirm production still points at production
 ```
 
-Decide which Supabase project TestFlight testers should hit: production, or a
-separate staging project. Whatever is in `preview` is what the TestFlight app
-talks to.
+`RELEASE.md` says `preview` and `production` were both populated earlier, most
+likely with the **production** project. Check that `preview` now shows the
+staging URL before the first TestFlight build. OTA updates for TestFlight must
+use `--environment preview`, so they also talk to staging.
 
 **S7. `EXPO_TOKEN` GitHub secret.** Create a token at expo.dev → Account
 settings → Access tokens (a robot user scoped to `jchau` is fine). Add it as a
@@ -148,6 +187,13 @@ testing needs **no App Review**. Builds stay installable for 90 days.
 with the Apple ID that is the App Store Connect user from S8.
 
 ---
+
+**Build numbers (first upload).** You don't believe a toodaloo build has ever
+been uploaded. To confirm: App Store Connect → toodaloo → **TestFlight** tab.
+If "iOS Builds" is empty, nothing has been uploaded, and EAS's automatic build
+numbering just works. If builds exist, run `eas build:version:set --platform ios`
+and set it above the highest one before the first build. Getting this wrong
+costs one rejected upload, nothing more (see Troubleshooting).
 
 ## Fastest path to your own iPhone
 
@@ -177,14 +223,15 @@ Once the setup checklist is done:
    **Install**.
 
 **B. CLI fallback [Justin], from a Mac or any machine with Node 20.19+.**
-It works today with the existing `production` profile. Once the profiles land,
-swap in `testflight`.
+Use the `testflight` profile, which talks to the **staging** project (S6). Don't
+use `--profile production` for TestFlight: it reads the EAS `production`
+environment, so testers would read and write the **production** database.
 
 ```bash
 cd client
 npm ci
 npx tsc --noEmit && npm test
-eas build  --platform ios --profile testflight            # or: --profile production (works today)
+eas build  --platform ios --profile testflight            # staging backend (EAS `preview` env)
 eas submit --platform ios --profile testflight --latest   # or: --id <EAS build id>
 ```
 
