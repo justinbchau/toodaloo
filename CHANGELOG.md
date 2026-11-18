@@ -10,6 +10,52 @@ _Nothing yet._
 
 ---
 
+## [Release pipeline] — 2026-11-18 · `6299095`
+
+**TestFlight pipeline modeled on the Faros app**
+
+### Added
+- `eas.json` `testflight` build profile: store distribution, EAS `preview` environment
+  (supplies the Supabase `EXPO_PUBLIC_*` vars), `preview` channel, automatic build
+  numbers. Also a matching `testflight` submit profile (App Store Connect app
+  `6788189154`).
+- Two GitHub Actions workflows you start by hand, from `main` only:
+  - `testflight.yml`: runs the type check and Jest, then `eas build --profile testflight`.
+  - `testflight-submit.yml`: checks a finished build by its ID (iOS, testflight
+    profile, `com.jchau.toodaloo`, source commit merged into `main`), then submits
+    that exact build to TestFlight.
+- `client/docs/TESTFLIGHT.md`: the release runbook. It covers the decision order
+  (NONE / CONTENT_OR_BACKEND / OTA_PREVIEW / TESTFLIGHT / APP_STORE), the rule that
+  nothing is released without explicit approval, and one-time setup steps S0–S9.
+
+### Changed
+- `Info.plist` (mirrored in `app.json`): `ITSAppUsesNonExemptEncryption = false`, so
+  builds no longer stall at "Missing Compliance" in App Store Connect.
+- `Expo.plist` synced with `app.json`: OTA updates enabled, update URL and
+  runtime `1.0.0` committed. EAS builds no longer leave the repo modified, and
+  builds made outside EAS keep OTA updates.
+- `RELEASE.md`: `eas update` examples now pass `--environment`. Without it, updates
+  published from CI would be missing the Supabase variables and crash on launch.
+
+### Notes
+- The workflows only become available in GitHub once this branch is merged to `main`.
+- Owner-only setup is still needed (TESTFLIGHT.md S1–S9):
+  - Confirm the App Store Connect record exists.
+  - Set up EAS signing credentials.
+  - Add the App Store Connect API key on EAS (reuse Faros's).
+  - Check the Supabase variables are in the `preview` environment.
+  - Add `EXPO_TOKEN` as a repo secret.
+  - Set up the internal tester group.
+- The Apple Team ID was intentionally **not** added. EAS-managed signing doesn't
+  need it; add `CPHGQNPK2S` only once it's confirmed that toodaloo is on the same
+  team as Faros.
+- OTA updates are safe for any binary on runtime `1.0.0` built from `5dedbfe` or
+  later. `@gorhom/bottom-sheet` has no native code.
+- Not fixed yet: `PrivacyInfo.xcprivacy` declares no collected data. It must be
+  completed before a public App Store release; internal TestFlight doesn't need it.
+
+---
+
 ## [Batch 2] — 2026-11-18 · `363dd04`
 
 **Review quick tags, opening hours & "Open now"**
