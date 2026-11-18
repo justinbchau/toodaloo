@@ -1,4 +1,4 @@
--- 0009_review_tags_and_hours.sql
+-- 0010_review_tags_and_hours.sql
 --
 -- Batch 2 of the UX redesign:
 --   1. reviews.tags      — one-tap "what stood out" tags on a review (Clean,
@@ -8,8 +8,10 @@
 --
 -- No new tables, so no new RLS policies are needed: both columns live on
 -- tables whose existing policies already scope writes to the row owner
--- (reviews_*_own, bathrooms_insert / bathrooms_update_own). Table-level grants
--- from 0004/0006 cover new columns automatically.
+-- (reviews_*_own, bathrooms_insert / bathrooms_update_own). reviews.tags is
+-- covered by the table-level grant on reviews (0004/0006). bathrooms has
+-- column-level INSERT/UPDATE grants since 0009, which don't extend to new
+-- columns, so `hours` is granted explicitly below.
 --
 -- Idempotent: ADD COLUMN IF NOT EXISTS, DROP CONSTRAINT IF EXISTS before ADD,
 -- CREATE OR REPLACE VIEW, and DROP FUNCTION IF EXISTS before re-creating the RPC.
@@ -51,6 +53,11 @@ alter table public.reviews
 -- ---------------------------------------------------------------------------
 alter table public.bathrooms
   add column if not exists hours jsonb;
+
+-- Clients write bathrooms through column-level grants (0009), so a new
+-- user-editable column must be granted explicitly. (0009 also grants it if this
+-- column already exists when 0009 runs; granting twice is a no-op.)
+grant insert (hours), update (hours) on public.bathrooms to authenticated;
 
 alter table public.bathrooms
   drop constraint if exists bathrooms_hours_is_object;
