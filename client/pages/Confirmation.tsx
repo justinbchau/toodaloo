@@ -144,7 +144,7 @@ export function Confirmation({ route, navigation }: Props) {
                                             styles.box,
                                             {
                                                 backgroundColor: colors.surface1,
-                                                borderColor: error ? colors.red : active ? colors.purple : digit ? colors.borderMed : colors.border,
+                                                borderColor: error ? colors.red : active ? colors.accent : digit ? colors.borderMed : colors.border,
                                                 borderWidth: active || error ? 2 : 1,
                                             },
                                         ]}
@@ -189,7 +189,7 @@ export function Confirmation({ route, navigation }: Props) {
                     hitSlop={8}
                     style={({ pressed }: { pressed: boolean }) => ({ opacity: pressed ? 0.6 : 1 })}
                 >
-                    <Text style={[styles.resend, { color: cooldown > 0 ? colors.text3 : colors.purpleText }]}>
+                    <Text style={[styles.resend, { color: cooldown > 0 ? colors.text3 : colors.accentText }]}>
                         {cooldown > 0 ? `Resend code in ${cooldown}s` : 'Resend code'}
                     </Text>
                 </Pressable>

@@ -260,14 +260,14 @@ export function Map() {
             <View style={{ flex: 1, backgroundColor: colors.bg, paddingHorizontal: 28, paddingTop: insets.top, paddingBottom: 24 }}>
                 <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
                     {/* Concentric "radar" rings around the pin */}
-                    <View style={{ width: 168, height: 168, borderRadius: 84, backgroundColor: colors.purpleDim, alignItems: 'center', justifyContent: 'center' }}>
-                        <View style={{ width: 118, height: 118, borderRadius: 59, backgroundColor: colors.purpleDim, alignItems: 'center', justifyContent: 'center' }}>
+                    <View style={{ width: 168, height: 168, borderRadius: 84, backgroundColor: colors.accentDim, alignItems: 'center', justifyContent: 'center' }}>
+                        <View style={{ width: 118, height: 118, borderRadius: 59, backgroundColor: colors.accentDim, alignItems: 'center', justifyContent: 'center' }}>
                             <View style={{
-                                width: 72, height: 72, borderRadius: 36, backgroundColor: colors.purple,
+                                width: 72, height: 72, borderRadius: 36, backgroundColor: colors.accent,
                                 alignItems: 'center', justifyContent: 'center',
-                                ...shadows.md, shadowColor: colors.purple, shadowOpacity: 0.45,
+                                ...shadows.md, shadowColor: colors.shadow,
                             }}>
-                                <MaterialCommunityIcons name="map-marker-radius" size={36} color="#fff" />
+                                <MaterialCommunityIcons name="map-marker-radius" size={36} color={colors.onAccent} />
                             </View>
                         </View>
                     </View>
@@ -326,34 +326,40 @@ export function Map() {
                 userInterfaceStyle={isDark ? 'dark' : 'light'}
                 style={StyleSheet.absoluteFill}
             >
-                {visibleBathrooms.map((b) => {
+                {visibleBathrooms.map((b, i) => {
                     const rated = Number(b.score) > 0;
+                    // Pins are neutral; only the nearest result (also highlighted
+                    // first in the sheet) gets the accent, so the eye lands there.
+                    const featured = i === 0;
+                    const pinBg = featured ? colors.accent : colors.surface1;
+                    const pinFg = featured ? colors.onAccent : colors.text1;
                     return (
                         <Marker
                             key={b.id}
                             coordinate={{ latitude: b.lat, longitude: b.lng }}
                             anchor={{ x: 0.5, y: 1 }}
+                            zIndex={featured ? 2 : 1}
                             onPress={() => navigation.navigate('BathroomDetail', {
                                 id: b.id, name: b.name, lat: b.lat, lng: b.lng,
                             })}
                         >
                             <View style={{ alignItems: 'center' }}>
                                 <View style={[styles.pin, {
-                                    backgroundColor: colors.purple,
-                                    borderColor: '#fff',
-                                    paddingHorizontal: rated ? 9 : 0,
-                                    width: rated ? undefined : 34,
+                                    backgroundColor: pinBg,
+                                    borderColor: featured ? colors.accent : colors.borderMed,
+                                    paddingHorizontal: rated ? 10 : 0,
+                                    width: rated ? undefined : 32,
                                 }]}>
                                     <MaterialCommunityIcons
                                         name={(b.icon as keyof typeof MaterialCommunityIcons.glyphMap) ?? 'toilet'}
-                                        size={15}
-                                        color="#fff"
+                                        size={14}
+                                        color={featured ? colors.onAccent : colors.text2}
                                     />
                                     {rated && (
-                                        <Text style={styles.pinText}>{b.score}</Text>
+                                        <Text style={[styles.pinText, { color: pinFg }]}>{b.score}</Text>
                                     )}
                                 </View>
-                                <View style={[styles.pinTail, { borderTopColor: colors.purple }]} />
+                                <View style={[styles.pinTail, { borderTopColor: pinBg }]} />
                             </View>
                         </Marker>
                     );
@@ -427,7 +433,7 @@ export function Map() {
                             opacity: pressed ? 0.85 : 1,
                         })}
                     >
-                        <MaterialCommunityIcons name="refresh" size={17} color={colors.purpleText} />
+                        <MaterialCommunityIcons name="refresh" size={17} color={colors.text1} />
                         <Text style={{ color: colors.text1, fontSize: 14, fontFamily: 'PlusJakartaSans_700Bold' }}>
                             Search this area
                         </Text>
@@ -457,11 +463,11 @@ export function Map() {
                             onPress={retryFetch}
                             accessibilityRole="button"
                             style={({ pressed }: { pressed: boolean }) => ({
-                                backgroundColor: colors.purple, borderRadius: 12,
+                                backgroundColor: colors.primary, borderRadius: 12,
                                 paddingHorizontal: 14, height: 34, justifyContent: 'center', opacity: pressed ? 0.85 : 1,
                             })}
                         >
-                            <Text style={{ color: '#fff', fontSize: 13, fontFamily: 'PlusJakartaSans_700Bold' }}>Retry</Text>
+                            <Text style={{ color: colors.onPrimary, fontSize: 13, fontFamily: 'PlusJakartaSans_700Bold' }}>Retry</Text>
                         </Pressable>
                     </View>
                 </View>
@@ -481,7 +487,7 @@ export function Map() {
                         variant="glass"
                         size={46}
                         icon="crosshairs-gps"
-                        iconColor={colors.purpleText}
+                        iconColor={colors.accentText}
                         accessibilityLabel="Recenter on my location"
                         onPress={recenterToGps}
                     />
@@ -503,21 +509,20 @@ const styles = StyleSheet.create({
         zIndex: 1000,
     },
     pin: {
-        height: 34,
-        borderRadius: 17,
-        borderWidth: 2,
+        height: 32,
+        borderRadius: 16,
+        borderWidth: 1,
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
         gap: 4,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 3 },
-        shadowOpacity: 0.25,
-        shadowRadius: 6,
-        elevation: 6,
+        shadowOpacity: 0.18,
+        shadowRadius: 5,
+        elevation: 5,
     },
     pinText: {
-        color: '#fff',
         fontSize: 13,
         fontFamily: 'PlusJakartaSans_800ExtraBold',
     },

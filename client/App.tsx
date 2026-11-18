@@ -42,7 +42,7 @@ function AppNavigator() {
           justifyContent: 'center',
         }}
       >
-        <ActivityIndicator color={colors.purple} size="large" />
+        <ActivityIndicator color={colors.accent} size="large" />
       </View>
     );
   }

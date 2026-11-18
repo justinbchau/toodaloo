@@ -18,7 +18,7 @@ interface Props {
 
 export function Chip({ label, active, onPress, icon, floating, style }: Props) {
   const { colors } = useThemeContext();
-  const fg = active ? '#fff' : colors.text1;
+  const fg = active ? colors.onAccent : colors.text1;
   return (
     <Pressable
       onPress={onPress}
@@ -28,15 +28,15 @@ export function Chip({ label, active, onPress, icon, floating, style }: Props) {
       style={({ pressed }: { pressed: boolean }) => [
         styles.chip,
         {
-          backgroundColor: active ? colors.purple : floating ? colors.glass : colors.surface1,
-          borderColor: active ? colors.purple : colors.borderMed,
+          backgroundColor: active ? colors.accent : floating ? colors.glass : colors.surface1,
+          borderColor: active ? colors.accent : colors.borderMed,
           opacity: pressed ? 0.8 : 1,
         },
         floating && { ...shadows.sm, shadowColor: colors.shadow, borderWidth: active ? 1 : 0 },
         style,
       ]}
     >
-      {icon ? <MaterialCommunityIcons name={icon} size={15} color={active ? '#fff' : colors.text2} /> : null}
+      {icon ? <MaterialCommunityIcons name={icon} size={15} color={active ? colors.onAccent : colors.text2} /> : null}
       <Text style={[styles.label, { color: fg }]}>{label}</Text>
     </Pressable>
   );

@@ -102,13 +102,13 @@ export function Profile() {
         ) : (
           <View style={{ alignItems: 'center', paddingTop: 12, paddingHorizontal: 16 }}>
             {/* Avatar with brand ring */}
-            <View style={{ padding: 4, borderRadius: 52, borderWidth: 2, borderColor: colors.purpleGlow }}>
+            <View style={{ padding: 4, borderRadius: 52, borderWidth: 2, borderColor: colors.accentGlow }}>
               <View style={{
                 width: 88, height: 88, borderRadius: 44,
-                backgroundColor: colors.purple,
+                backgroundColor: colors.accent,
                 alignItems: 'center', justifyContent: 'center',
               }}>
-                <Text style={{ fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 36, color: '#fff' }}>
+                <Text style={{ fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 36, color: colors.onAccent }}>
                   {initial(displayName)}
                 </Text>
               </View>
@@ -124,7 +124,7 @@ export function Profile() {
             {/* Stats — or a retry affordance if the counts failed to load,
                 so we never render a misleading 0. */}
             {statsError ? (
-              <View style={{ marginTop: 20, alignSelf: 'stretch', alignItems: 'center', backgroundColor: colors.surface1, borderRadius: 18, borderWidth: 1, borderColor: colors.border, paddingVertical: 16 }}>
+              <View style={{ marginTop: 20, alignSelf: 'stretch', alignItems: 'center', backgroundColor: colors.surface1, borderRadius: 18, borderWidth: 1, borderColor: colors.cardBorder, paddingVertical: 16 }}>
                 <Text style={{ fontSize: 14, fontFamily: 'PlusJakartaSans_500Medium', color: colors.text2 }}>
                   Couldn't load your stats
                 </Text>
@@ -134,7 +134,7 @@ export function Profile() {
                   accessibilityLabel="Retry loading stats"
                   style={({ pressed }: { pressed: boolean }) => ({ marginTop: 6, paddingVertical: 4, paddingHorizontal: 8, opacity: pressed ? 0.6 : 1 })}
                 >
-                  <Text style={{ fontSize: 14, fontFamily: 'PlusJakartaSans_700Bold', color: colors.purpleText }}>
+                  <Text style={{ fontSize: 14, fontFamily: 'PlusJakartaSans_700Bold', color: colors.accentText }}>
                     Retry
                   </Text>
                 </Pressable>
@@ -152,12 +152,12 @@ export function Profile() {
                       backgroundColor: pressed ? colors.surface2 : colors.surface1,
                       borderRadius: 18,
                       borderWidth: 1,
-                      borderColor: colors.border,
+                      borderColor: colors.cardBorder,
                       paddingVertical: 14,
                       paddingHorizontal: 12,
                     })}
                   >
-                    <MaterialCommunityIcons name={t.icon} size={18} color={colors.purpleText} />
+                    <MaterialCommunityIcons name={t.icon} size={18} color={colors.text2} />
                     <Text style={{ fontSize: 24, fontFamily: 'PlusJakartaSans_800ExtraBold', color: colors.text1, letterSpacing: -0.8, marginTop: 8 }}>
                       {String(t.value)}
                     </Text>

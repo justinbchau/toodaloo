@@ -12,7 +12,7 @@ export function SkeletonBathroomCard() {
 
   return (
     <Animated.View
-      style={[styles.card, { backgroundColor: colors.surface1, borderColor: colors.border }, animatedStyle]}
+      style={[styles.card, { backgroundColor: colors.surface1, borderColor: colors.cardBorder }, animatedStyle]}
     >
       <View style={[shimmer, styles.tile]} />
       <View style={{ flex: 1, gap: 7 }}>

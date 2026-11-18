@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, Switch, TextInput, Pressable, ActivityIndicator, Keyboard, Alert, ScrollView, StyleSheet } from 'react-native';
+import { View, Text, TextInput, Pressable, ActivityIndicator, Keyboard, Alert, ScrollView, StyleSheet } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Application from 'expo-application';
-import { useThemeContext } from '../context/ThemeContext';
+import { useThemeContext, ThemePreference } from '../context/ThemeContext';
+import { shadows } from '../theme/shadows';
 import { useUser } from '../context/UserContext';
 import { ListGroup } from '../components/ui/ListGroup';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
@@ -11,7 +12,7 @@ import { MenuItem } from '../components/ui/MenuItem';
 import { openLegal } from '../lib/legalUrl';
 
 export function Settings() {
-  const { colors, isDark, toggleTheme } = useThemeContext();
+  const { colors, preference, setPreference } = useThemeContext();
   const { user, profile, updateUsername, deleteAccount } = useUser();
 
   const [username, setUsername] = useState('');
@@ -116,7 +117,7 @@ export function Settings() {
                   accessibilityRole="button"
                   accessibilityLabel="Save username"
                   style={({ pressed }: { pressed: boolean }) => ({
-                    backgroundColor: canSave ? colors.purple : status === 'saved' ? colors.greenDim : 'transparent',
+                    backgroundColor: canSave ? colors.primary : status === 'saved' ? colors.greenDim : 'transparent',
                     borderRadius: 10,
                     paddingHorizontal: 12,
                     height: 32,
@@ -127,10 +128,10 @@ export function Settings() {
                   })}
                 >
                   {status === 'saving' ? (
-                    <ActivityIndicator color="#fff" size="small" />
+                    <ActivityIndicator color={colors.onPrimary} size="small" />
                   ) : (
                     <Text style={{
-                      color: canSave ? '#fff' : status === 'saved' ? colors.green : colors.text3,
+                      color: canSave ? colors.onPrimary : status === 'saved' ? colors.green : colors.text3,
                       fontFamily: 'PlusJakartaSans_700Bold',
                       fontSize: 13,
                     }}>
@@ -149,22 +150,38 @@ export function Settings() {
         </ListGroup>
 
         {/* ── Appearance ── */}
-        <ListGroup title="Appearance">
-          <MenuItem
-            icon="theme-light-dark"
-            label="Dark mode"
-            sublabel={isDark ? 'On' : 'Off'}
-            right={
-              <Switch
-                value={isDark}
-                onValueChange={toggleTheme}
-                thumbColor="#fff"
-                trackColor={{ false: colors.surface3, true: colors.purple }}
-                ios_backgroundColor={colors.surface3}
-                accessibilityLabel="Toggle dark mode"
-              />
-            }
-          />
+        <ListGroup
+          title="Appearance"
+          footer={preference === 'system' ? 'Matches your iPhone — including switching to dark at sunset if your phone is set to Automatic.' : undefined}
+        >
+          <View style={[styles.row, { paddingVertical: 12 }]}>
+            <View
+              accessibilityRole="radiogroup"
+              style={[styles.segmented, { backgroundColor: colors.surface2 }]}
+            >
+              {APPEARANCE_OPTIONS.map((opt) => {
+                const selected = preference === opt.value;
+                return (
+                  <Pressable
+                    key={opt.value}
+                    onPress={() => setPreference(opt.value)}
+                    accessibilityRole="radio"
+                    accessibilityState={{ checked: selected }}
+                    accessibilityLabel={`${opt.label} appearance`}
+                    style={[
+                      styles.segment,
+                      selected && { backgroundColor: colors.surface1, ...shadows.sm, shadowColor: colors.shadow },
+                    ]}
+                  >
+                    <MaterialCommunityIcons name={opt.icon} size={16} color={selected ? colors.text1 : colors.text2} />
+                    <Text style={{ fontFamily: selected ? 'PlusJakartaSans_700Bold' : 'PlusJakartaSans_500Medium', fontSize: 13, color: selected ? colors.text1 : colors.text2 }}>
+                      {opt.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
         </ListGroup>
 
         {/* ── About ── */}
@@ -191,11 +208,17 @@ export function Settings() {
   );
 }
 
+const APPEARANCE_OPTIONS: { value: ThemePreference; label: string; icon: keyof typeof MaterialCommunityIcons.glyphMap }[] = [
+  { value: 'system', label: 'System', icon: 'cellphone' },
+  { value: 'light', label: 'Light', icon: 'white-balance-sunny' },
+  { value: 'dark', label: 'Dark', icon: 'weather-night' },
+];
+
 function RowIcon({ name }: { name: keyof typeof MaterialCommunityIcons.glyphMap }) {
   const { colors } = useThemeContext();
   return (
-    <View style={{ width: 32, height: 32, borderRadius: 9, backgroundColor: colors.purpleDim, alignItems: 'center', justifyContent: 'center' }}>
-      <MaterialCommunityIcons name={name} size={18} color={colors.purpleText} />
+    <View style={{ width: 32, height: 32, borderRadius: 9, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center' }}>
+      <MaterialCommunityIcons name={name} size={18} color={colors.text1} />
     </View>
   );
 }
@@ -210,6 +233,21 @@ const styles = StyleSheet.create({
   },
   rowLabel: { fontSize: 15, fontFamily: 'PlusJakartaSans_600SemiBold' },
   rowSub: { fontSize: 13, fontFamily: 'PlusJakartaSans_400Regular', marginTop: 2 },
+  segmented: {
+    flex: 1,
+    flexDirection: 'row',
+    borderRadius: 12,
+    padding: 3,
+  },
+  segment: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    height: 36,
+    borderRadius: 9,
+  },
   usernameField: {
     flexDirection: 'row',
     alignItems: 'center',

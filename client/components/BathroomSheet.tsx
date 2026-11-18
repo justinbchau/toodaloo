@@ -96,7 +96,7 @@ export function BathroomSheet({ bathrooms = [], onCardPress, isLoading = false, 
       <View
         style={[
           styles.sheet,
-          { backgroundColor: colors.bg, borderColor: colors.border, shadowColor: colors.shadow },
+          { backgroundColor: colors.bg, borderColor: colors.cardBorder, shadowColor: colors.shadow },
         ]}
       >
         {/* Drag area: grabber + header */}
@@ -107,8 +107,8 @@ export function BathroomSheet({ bathrooms = [], onCardPress, isLoading = false, 
           <View style={styles.headingRow}>
             <Text style={[styles.heading, { color: colors.text1 }]}>Nearby bathrooms</Text>
             {!isLoading && count > 0 && (
-              <View style={[styles.countPill, { backgroundColor: colors.purpleDim }]}>
-                <Text style={[styles.headingCount, { color: colors.purpleText }]}>
+              <View style={[styles.countPill, { backgroundColor: colors.surface2 }]}>
+                <Text style={[styles.headingCount, { color: colors.text2 }]}>
                   {count} {count === 1 ? 'location' : 'locations'}
                 </Text>
               </View>
@@ -125,9 +125,9 @@ export function BathroomSheet({ bathrooms = [], onCardPress, isLoading = false, 
         ) : count === 0 ? (
           // Compact row layout so the CTA still fits at the peek height.
           <View style={styles.list}>
-            <View style={[styles.emptyRow, { backgroundColor: colors.surface1, borderColor: colors.border }]}>
-              <View style={[styles.emptyIcon, { backgroundColor: colors.purpleDim }]}>
-                <MaterialCommunityIcons testID="empty-state-icon" name="toilet" size={26} color={colors.purpleText} />
+            <View style={[styles.emptyRow, { backgroundColor: colors.surface1, borderColor: colors.cardBorder }]}>
+              <View style={[styles.emptyIcon, { backgroundColor: colors.surface2 }]}>
+                <MaterialCommunityIcons testID="empty-state-icon" name="toilet" size={26} color={colors.text1} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={[styles.emptyTitle, { color: colors.text1 }]}>No bathrooms nearby yet.</Text>

@@ -64,20 +64,20 @@ const CustomTabBar = ({ state, navigation }: BottomTabBarProps) => {
                   style={[
                     styles.addBtn,
                     {
-                      backgroundColor: colors.purple,
-                      shadowColor: colors.purple,
+                      backgroundColor: colors.primary,
+                      shadowColor: colors.shadow,
                       transform: [{ scale: pressed ? 0.94 : 1 }],
                     },
                   ]}
                 >
-                  <MaterialCommunityIcons name="plus" size={26} color="#fff" />
+                  <MaterialCommunityIcons name="plus" size={26} color={colors.onPrimary} />
                 </View>
               )}
             </Pressable>
           );
         }
 
-        const color = isFocused ? colors.purpleText : colors.text3;
+        const color = isFocused ? colors.accentText : colors.text3;
         return (
           <Pressable
             key={route.key}
@@ -140,8 +140,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 10,
+    shadowOpacity: 0.18,
+    shadowRadius: 8,
     elevation: 6,
   },
 });

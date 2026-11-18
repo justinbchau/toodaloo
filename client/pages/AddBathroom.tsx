@@ -250,13 +250,13 @@ export function AddBathroom() {
                       padding: 12,
                       borderRadius: 14,
                       borderWidth: selected ? 1.5 : 1,
-                      borderColor: selected ? colors.purple : colors.borderMed,
-                      backgroundColor: selected ? colors.purpleDim : 'transparent',
+                      borderColor: selected ? colors.accent : colors.borderMed,
+                      backgroundColor: selected ? colors.accentDim : 'transparent',
                       opacity: pressed ? 0.8 : 1,
                     })}
                   >
-                    <View style={{ width: 38, height: 38, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: selected ? colors.purple : colors.surface2 }}>
-                      <MaterialCommunityIcons name={opt.icon} size={20} color={selected ? '#fff' : colors.text2} />
+                    <View style={{ width: 38, height: 38, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: selected ? colors.accent : colors.surface2 }}>
+                      <MaterialCommunityIcons name={opt.icon} size={20} color={selected ? colors.onAccent : colors.text2} />
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 15, color: colors.text1 }}>{opt.label}</Text>
@@ -265,7 +265,7 @@ export function AddBathroom() {
                     <MaterialCommunityIcons
                       name={selected ? 'radiobox-marked' : 'radiobox-blank'}
                       size={22}
-                      color={selected ? colors.purple : colors.text3}
+                      color={selected ? colors.accent : colors.text3}
                     />
                   </Pressable>
                 );
@@ -285,7 +285,7 @@ export function AddBathroom() {
                 testID="is-24-hours-toggle"
                 value={is24Hours}
                 onValueChange={setIs24Hours}
-                trackColor={{ false: colors.surface3, true: colors.purple }}
+                trackColor={{ false: colors.surface3, true: colors.accent }}
                 thumbColor="#fff"
                 ios_backgroundColor={colors.surface3}
               />
@@ -329,9 +329,9 @@ export function AddBathroom() {
 function FormCard({ title, icon, caption, children }: { title: string; icon: keyof typeof MaterialCommunityIcons.glyphMap; caption?: string; children: React.ReactNode }) {
   const { colors } = useThemeContext();
   return (
-    <View style={{ backgroundColor: colors.surface1, borderRadius: 20, borderWidth: 1, borderColor: colors.border, padding: 16, gap: 14 }}>
+    <View style={{ backgroundColor: colors.surface1, borderRadius: 20, borderWidth: 1, borderColor: colors.cardBorder, padding: 16, gap: 14 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-        <MaterialCommunityIcons name={icon} size={18} color={colors.purpleText} />
+        <MaterialCommunityIcons name={icon} size={18} color={colors.text2} />
         <Text style={{ flex: 1, fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 16, color: colors.text1, letterSpacing: -0.3 }}>{title}</Text>
         {caption ? <Text style={{ fontFamily: 'PlusJakartaSans_500Medium', fontSize: 12, color: colors.text3 }}>{caption}</Text> : null}
       </View>

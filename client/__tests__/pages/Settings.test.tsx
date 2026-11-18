@@ -11,10 +11,13 @@ import { mockColors, mockUser } from '../helpers/mocks';
 const mockUpdateUsername = jest.fn();
 const mockDeleteAccount = jest.fn();
 
+const mockSetPreference = jest.fn();
 jest.mock('../../context/ThemeContext', () => ({
   useThemeContext: () => ({
     colors: mockColors,
     isDark: false,
+    preference: 'system',
+    setPreference: (...args: any[]) => mockSetPreference(...args),
     toggleTheme: jest.fn(),
   }),
 }));
@@ -52,6 +55,20 @@ describe('Settings — profile section', () => {
   it('prefills the username from the profile', () => {
     render(<Settings />);
     expect(screen.getByTestId('username-input').props.value).toBe('testuser');
+  });
+});
+
+describe('Settings — appearance', () => {
+  it('marks the current preference (System) as selected', () => {
+    render(<Settings />);
+    expect(screen.getByLabelText('System appearance').props.accessibilityState).toMatchObject({ checked: true });
+    expect(screen.getByLabelText('Dark appearance').props.accessibilityState).toMatchObject({ checked: false });
+  });
+
+  it('sets the preference when an option is tapped', () => {
+    render(<Settings />);
+    fireEvent.press(screen.getByLabelText('Dark appearance'));
+    expect(mockSetPreference).toHaveBeenCalledWith('dark');
   });
 });
 

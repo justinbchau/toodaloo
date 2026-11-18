@@ -16,7 +16,7 @@ interface Props extends TextInputProps {
 export function FormInput({ label, error, icon, hint, ...inputProps }: Props) {
   const { colors } = useThemeContext();
   const [focused, setFocused] = useState(false);
-  const borderColor = error ? colors.red : focused ? colors.purple : colors.borderMed;
+  const borderColor = error ? colors.red : focused ? colors.accent : colors.borderMed;
 
   return (
     <View style={styles.wrapper}>
@@ -31,7 +31,7 @@ export function FormInput({ label, error, icon, hint, ...inputProps }: Props) {
           },
         ]}
       >
-        {icon ? <MaterialCommunityIcons name={icon} size={19} color={focused ? colors.purpleText : colors.text3} /> : null}
+        {icon ? <MaterialCommunityIcons name={icon} size={19} color={focused ? colors.accentText : colors.text3} /> : null}
         <TextInput
           {...inputProps}
           placeholderTextColor={colors.text3}

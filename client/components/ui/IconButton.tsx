@@ -39,8 +39,8 @@ export function IconButton({
 }: Props) {
   const { colors } = useThemeContext();
   const bg =
-    variant === 'primary' ? colors.purple : variant === 'glass' ? colors.glass : colors.surface2;
-  const fg = iconColor ?? (variant === 'primary' ? '#fff' : colors.text1);
+    variant === 'primary' ? colors.primary : variant === 'glass' ? colors.glass : colors.surface2;
+  const fg = iconColor ?? (variant === 'primary' ? colors.onPrimary : colors.text1);
 
   return (
     <Pressable
@@ -62,7 +62,7 @@ export function IconButton({
           transform: [{ scale: pressed ? 0.96 : 1 }],
         },
         variant === 'glass' && { ...shadows.md, shadowColor: colors.shadow },
-        variant === 'primary' && { ...shadows.md, shadowColor: colors.purple, shadowOpacity: 0.35 },
+        variant === 'primary' && { ...shadows.md, shadowColor: colors.shadow },
         style,
       ]}
     >
@@ -77,14 +77,14 @@ export function IconButton({
             height: 18,
             borderRadius: 9,
             paddingHorizontal: 4,
-            backgroundColor: colors.purple,
+            backgroundColor: colors.accent,
             borderWidth: 2,
             borderColor: colors.surface1,
             alignItems: 'center',
             justifyContent: 'center',
           }}
         >
-          <Text style={{ color: '#fff', fontSize: 10, fontFamily: 'PlusJakartaSans_700Bold' }}>{badge}</Text>
+          <Text style={{ color: colors.onAccent, fontSize: 10, fontFamily: 'PlusJakartaSans_700Bold' }}>{badge}</Text>
         </View>
       ) : null}
     </Pressable>

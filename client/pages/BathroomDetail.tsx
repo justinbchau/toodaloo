@@ -190,7 +190,7 @@ export function BathroomDetail() {
           <IconButton icon="chevron-left" accessibilityLabel="Go back" onPress={() => navigation.goBack()} />
         </View>
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-          <ActivityIndicator color={colors.purple} size="large" />
+          <ActivityIndicator color={colors.accent} size="large" />
         </View>
       </View>
     );
@@ -264,14 +264,14 @@ export function BathroomDetail() {
           >
             <Marker coordinate={{ latitude: lat, longitude: lng }} anchor={{ x: 0.5, y: 1 }}>
               <View style={{ alignItems: 'center' }}>
-                <View style={[styles.heroPin, { backgroundColor: colors.purple }]}>
+                <View style={[styles.heroPin, { backgroundColor: colors.accent }]}>
                   <MaterialCommunityIcons
                     name={(ACCESS_ICON[access ?? ''] ?? DEFAULT_ACCESS_ICON) as IconName}
                     size={20}
-                    color="#fff"
+                    color={colors.onAccent}
                   />
                 </View>
-                <View style={[styles.pinTail, { borderTopColor: colors.purple }]} />
+                <View style={[styles.pinTail, { borderTopColor: colors.accent }]} />
               </View>
             </Marker>
           </MapView>
@@ -284,8 +284,8 @@ export function BathroomDetail() {
             <Badge
               icon={(ACCESS_ICON[access ?? ''] ?? DEFAULT_ACCESS_ICON) as IconName}
               label={accessLabel(access)}
-              fg={colors.purpleText}
-              bg={colors.purpleDim}
+              fg={colors.text1}
+              bg={colors.surface2}
             />
             {bathroomData?.is_24_hours && (
               <Badge icon="clock-check-outline" label="Open 24/7" fg={colors.green} bg={colors.greenDim} />
@@ -308,8 +308,8 @@ export function BathroomDetail() {
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 }}>
               {distance ? (
                 <>
-                  <MaterialCommunityIcons name="walk" size={16} color={colors.purpleText} />
-                  <Text style={{ color: colors.purpleText, fontFamily: 'PlusJakartaSans_700Bold', fontSize: 14 }}>{distance}</Text>
+                  <MaterialCommunityIcons name="walk" size={16} color={colors.text1} />
+                  <Text style={{ color: colors.text1, fontFamily: 'PlusJakartaSans_700Bold', fontSize: 14 }}>{distance}</Text>
                 </>
               ) : (
                 <MaterialCommunityIcons name="map-marker-outline" size={16} color={colors.text2} />
@@ -341,14 +341,14 @@ export function BathroomDetail() {
                 style={({ pressed }: { pressed: boolean }) => [
                   styles.actionTile,
                   {
-                    backgroundColor: a.active ? colors.purpleDim : colors.surface1,
-                    borderColor: a.active ? colors.purpleGlow : colors.border,
+                    backgroundColor: a.active ? colors.accentDim : colors.surface1,
+                    borderColor: a.active ? colors.accentGlow : colors.cardBorder,
                     opacity: pressed ? 0.7 : 1,
                   },
                 ]}
               >
-                <MaterialCommunityIcons name={a.icon} size={21} color={a.active ? colors.purpleText : colors.text1} />
-                <Text style={{ color: a.active ? colors.purpleText : colors.text2, fontSize: 12, fontFamily: 'PlusJakartaSans_600SemiBold' }}>
+                <MaterialCommunityIcons name={a.icon} size={21} color={a.active ? colors.accentText : colors.text1} />
+                <Text style={{ color: a.active ? colors.accentText : colors.text2, fontSize: 12, fontFamily: 'PlusJakartaSans_600SemiBold' }}>
                   {a.label}
                 </Text>
               </Pressable>
@@ -385,7 +385,7 @@ export function BathroomDetail() {
             <SectionLabel label="Reviews" style={{ marginBottom: 0 }} />
             {reviews.length > 0 && (
               <Pressable onPress={handleReview} hitSlop={8} accessibilityRole="button">
-                <Text style={{ color: colors.purpleText, fontFamily: 'PlusJakartaSans_700Bold', fontSize: 14 }}>Write a review</Text>
+                <Text style={{ color: colors.accentText, fontFamily: 'PlusJakartaSans_700Bold', fontSize: 14 }}>Write a review</Text>
               </Pressable>
             )}
           </View>
@@ -396,7 +396,7 @@ export function BathroomDetail() {
               <SkeletonReviewCard />
             </>
           ) : reviewsError ? (
-            <View style={[styles.inlineCard, { backgroundColor: colors.surface1, borderColor: colors.border }]}>
+            <View style={[styles.inlineCard, { backgroundColor: colors.surface1, borderColor: colors.cardBorder }]}>
               <MaterialCommunityIcons name="cloud-off-outline" size={22} color={colors.text3} />
               <Text style={{ color: colors.text2, fontFamily: 'PlusJakartaSans_500Medium', fontSize: 14, marginTop: 8 }}>
                 Couldn't load reviews.
@@ -407,13 +407,13 @@ export function BathroomDetail() {
                 accessibilityLabel="Retry loading reviews"
                 style={({ pressed }: { pressed: boolean }) => ({ marginTop: 6, padding: 8, opacity: pressed ? 0.7 : 1 })}
               >
-                <Text style={{ color: colors.purpleText, fontFamily: 'PlusJakartaSans_700Bold', fontSize: 14 }}>
+                <Text style={{ color: colors.accentText, fontFamily: 'PlusJakartaSans_700Bold', fontSize: 14 }}>
                   Try again
                 </Text>
               </Pressable>
             </View>
           ) : reviews.length === 0 ? (
-            <View style={[styles.inlineCard, { backgroundColor: colors.surface1, borderColor: colors.border, paddingVertical: 28 }]}>
+            <View style={[styles.inlineCard, { backgroundColor: colors.surface1, borderColor: colors.cardBorder, paddingVertical: 28 }]}>
               <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: colors.yellowDim, alignItems: 'center', justifyContent: 'center' }}>
                 <MaterialCommunityIcons name="star-outline" size={28} color={colors.yellow} />
               </View>
@@ -428,7 +428,7 @@ export function BathroomDetail() {
           ) : (
             <>
               {/* Rating summary */}
-              <View style={[styles.summary, { backgroundColor: colors.surface1, borderColor: colors.border }]}>
+              <View style={[styles.summary, { backgroundColor: colors.surface1, borderColor: colors.cardBorder }]}>
                 <View style={{ alignItems: 'center', width: 96 }}>
                   <Text style={{ color: colors.text1, fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 40, letterSpacing: -1.5 }}>
                     {avgRating.toFixed(1)}
@@ -453,8 +453,8 @@ export function BathroomDetail() {
               {reviews.map((review) => (
                 <View key={review.id} style={[styles.review, { borderBottomColor: colors.border }]}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                    <View style={[styles.avatar, { backgroundColor: colors.purpleDim }]}>
-                      <Text style={{ color: colors.purpleText, fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 15 }}>
+                    <View style={[styles.avatar, { backgroundColor: colors.surface2 }]}>
+                      <Text style={{ color: colors.text1, fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 15 }}>
                         {initial(review.author_username)}
                       </Text>
                     </View>
@@ -501,7 +501,7 @@ export function BathroomDetail() {
           <IconButton
             variant="glass"
             icon={isSaved ? 'bookmark' : 'bookmark-outline'}
-            iconColor={isSaved ? colors.purpleText : undefined}
+            iconColor={isSaved ? colors.accentText : undefined}
             accessibilityLabel={isSaved ? 'Unsave' : 'Save'}
             onPress={handleSave}
           />

@@ -107,12 +107,12 @@ export function MyReviews() {
         }}
         style={({ pressed }: { pressed: boolean }) => [
           styles.card,
-          { backgroundColor: pressed ? colors.surface2 : colors.surface1, borderColor: colors.border },
+          { backgroundColor: pressed ? colors.surface2 : colors.surface1, borderColor: colors.cardBorder },
         ]}
       >
         <View style={styles.cardHeader}>
-          <View style={[styles.tile, { backgroundColor: colors.purpleDim }]}>
-            <MaterialCommunityIcons name="toilet" size={20} color={colors.purpleText} />
+          <View style={[styles.tile, { backgroundColor: colors.surface2 }]}>
+            <MaterialCommunityIcons name="toilet" size={20} color={colors.text1} />
           </View>
           <View style={{ flex: 1 }}>
             <Text style={{ color: colors.text1, fontFamily: 'PlusJakartaSans_700Bold', fontSize: 15 }} numberOfLines={1}>
@@ -177,7 +177,7 @@ export function MyReviews() {
       />
 
       {isLoading ? (
-        <ActivityIndicator color={colors.purple} style={{ marginTop: 40 }} />
+        <ActivityIndicator color={colors.accent} style={{ marginTop: 40 }} />
       ) : hasError ? (
         <ErrorState
           title="Couldn't load your reviews"
@@ -202,7 +202,7 @@ export function MyReviews() {
           refreshControl={
             <RefreshControl
               refreshing={isRefreshing}
-              tintColor={colors.purple}
+              tintColor={colors.accent}
               onRefresh={refresh}
             />
           }

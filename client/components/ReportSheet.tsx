@@ -149,7 +149,7 @@ export default function ReportSheet({ target, onClose }: Props) {
                 accessibilityLabel="Done"
                 style={({ pressed }) => ({ marginTop: 20, paddingHorizontal: 24, paddingVertical: 10, opacity: pressed ? 0.7 : 1 })}
               >
-                <Text style={{ color: colors.purpleText, fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 14 }}>Done</Text>
+                <Text style={{ color: colors.accentText, fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 14 }}>Done</Text>
               </Pressable>
             </View>
           ) : (

@@ -21,7 +21,7 @@ export function SkeletonProfileHero() {
       {/* Stat tiles */}
       <View style={styles.statsRow}>
         {[0, 1, 2].map((i) => (
-          <View key={i} style={[styles.statCell, { backgroundColor: colors.surface1, borderColor: colors.border }]}>
+          <View key={i} style={[styles.statCell, { backgroundColor: colors.surface1, borderColor: colors.cardBorder }]}>
             <View style={[shimmer, { height: 16, width: 16, marginBottom: 10 }]} />
             <View style={[shimmer, { height: 18, width: 32, marginBottom: 6 }]} />
             <View style={[shimmer, { height: 9, width: 48 }]} />

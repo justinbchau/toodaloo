@@ -33,8 +33,7 @@ export function PrimaryButton({ title, onPress, style, disabled, loading, icon, 
         styles.btn,
         size === 'md' && styles.md,
         {
-          backgroundColor: colors.purple,
-          shadowColor: colors.purple,
+          backgroundColor: colors.primary,
           opacity: disabled ? 0.45 : pressed ? 0.88 : 1,
           transform: [{ scale: pressed && !inactive ? 0.985 : 1 }],
         },
@@ -42,11 +41,11 @@ export function PrimaryButton({ title, onPress, style, disabled, loading, icon, 
       ]}
     >
       {loading ? (
-        <ActivityIndicator color="#fff" />
+        <ActivityIndicator color={colors.onPrimary} />
       ) : (
         <View style={styles.row}>
-          {icon ? <MaterialCommunityIcons name={icon} size={size === 'md' ? 18 : 20} color="#fff" /> : null}
-          <Text style={[styles.label, size === 'md' && styles.labelMd]}>{title}</Text>
+          {icon ? <MaterialCommunityIcons name={icon} size={size === 'md' ? 18 : 20} color={colors.onPrimary} /> : null}
+          <Text style={[styles.label, size === 'md' && styles.labelMd, { color: colors.onPrimary }]}>{title}</Text>
         </View>
       )}
     </Pressable>
@@ -60,15 +59,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.3,
-    shadowRadius: 14,
-    elevation: 6,
   },
-  md: { minHeight: 46, borderRadius: 14, shadowOpacity: 0.22, shadowRadius: 10 },
+  md: { minHeight: 46, borderRadius: 14 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   label: {
-    color: '#fff',
     fontSize: 16,
     fontFamily: 'PlusJakartaSans_700Bold',
     letterSpacing: 0.1,

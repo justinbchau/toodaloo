@@ -147,7 +147,7 @@ export function Saved() {
         refreshControl={
           <RefreshControl
             refreshing={isRefreshing}
-            tintColor={colors.purple}
+            tintColor={colors.accent}
             onRefresh={refresh}
           />
         }

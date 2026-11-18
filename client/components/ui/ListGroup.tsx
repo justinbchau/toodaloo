@@ -38,7 +38,7 @@ export function ListGroup({ title, footer, children, style }: Props) {
           borderRadius: 18,
           overflow: 'hidden',
           borderWidth: 1,
-          borderColor: colors.border,
+          borderColor: colors.cardBorder,
         }}
       >
         {items.map((child, i) =>

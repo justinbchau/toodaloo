@@ -41,17 +41,17 @@ export const BathroomCard = React.memo(function BathroomCard({ data, onPress, hi
         styles.card,
         {
           backgroundColor: pressed ? colors.surface2 : colors.surface1,
-          borderColor: highlighted ? colors.purpleGlow : colors.border,
+          borderColor: highlighted ? colors.accentGlow : colors.cardBorder,
         },
       ]}
     >
       {/* 1. Access-type tile */}
-      <View style={[styles.tile, { backgroundColor: colors.purpleDim }]}>
+      <View style={[styles.tile, { backgroundColor: colors.surface2 }]}>
         <MaterialCommunityIcons
           testID="bathroom-card-icon"
           name={data.icon as keyof typeof MaterialCommunityIcons.glyphMap}
           size={24}
-          color={colors.purpleText}
+          color={colors.text1}
         />
       </View>
 
@@ -74,8 +74,8 @@ export const BathroomCard = React.memo(function BathroomCard({ data, onPress, hi
           {data.distance ? (
             <>
               <View style={[styles.dot, { backgroundColor: colors.text3 }]} />
-              <MaterialCommunityIcons name="walk" size={13} color={colors.purpleText} />
-              <Text style={[styles.distance, { color: colors.purpleText }]} numberOfLines={1}>
+              <MaterialCommunityIcons name="walk" size={13} color={colors.text2} />
+              <Text style={[styles.distance, { color: colors.text2 }]} numberOfLines={1}>
                 {data.distance}
               </Text>
             </>

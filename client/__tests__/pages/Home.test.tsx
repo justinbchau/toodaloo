@@ -19,8 +19,8 @@ jest.mock('../../context/ThemeContext', () => ({
     colors: {
       bg: '#0B0B0F', surface1: '#111118', surface3: '#1E1E28',
       text1: '#EEEEF4', text2: '#8B8B9E', text3: '#44444F',
-      purple: '#7B6EF6', purpleDim: 'rgba(123,110,246,0.16)',
-      purpleText: '#A99FF9', purpleGlow: 'rgba(123,110,246,0.35)',
+      accent: '#7B6EF6', accentDim: 'rgba(123,110,246,0.16)',
+      accentText: '#A99FF9', accentGlow: 'rgba(123,110,246,0.35)',
     },
     isDark: false,
   }),

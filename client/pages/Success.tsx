@@ -36,11 +36,11 @@ export function Success() {
           Thanks for helping the community find a good spot.
         </Text>
 
-        <View style={[styles.card, { backgroundColor: colors.surface1, borderColor: colors.border }]}>
+        <View style={[styles.card, { backgroundColor: colors.surface1, borderColor: colors.cardBorder }]}>
           {NEXT_STEPS.map((step) => (
             <View key={step.text} style={styles.step}>
-              <View style={[styles.stepIcon, { backgroundColor: colors.purpleDim }]}>
-                <MaterialCommunityIcons name={step.icon} size={18} color={colors.purpleText} />
+              <View style={[styles.stepIcon, { backgroundColor: colors.surface2 }]}>
+                <MaterialCommunityIcons name={step.icon} size={18} color={colors.text1} />
               </View>
               <Text style={[styles.stepText, { color: colors.text1 }]}>{step.text}</Text>
             </View>

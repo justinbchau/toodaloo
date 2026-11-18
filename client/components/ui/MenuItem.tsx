@@ -9,7 +9,7 @@ interface Props {
   sublabel?: string;
   onPress?: () => void;
   destructive?: boolean;
-  /** Icon tile tint; defaults to the brand purple. */
+  /** Icon tile tint; defaults to the brand accent. */
   tint?: string;
   /** Trailing value text (e.g. a count) shown before the chevron. */
   value?: string;
@@ -22,7 +22,7 @@ interface Props {
 
 export function MenuItem({ icon, label, sublabel, onPress, destructive, tint, value, right, isLast, testID }: Props) {
   const { colors } = useThemeContext();
-  const iconColor = destructive ? colors.red : tint ?? colors.purpleText;
+  const iconColor = destructive ? colors.red : tint ?? colors.text1;
   return (
     <Pressable
       testID={testID}
@@ -31,7 +31,7 @@ export function MenuItem({ icon, label, sublabel, onPress, destructive, tint, va
       accessibilityRole={onPress ? 'button' : undefined}
       style={({ pressed }: { pressed: boolean }) => [styles.row, { backgroundColor: pressed && onPress ? colors.surface2 : 'transparent' }]}
     >
-      <View style={[styles.iconWrap, { backgroundColor: destructive ? colors.redDim : colors.purpleDim }]}>
+      <View style={[styles.iconWrap, { backgroundColor: destructive ? colors.redDim : colors.surface2 }]}>
         <MaterialCommunityIcons name={icon} size={18} color={iconColor} />
       </View>
       <View style={[styles.body, !isLast && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.borderMed }]}>

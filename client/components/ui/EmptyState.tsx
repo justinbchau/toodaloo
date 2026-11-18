@@ -11,7 +11,7 @@ interface Props {
   message?: string;
   actionLabel?: string;
   onAction?: () => void;
-  /** 'brand' tints the icon purple; 'danger' red; 'success' green. */
+  /** 'brand' tints the icon accent; 'danger' red; 'success' green. */
   tone?: 'brand' | 'danger' | 'success' | 'neutral';
   iconTestID?: string;
   compact?: boolean;
@@ -27,13 +27,13 @@ export function EmptyState({
   message,
   actionLabel,
   onAction,
-  tone = 'brand',
+  tone = 'neutral',
   iconTestID,
   compact,
 }: Props) {
   const { colors } = useThemeContext();
   const tint = {
-    brand: { bg: colors.purpleDim, fg: colors.purpleText },
+    brand: { bg: colors.accentDim, fg: colors.accentText },
     danger: { bg: colors.redDim, fg: colors.red },
     success: { bg: colors.greenDim, fg: colors.green },
     neutral: { bg: colors.surface2, fg: colors.text2 },

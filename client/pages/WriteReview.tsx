@@ -124,7 +124,7 @@ export function WriteReview() {
 
         {isLoadingExisting ? (
           <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-            <ActivityIndicator color={colors.purple} />
+            <ActivityIndicator color={colors.accent} />
           </View>
         ) : (
           <>
@@ -134,9 +134,9 @@ export function WriteReview() {
               keyboardShouldPersistTaps="handled"
             >
               {/* Bathroom being reviewed */}
-              <View style={[styles.subject, { backgroundColor: colors.surface1, borderColor: colors.border }]}>
-                <View style={[styles.subjectIcon, { backgroundColor: colors.purpleDim }]}>
-                  <MaterialCommunityIcons name="toilet" size={22} color={colors.purpleText} />
+              <View style={[styles.subject, { backgroundColor: colors.surface1, borderColor: colors.cardBorder }]}>
+                <View style={[styles.subjectIcon, { backgroundColor: colors.surface2 }]}>
+                  <MaterialCommunityIcons name="toilet" size={22} color={colors.text1} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.bathroomName, { color: colors.text1 }]} numberOfLines={2}>{bathroomName}</Text>
@@ -179,7 +179,7 @@ export function WriteReview() {
                   Tell others more <Text style={{ color: colors.text3, fontFamily: 'PlusJakartaSans_500Medium', fontSize: 13 }}>(optional)</Text>
                 </Text>
               </View>
-              <View style={[styles.textAreaContainer, { backgroundColor: colors.surface1, borderColor: focused ? colors.purple : colors.borderMed, borderWidth: focused ? 1.5 : 1 }]}>
+              <View style={[styles.textAreaContainer, { backgroundColor: colors.surface1, borderColor: focused ? colors.accent : colors.borderMed, borderWidth: focused ? 1.5 : 1 }]}>
                 <TextInput
                   style={[styles.textArea, { color: colors.text1, fontFamily: 'PlusJakartaSans_400Regular' }]}
                   multiline

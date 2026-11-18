@@ -40,9 +40,9 @@ export function Home() {
   const { colors, isDark } = useThemeContext();
   const insets = useSafeAreaInsets();
 
-  const mapBg = isDark ? '#12121C' : '#ECE8F8';
-  const roadColor = isDark ? '#1C1C2A' : '#FFFFFF';
-  const blockColor = isDark ? '#171724' : '#E0DAF3';
+  const mapBg = isDark ? '#121514' : '#E7E8E4';
+  const roadColor = isDark ? '#1D2120' : '#FFFFFF';
+  const blockColor = isDark ? '#171A19' : '#DCDED9';
   const parkColor = isDark ? 'rgba(52,199,122,0.10)' : 'rgba(22,163,74,0.12)';
 
   return (
@@ -63,40 +63,49 @@ export function Home() {
         ))}
 
         {/* Rating pins — same shape as the real map markers */}
-        {PINS.map((p, i) => (
-          <View key={`p${i}`} style={{ position: 'absolute', top: p.top, left: p.left, alignItems: 'center' }}>
-            <View
-              style={[
-                styles.pin,
-                {
-                  backgroundColor: p.score ? colors.purple : colors.surface1,
-                  borderColor: p.score ? '#fff' : colors.borderMed,
-                  paddingHorizontal: p.score ? 9 : 0,
-                  width: p.score ? undefined : 32,
-                },
-              ]}
-            >
-              <MaterialCommunityIcons name={p.score ? 'toilet' : 'plus'} size={14} color={p.score ? '#fff' : colors.text2} />
-              {p.score ? <Text style={styles.pinText}>{p.score}</Text> : null}
+        {PINS.map((p, i) => {
+          // Neutral pins with one featured (accent) pin — mirrors the real map.
+          const featured = i === 0;
+          const bg = featured ? colors.accent : colors.surface1;
+          return (
+            <View key={`p${i}`} style={{ position: 'absolute', top: p.top, left: p.left, alignItems: 'center' }}>
+              <View
+                style={[
+                  styles.pin,
+                  {
+                    backgroundColor: bg,
+                    borderColor: featured ? colors.accent : colors.borderMed,
+                    paddingHorizontal: p.score ? 9 : 0,
+                    width: p.score ? undefined : 32,
+                  },
+                ]}
+              >
+                <MaterialCommunityIcons
+                  name={p.score ? 'toilet' : 'plus'}
+                  size={14}
+                  color={featured ? colors.onAccent : colors.text2}
+                />
+                {p.score ? <Text style={[styles.pinText, { color: featured ? colors.onAccent : colors.text1 }]}>{p.score}</Text> : null}
+              </View>
+              <View style={[styles.pinTail, { borderTopColor: bg }]} />
             </View>
-            <View style={[styles.pinTail, { borderTopColor: p.score ? colors.purple : colors.surface1 }]} />
-          </View>
-        ))}
+          );
+        })}
 
         {/* You-are-here dot with halo */}
-        <View style={{ position: 'absolute', top: '46%', left: '34%', width: 64, height: 64, marginLeft: -32, marginTop: -32, borderRadius: 32, backgroundColor: colors.purpleDim, alignItems: 'center', justifyContent: 'center' }}>
-          <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: colors.purple, borderWidth: 3, borderColor: '#fff', ...shadows.md, shadowColor: colors.purple }} />
+        <View style={{ position: 'absolute', top: '46%', left: '34%', width: 64, height: 64, marginLeft: -32, marginTop: -32, borderRadius: 32, backgroundColor: colors.accentDim, alignItems: 'center', justifyContent: 'center' }}>
+          <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: colors.accent, borderWidth: 3, borderColor: '#fff', ...shadows.md, shadowColor: colors.shadow }} />
         </View>
 
         {/* Floating preview card — telegraphs what the app does */}
         <View
           style={[
             styles.previewCard,
-            { top: '58%', backgroundColor: colors.surface1, borderColor: colors.border, shadowColor: colors.shadow },
+            { top: '58%', backgroundColor: colors.surface1, borderColor: colors.cardBorder, shadowColor: colors.shadow },
           ]}
         >
-          <View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: colors.purpleDim, alignItems: 'center', justifyContent: 'center' }}>
-            <MaterialCommunityIcons name="toilet" size={22} color={colors.purpleText} />
+          <View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center' }}>
+            <MaterialCommunityIcons name="toilet" size={22} color={colors.text1} />
           </View>
           <View style={{ flex: 1 }}>
             <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 14, color: colors.text1 }} numberOfLines={1}>
@@ -116,8 +125,8 @@ export function Home() {
         {/* Top scrim + logo */}
         <Fade color={colors.bg} from={0.9} style={{ position: 'absolute', top: 0, left: 0, right: 0, height: insets.top + 90 }} />
         <View style={{ position: 'absolute', top: insets.top + 14, left: 24, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-          <View style={[styles.logo, { backgroundColor: colors.purple, shadowColor: colors.purple }]}>
-            <MaterialCommunityIcons name="toilet" size={19} color="#fff" />
+          <View style={[styles.logo, { backgroundColor: colors.accent, shadowColor: colors.shadow }]}>
+            <MaterialCommunityIcons name="toilet" size={19} color={colors.onAccent} />
           </View>
           <Text style={{ fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 20, color: colors.text1, letterSpacing: -0.8 }}>
             toodaloo
@@ -132,7 +141,7 @@ export function Home() {
       <View style={{ paddingHorizontal: 24, paddingBottom: Math.max(insets.bottom, 16) + 4 }}>
         <Text style={styles.headline}>
           <Text style={{ color: colors.text1 }}>{'Find a clean bathroom, '}</Text>
-          <Text style={{ color: colors.purpleText }}>right now.</Text>
+          <Text style={{ color: colors.accentText }}>right now.</Text>
         </Text>
         <Text style={[styles.sub, { color: colors.text2 }]}>
           Crowd-sourced reviews and real-time locations. Never be caught out again.
@@ -151,7 +160,7 @@ export function Home() {
 
         <Text style={[styles.legal, { color: colors.text3 }]}>
           {'By continuing you agree to our '}
-          <Text style={{ color: colors.purpleText, fontFamily: 'PlusJakartaSans_600SemiBold' }} onPress={openLegal}>
+          <Text style={{ color: colors.accentText, fontFamily: 'PlusJakartaSans_600SemiBold' }} onPress={openLegal}>
             Terms & Privacy
           </Text>
         </Text>
@@ -175,7 +184,7 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 5,
   },
-  pinText: { color: '#fff', fontSize: 12, fontFamily: 'PlusJakartaSans_800ExtraBold' },
+  pinText: { fontSize: 12, fontFamily: 'PlusJakartaSans_800ExtraBold' },
   pinTail: {
     width: 0,
     height: 0,
@@ -205,10 +214,10 @@ const styles = StyleSheet.create({
     borderRadius: 11,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.45,
-    shadowRadius: 10,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 6,
   },
   headline: {
     fontSize: 34,

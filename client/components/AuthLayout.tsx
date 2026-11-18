@@ -39,13 +39,13 @@ export function AuthLayout({ icon, title, subtitle, children, footer }: Props) {
               width: 56,
               height: 56,
               borderRadius: 18,
-              backgroundColor: colors.purpleDim,
+              backgroundColor: colors.surface1,
               alignItems: 'center',
               justifyContent: 'center',
               marginBottom: 20,
             }}
           >
-            <MaterialCommunityIcons name={icon} size={28} color={colors.purpleText} />
+            <MaterialCommunityIcons name={icon} size={28} color={colors.text1} />
           </View>
           <Text
             accessibilityRole="header"
@@ -94,7 +94,7 @@ export function AuthSwitch({ prompt, action, onPress }: { prompt: string; action
   return (
     <Text style={{ textAlign: 'center', marginTop: 16, fontFamily: 'PlusJakartaSans_400Regular', fontSize: 14, color: colors.text2 }}>
       {prompt}{' '}
-      <Text accessibilityRole="link" onPress={onPress} style={{ color: colors.purpleText, fontFamily: 'PlusJakartaSans_700Bold' }}>
+      <Text accessibilityRole="link" onPress={onPress} style={{ color: colors.accentText, fontFamily: 'PlusJakartaSans_700Bold' }}>
         {action}
       </Text>
     </Text>
