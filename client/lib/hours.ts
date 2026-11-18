@@ -1,4 +1,4 @@
-// Opening hours: storage shape (matches bathrooms.hours jsonb, migration 0009)
+// Opening hours: storage shape (matches bathrooms.hours jsonb, migration 0010)
 // and the "Open now" logic shared by the map, cards, detail and filter.
 //
 // Times are interpreted in the device's local time. That's right for the

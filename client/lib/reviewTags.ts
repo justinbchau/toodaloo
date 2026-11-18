@@ -1,5 +1,5 @@
 // One-tap review tags. Slugs must match the CHECK constraint in
-// supabase/migrations/0009_review_tags_and_hours.sql.
+// supabase/migrations/0010_review_tags_and_hours.sql.
 import type { MaterialCommunityIcons } from '@expo/vector-icons';
 
 type Icon = keyof typeof MaterialCommunityIcons.glyphMap;

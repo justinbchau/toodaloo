@@ -485,7 +485,7 @@ describe('BathroomDetail — report a review', () => {
   });
 });
 
-describe('BathroomDetail — hours & review tags (0009)', () => {
+describe('BathroomDetail — hours & review tags (0010)', () => {
   it('shows the weekly hours table when the listing has hours', async () => {
     setupDefaultMocks({
       bathroom: { ...mockBathroomData, is_24_hours: false, hours: { mon: { open: '08:00', close: '20:00' }, sat: null } },

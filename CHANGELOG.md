@@ -61,7 +61,7 @@ _Nothing yet._
 **Review quick tags, opening hours & "Open now"**
 
 ### Added
-- **Migration `0009_review_tags_and_hours.sql`**:
+- **Migration `0010_review_tags_and_hours.sql`**:
   - `reviews.tags text[] not null default '{}'`, limited by a CHECK constraint to a fixed
     list of 12 tags, at most 6 per review, and a flat list only.
   - `bathrooms.hours jsonb` (nullable weekly schedule). A CHECK requires a JSON object
@@ -112,7 +112,7 @@ _Nothing yet._
   chosen).
 
 ### Notes
-- **Deploy order:** apply migration `0009` **before** shipping this app update. The new
+- **Deploy order:** apply migration `0010` **before** shipping this app update. The new
   client writes `reviews.tags` and reads `hours`; against an un-migrated database,
   review submission would fail.
 - **Time zones:** "Open now" uses the phone's local time. That's correct when you're

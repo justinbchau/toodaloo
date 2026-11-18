@@ -1,7 +1,7 @@
 import { sanitizeTags, tallyTags, REVIEW_TAGS } from '../../lib/reviewTags';
 
 describe('reviewTags', () => {
-  it('has 12 unique slugs (must match migration 0009)', () => {
+  it('has 12 unique slugs (must match migration 0010)', () => {
     expect(new Set(REVIEW_TAGS.map((t) => t.slug)).size).toBe(12);
   });
 
