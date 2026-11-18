@@ -1,5 +1,5 @@
 import React, { useContext, useCallback, useEffect, useRef, useState } from 'react';
-import { StyleSheet, View, Text, Pressable, Linking, ScrollView } from 'react-native';
+import { StyleSheet, View, Text, Pressable, Linking, ScrollView, AppState, Animated } from 'react-native';
 import MapView, { Marker, Region } from 'react-native-maps';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { ACCESS_ICON, DEFAULT_ACCESS_ICON } from '../lib/accessIcons';
@@ -13,6 +13,8 @@ import { BathroomSheet } from '../components/BathroomSheet';
 import { BathroomCardData } from '../components/BathroomCard';
 import { Chip } from '../components/ui/Chip';
 import { IconButton } from '../components/ui/IconButton';
+import { NearestCard } from '../components/NearestCard';
+import { openDirections } from '../lib/directions';
 import { PrimaryButton } from '../components/ui/PrimaryButton';
 import { Fade } from '../components/ui/Fade';
 import { shadows } from '../theme/shadows';
@@ -22,9 +24,17 @@ import { supabase } from '../lib/supabase';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { RootStackParamList, MainTabParamList } from '../RootStackParams';
 import { LocationCtx } from '../context/context';
-import { haversine } from '../utils/geo';
+import { haversine, formatWalkTime, KM_TO_MILES } from '../utils/geo';
 
-type LocationStatus = 'requesting' | 'denied' | 'granted';
+// checking — reading the current permission without prompting
+// prompt   — never asked: show our priming screen before the one-shot OS prompt
+// denied   — OS won't ask again: point to Settings (or search instead)
+// granted  — GPS fix acquired
+// manual   — no GPS (declined / unavailable): browse by searching an area
+type LocationStatus = 'checking' | 'prompt' | 'denied' | 'granted' | 'manual';
+
+// Wide view of the continental US for manual mode, until the user searches.
+const MANUAL_REGION = { latitude: 39.5, longitude: -98.35, latitudeDelta: 38, longitudeDelta: 38 };
 type MapNavProp = NativeStackNavigationProp<RootStackParamList>;
 type TabNavProp = BottomTabNavigationProp<MainTabParamList>;
 
@@ -44,12 +54,6 @@ const DEFAULT_RADIUS_KM = 5.0;
 const SEARCH_HERE_THRESHOLD_KM = 1.0;
 const MILES_TO_KM = 1.60934;
 
-const formatDistance = (km: number): string => {
-    const miles = km * 0.621371;
-    if (miles < 0.1) return `${Math.round(miles * 5280)} ft away`;
-    return `${miles.toFixed(1)} mi away`;
-};
-
 const transformBathroom = (b: any): MapBathroom => ({
     id: b.id,
     name: b.name,
@@ -64,7 +68,7 @@ const transformBathroom = (b: any): MapBathroom => ({
     rating: Math.round(Number(b.rating_avg) || 0),
     score: (Number(b.rating_avg) || 0).toFixed(1),
     reviewCount: `(${b.review_count ?? 0})`,
-    distance: b.distance_km != null ? formatDistance(b.distance_km) : 'Nearby',
+    distance: b.distance_km != null ? formatWalkTime(b.distance_km * KM_TO_MILES) : 'Nearby',
     lat: b.lat,
     lng: b.lng,
     accessType: b.access_type ?? null,
@@ -78,7 +82,9 @@ const radiusFromRegion = (region: Region): number => {
 };
 
 export function Map() {
-    const [locationStatus, setLocationStatus] = useState<LocationStatus>('requesting');
+    const [locationStatus, setLocationStatus] = useState<LocationStatus>('checking');
+    // The pin the user tapped; shows a floating preview instead of the sheet.
+    const [selectedId, setSelectedId] = useState<string | null>(null);
     const [location, setLocalLocation] = useState<LocationObject | null>(null);
     const [bathrooms, setBathrooms] = useState<MapBathroom[]>([]);
     const [isFetchingBathrooms, setIsFetchingBathrooms] = useState(false);
@@ -133,23 +139,59 @@ export function Map() {
         }
     }, []);
 
-    // Location permission + acquisition
-    useEffect(() => {
-        (async () => {
-            const { status } = await Location.requestForegroundPermissionsAsync();
-            if (status !== 'granted') {
-                setLocationStatus('denied');
-                return;
-            }
-            try {
-                const loc = await Location.getCurrentPositionAsync({});
-                setLocation(loc);
-                setLocationStatus('granted');
-            } catch {
-                setLocationStatus('denied');
-            }
-        })();
+    const acquirePosition = useCallback(async () => {
+        try {
+            const loc = await Location.getCurrentPositionAsync({});
+            setLocation(loc);
+            setLocationStatus('granted');
+        } catch {
+            // Permission is fine but no fix (e.g. Location Services off): browse manually.
+            setLocationStatus('manual');
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
+
+    // Read the permission WITHOUT prompting. iOS only shows its prompt once, so a
+    // first-run user sees our priming screen first and asks only on intent.
+    const checkPermission = useCallback(async () => {
+        try {
+            const { status, canAskAgain } = await Location.getForegroundPermissionsAsync();
+            if (status === 'granted') {
+                await acquirePosition();
+            } else if (canAskAgain) {
+                setLocationStatus('prompt');
+            } else {
+                setLocationStatus('denied');
+            }
+        } catch {
+            setLocationStatus('prompt');
+        }
+    }, [acquirePosition]);
+
+    const requestPermission = useCallback(async () => {
+        const { status, canAskAgain } = await Location.requestForegroundPermissionsAsync();
+        if (status === 'granted') {
+            setLocationStatus('checking');
+            await acquirePosition();
+        } else {
+            setLocationStatus(canAskAgain ? 'manual' : 'denied');
+        }
+    }, [acquirePosition]);
+
+    useEffect(() => {
+        checkPermission();
+    }, [checkPermission]);
+
+    const locationStatusRef = useRef(locationStatus);
+    locationStatusRef.current = locationStatus;
+
+    // Coming back from Settings: re-check so enabling location there just works.
+    useEffect(() => {
+        const sub = AppState.addEventListener('change', (state) => {
+            if (state === 'active' && locationStatusRef.current === 'denied') checkPermission();
+        });
+        return () => sub.remove();
+    }, [checkPermission]);
 
     // Initial fetch once location is acquired
     useEffect(() => {
@@ -224,10 +266,20 @@ export function Map() {
     // the original ◎ behavior) and clears any active search in the box, so pressing
     // it after a search can't leave the list/anchor/✕ pointed at the searched location.
     const recenterToGps = useCallback(() => {
+        if (!location) {
+            // No GPS yet (manual mode): this button is the way to turn it on.
+            Location.getForegroundPermissionsAsync()
+                .then(({ canAskAgain, status }) => {
+                    if (status !== 'granted' && !canAskAgain) Linking.openSettings();
+                    else requestPermission();
+                })
+                .catch(() => {});
+            return;
+        }
         const c = refetchAroundGps();
         if (c) animateTo(c.latitude, c.longitude, 0.01, 0.01);
         setSearchResetSignal((n) => n + 1);
-    }, [refetchAroundGps]);
+    }, [refetchAroundGps, location, requestPermission]);
 
     const activeFilterCount = (accessFilter ? 1 : 0) + (open24Filter ? 1 : 0);
 
@@ -237,8 +289,13 @@ export function Map() {
         return true;
     });
 
-    // --- Requesting state: branded loader ---
-    if (locationStatus === 'requesting') {
+    // The tapped pin, if it survived the current filters/fetch.
+    const selected = selectedId ? visibleBathrooms.find((b) => b.id === selectedId) ?? null : null;
+    const openDetail = (b: MapBathroom) =>
+        navigation.navigate('BathroomDetail', { id: b.id, name: b.name, lat: b.lat, lng: b.lng });
+
+    // --- Checking: brief branded loader ---
+    if (locationStatus === 'checking') {
         return (
             <View style={[styles.container, { backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' }]}>
                 <LottieView
@@ -254,8 +311,9 @@ export function Map() {
         );
     }
 
-    // --- Denied state: permission prompt ---
-    if (locationStatus === 'denied') {
+    // --- Prompt (priming) / Denied: explain before (or instead of) the OS prompt ---
+    if (locationStatus === 'prompt' || locationStatus === 'denied') {
+        const priming = locationStatus === 'prompt';
         return (
             <View style={{ flex: 1, backgroundColor: colors.bg, paddingHorizontal: 28, paddingTop: insets.top, paddingBottom: 24 }}>
                 <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
@@ -267,7 +325,7 @@ export function Map() {
                                 alignItems: 'center', justifyContent: 'center',
                                 ...shadows.md, shadowColor: colors.shadow,
                             }}>
-                                <MaterialCommunityIcons name="map-marker-radius" size={36} color={colors.onAccent} />
+                                <MaterialCommunityIcons name={priming ? 'map-marker-radius' : 'map-marker-off-outline'} size={36} color={colors.onAccent} />
                             </View>
                         </View>
                     </View>
@@ -276,34 +334,51 @@ export function Map() {
                         fontSize: 24, letterSpacing: -0.6, color: colors.text1,
                         marginTop: 28, textAlign: 'center',
                     }}>
-                        We need your location
+                        {priming ? 'Find the closest bathroom, fast' : 'Location is turned off'}
                     </Text>
                     <Text style={{
                         fontFamily: 'PlusJakartaSans_400Regular',
                         fontSize: 15, color: colors.text2,
-                        marginTop: 8, textAlign: 'center', lineHeight: 22, maxWidth: 300,
+                        marginTop: 8, textAlign: 'center', lineHeight: 22, maxWidth: 310,
                     }}>
-                        TooDaLoo uses your location to find bathrooms nearby. It's only used while the app is open.
+                        {priming
+                            ? 'Allow location to see what’s nearby and how long the walk is. It’s only used while the app is open.'
+                            : 'Turn it on in Settings to see bathrooms around you — or search any area instead.'}
                     </Text>
                 </View>
-                <PrimaryButton title="Open Settings" icon="cog-outline" onPress={() => Linking.openSettings()} />
+                {priming ? (
+                    <PrimaryButton title="Allow location" icon="crosshairs-gps" onPress={requestPermission} />
+                ) : (
+                    <PrimaryButton title="Open Settings" icon="cog-outline" onPress={() => Linking.openSettings()} />
+                )}
                 <Pressable
-                    onPress={() => {
-                        // Fallback: show NYC as default region, let user browse
-                        const fallback = { coords: { latitude: 40.7128, longitude: -74.0060, altitude: 0, accuracy: 0, altitudeAccuracy: 0, heading: 0, speed: 0 }, timestamp: Date.now() } as LocationObject;
-                        setLocation(fallback);
-                        setLocationStatus('granted');
-                    }}
+                    onPress={() => setLocationStatus('manual')}
                     accessibilityRole="button"
                     style={({ pressed }: { pressed: boolean }) => ({ marginTop: 6, paddingVertical: 14, alignItems: 'center', opacity: pressed ? 0.7 : 1 })}
                 >
                     <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 15, color: colors.text2 }}>
-                        Maybe later
+                        Search a location instead
                     </Text>
                 </Pressable>
             </View>
         );
     }
+
+    const manual = locationStatus === 'manual';
+    const initialRegion = location
+        ? { latitude: location.coords.latitude, longitude: location.coords.longitude, latitudeDelta: 0.0922, longitudeDelta: 0.0421 }
+        : MANUAL_REGION;
+
+    const recenterButton = (
+        <IconButton
+            variant="glass"
+            size={46}
+            icon={location ? 'crosshairs-gps' : 'crosshairs'}
+            iconColor={colors.accentText}
+            accessibilityLabel={location ? 'Recenter on my location' : 'Use my location'}
+            onPress={recenterToGps}
+        />
+    );
 
     // Floating chrome stacks below the search pill + chip row.
     const overlayTop = insets.top + 8 + 50 + 10 + 36 + 12;
@@ -314,23 +389,23 @@ export function Map() {
             {/* MAP — fills entire screen */}
             <MapView
                 ref={mapRef}
-                initialRegion={{
-                    latitude: location!.coords.latitude,
-                    longitude: location!.coords.longitude,
-                    latitudeDelta: 0.0922,
-                    longitudeDelta: 0.0421,
-                }}
+                initialRegion={initialRegion}
                 onRegionChangeComplete={onRegionChangeComplete}
-                showsUserLocation
+                onPress={(e: any) => {
+                    // iOS also reports marker taps here; only a tap on empty map dismisses.
+                    if (e?.nativeEvent?.action === 'marker-press') return;
+                    setSelectedId(null);
+                }}
+                showsUserLocation={!!location}
                 showsMyLocationButton={false}
                 userInterfaceStyle={isDark ? 'dark' : 'light'}
                 style={StyleSheet.absoluteFill}
             >
                 {visibleBathrooms.map((b, i) => {
                     const rated = Number(b.score) > 0;
-                    // Pins are neutral; only the nearest result (also highlighted
-                    // first in the sheet) gets the accent, so the eye lands there.
-                    const featured = i === 0;
+                    // Pins are neutral; the accent marks the tapped pin, or — when
+                    // nothing is selected — the nearest result (the sheet's hero).
+                    const featured = selected ? b.id === selected.id : i === 0;
                     const pinBg = featured ? colors.accent : colors.surface1;
                     const pinFg = featured ? colors.onAccent : colors.text1;
                     return (
@@ -339,9 +414,10 @@ export function Map() {
                             coordinate={{ latitude: b.lat, longitude: b.lng }}
                             anchor={{ x: 0.5, y: 1 }}
                             zIndex={featured ? 2 : 1}
-                            onPress={() => navigation.navigate('BathroomDetail', {
-                                id: b.id, name: b.name, lat: b.lat, lng: b.lng,
-                            })}
+                            onPress={(e: any) => {
+                                e?.stopPropagation?.();
+                                setSelectedId(b.id);
+                            }}
                         >
                             <View style={{ alignItems: 'center' }}>
                                 <View style={[styles.pin, {
@@ -375,8 +451,14 @@ export function Map() {
 
             {/* TOP CHROME — floating search pill + filter chips */}
             <View style={[styles.topBar, { paddingTop: insets.top + 8 }]} pointerEvents="box-none">
-                <View style={{ paddingHorizontal: 16 }}>
-                    <LocationSearch onLocationSelected={onSearchLocation} onReset={onResetLocation} resetSignal={searchResetSignal} />
+                {/* zIndex keeps the recents dropdown above the chip row */}
+                <View style={{ paddingHorizontal: 16, zIndex: 10 }}>
+                    <LocationSearch
+                        onLocationSelected={onSearchLocation}
+                        onReset={onResetLocation}
+                        resetSignal={searchResetSignal}
+                        autoFocus={manual}
+                    />
                 </View>
                 <ScrollView
                     horizontal
@@ -473,31 +555,71 @@ export function Map() {
                 </View>
             )}
 
-            {/* BATHROOM SHEET — recenter FAB rides on its top edge */}
-            <BathroomSheet
-                bathrooms={visibleBathrooms}
-                isLoading={isFetchingBathrooms}
-                onAddPress={() => tabNavigation.navigate('Add')}
-                onCardPress={(id) => {
-                    const b = visibleBathrooms.find(x => x.id === id);
-                    if (b) navigation.navigate('BathroomDetail', { id: b.id, name: b.name, lat: b.lat, lng: b.lng });
-                }}
-                accessory={
-                    <IconButton
-                        variant="glass"
-                        size={46}
-                        icon="crosshairs-gps"
-                        iconColor={colors.accentText}
-                        accessibilityLabel="Recenter on my location"
-                        onPress={recenterToGps}
+            {selected ? (
+                // Tapped pin: a floating preview (Airbnb/komoot) instead of leaving the map.
+                <PinPreview key={selected.id} accessory={recenterButton}>
+                    <NearestCard
+                        data={selected}
+                        eyebrow=""
+                        onClose={() => setSelectedId(null)}
+                        onDirections={() => openDirections(selected.lat, selected.lng, selected.name)}
+                        onPress={() => openDetail(selected)}
                     />
-                }
-            />
+                </PinPreview>
+            ) : (
+                /* BATHROOM SHEET — recenter FAB rides on its top edge */
+                <BathroomSheet
+                    bathrooms={visibleBathrooms}
+                    isLoading={isFetchingBathrooms}
+                    onAddPress={manual && !lastFetchedCenter.current ? undefined : () => tabNavigation.navigate('Add')}
+                    emptyTitle={manual && !lastFetchedCenter.current ? 'Search an area' : undefined}
+                    emptyMessage={manual && !lastFetchedCenter.current ? 'Type a city or address above to see bathrooms there.' : undefined}
+                    onDirections={(b) => openDirections(b.lat, b.lng, b.name)}
+                    onCardPress={(id) => {
+                        const b = visibleBathrooms.find(x => x.id === id);
+                        if (b) openDetail(b);
+                    }}
+                    accessory={recenterButton}
+                />
+            )}
         </View>
     );
 }
 
+/** Slides the selected-pin card up from the bottom, with floating controls above it. */
+function PinPreview({ children, accessory }: { children: React.ReactNode; accessory?: React.ReactNode }) {
+    const anim = useRef(new Animated.Value(0)).current;
+    useEffect(() => {
+        Animated.spring(anim, { toValue: 1, useNativeDriver: true, speed: 16, bounciness: 5 }).start();
+    }, [anim]);
+    return (
+        <Animated.View
+            style={[styles.preview, {
+                opacity: anim,
+                transform: [{ translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [40, 0] }) }],
+            }]}
+        >
+            {accessory ? <View style={styles.previewAccessory}>{accessory}</View> : null}
+            {children}
+        </Animated.View>
+    );
+}
+
 const styles = StyleSheet.create({
+    preview: {
+        position: 'absolute',
+        left: 12,
+        right: 12,
+        bottom: 12,
+        ...shadows.lg,
+        shadowOffset: { width: 0, height: 6 },
+        shadowColor: '#000',
+    },
+    previewAccessory: {
+        alignItems: 'flex-end',
+        marginBottom: 12,
+        marginRight: 4,
+    },
     container: {
         flex: 1,
     },

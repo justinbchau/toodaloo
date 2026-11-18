@@ -44,8 +44,10 @@ jest.mock('../../context/context', () => {
 });
 
 const mockRequestPerms = jest.fn();
+const mockGetPerms = jest.fn();
 const mockGetPosition = jest.fn();
 jest.mock('expo-location', () => ({
+  getForegroundPermissionsAsync: () => mockGetPerms(),
   requestForegroundPermissionsAsync: () => mockRequestPerms(),
   getCurrentPositionAsync: () => mockGetPosition(),
 }));
@@ -104,7 +106,8 @@ jest.mock('../../lib/supabase', () => ({
 
 beforeEach(() => {
   jest.clearAllMocks();
-  mockRequestPerms.mockResolvedValue({ status: 'granted' });
+  mockGetPerms.mockResolvedValue({ status: 'granted', canAskAgain: true });
+  mockRequestPerms.mockResolvedValue({ status: 'granted', canAskAgain: true });
   mockGetPosition.mockResolvedValue({
     coords: { latitude: GPS.lat, longitude: GPS.lng },
     timestamp: 0,
@@ -195,5 +198,67 @@ describe('Map — recenter (◎) FAB', () => {
     expect(mockRpc).toHaveBeenCalledWith('bathrooms_nearby', nearbyArgs(GPS.lat, GPS.lng));
     expect(mockSetCenter).toHaveBeenLastCalledWith({ lat: GPS.lat, lng: GPS.lng });
     expect(Number(screen.getByTestId('ls-reset-signal').props.children)).toBe(signalBefore + 1);
+  });
+});
+
+describe('Map — location permission priming', () => {
+  it('explains before prompting, and only asks the OS when the user opts in', async () => {
+    mockGetPerms.mockResolvedValue({ status: 'undetermined', canAskAgain: true });
+    render(<Map />);
+    await flush();
+
+    expect(screen.getByText('Find the closest bathroom, fast')).toBeTruthy();
+    expect(mockRequestPerms).not.toHaveBeenCalled();
+    expect(mockRpc).not.toHaveBeenCalled();
+
+    fireEvent.press(screen.getByText('Allow location'));
+    await flush();
+
+    expect(mockRequestPerms).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId('ls-search')).toBeTruthy();
+    expect(mockRpc).toHaveBeenCalledWith('bathrooms_nearby', nearbyArgs(GPS.lat, GPS.lng));
+  });
+
+  it('when permanently denied, offers Settings or a manual search — without fetching a fake location', async () => {
+    mockGetPerms.mockResolvedValue({ status: 'denied', canAskAgain: false });
+    render(<Map />);
+    await flush();
+
+    expect(screen.getByText('Location is turned off')).toBeTruthy();
+    fireEvent.press(screen.getByText('Search a location instead'));
+    await flush();
+
+    expect(screen.getByTestId('ls-search')).toBeTruthy();
+    expect(mockRpc).not.toHaveBeenCalled();
+    expect(screen.getByLabelText('Use my location')).toBeTruthy();
+
+    // Searching an area works without GPS.
+    fireEvent.press(screen.getByTestId('ls-search'));
+    await flush();
+    expect(mockRpc).toHaveBeenCalledWith('bathrooms_nearby', nearbyArgs(SEARCH.lat, SEARCH.lng));
+  });
+});
+
+describe('Map — tapping a pin', () => {
+  const ROW = {
+    id: 'b1', name: 'Pin Bathroom', address: '1 Main St', access_type: 'public', is_24_hours: false,
+    rating_avg: 4.6, review_count: 3, lat: 40.751, lng: -73.981, distance_km: 0.3,
+  };
+
+  it('shows a floating preview in place of the sheet, and closing it brings the sheet back', async () => {
+    mockRpc.mockResolvedValue({ data: [ROW], error: null });
+    await renderMap();
+    expect(screen.getByTestId('bathroom-sheet')).toBeTruthy();
+
+    fireEvent.press(screen.getByText('4.6'));
+    await flush();
+
+    expect(screen.queryByTestId('bathroom-sheet')).toBeNull();
+    expect(screen.getByText('Pin Bathroom')).toBeTruthy();
+    expect(screen.getByLabelText('Walking directions to Pin Bathroom')).toBeTruthy();
+
+    fireEvent.press(screen.getByLabelText('Close preview'));
+    await flush();
+    expect(screen.getByTestId('bathroom-sheet')).toBeTruthy();
   });
 });

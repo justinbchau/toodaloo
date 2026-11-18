@@ -1,8 +1,8 @@
-import React, { useState, useCallback, useContext } from 'react';
+import React, { useState, useCallback, useContext, useRef } from 'react';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import {
   View, Text, ScrollView, Pressable, StyleSheet,
-  Share, Linking, Alert, ActivityIndicator, Platform,
+  Share, Alert, ActivityIndicator, Animated,
 } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
 import { useRoute, RouteProp, useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -21,10 +21,13 @@ import { accessLabel, AMENITY_ICON, DEFAULT_AMENITY_ICON, initial, relativeDate 
 import { SectionLabel } from '../components/ui/SectionLabel';
 import { supabase } from '../lib/supabase';
 import { useUser } from '../context/UserContext';
+import { useToast } from '../context/ToastContext';
 import { LocationCtx } from '../context/context';
-import { haversine, formatDistance } from '../utils/geo';
+import { haversine, formatWalkTime } from '../utils/geo';
 import { SkeletonReviewCard } from '../components/SkeletonReviewCard';
+import { SkeletonDetail } from '../components/SkeletonDetail';
 import ReportSheet, { ReportTarget } from '../components/ReportSheet';
+import { openDirections } from '../lib/directions';
 
 type DetailRoute = RouteProp<RootStackParamList, 'BathroomDetail'>;
 
@@ -35,6 +38,13 @@ export function BathroomDetail() {
   const route = useRoute<DetailRoute>();
   const { id, name, lat, lng } = route.params;
   const { user } = useUser();
+  const { showToast } = useToast();
+  // Little "pop" on the bookmark when the saved state flips.
+  const bookmarkScale = useRef(new Animated.Value(1)).current;
+  const popBookmark = () => {
+    bookmarkScale.setValue(0.6);
+    Animated.spring(bookmarkScale, { toValue: 1, useNativeDriver: true, speed: 20, bounciness: 14 }).start();
+  };
   const { center } = useContext(LocationCtx);
 
   const [bathroomData, setBathroomData] = useState<any>(null);
@@ -51,7 +61,7 @@ export function BathroomDetail() {
 
   // Compute distance
   const distance = center
-    ? formatDistance(haversine(center.lat, center.lng, lat, lng))
+    ? formatWalkTime(haversine(center.lat, center.lng, lat, lng))
     : null;
 
   // Refetch on focus so a newly written review (and its effect on the rating)
@@ -117,11 +127,13 @@ export function BathroomDetail() {
     }, [id, user?.id, retryKey])
   );
 
-  const handleSave = async () => {
-    if (!user || isSaving) return;
+  // Writes the saved state; returns true on success. Shared by the Save
+  // button and the toast's Undo so both go through the same error handling.
+  const writeSaved = async (next: boolean): Promise<boolean> => {
+    if (!user || isSaving) return false;
     setIsSaving(true);
     try {
-      if (isSaved) {
+      if (!next) {
         const { error } = await supabase
           .from('saved_bathrooms')
           .delete()
@@ -129,7 +141,7 @@ export function BathroomDetail() {
           .eq('bathroom_id', id);
         if (error) {
           Alert.alert('Error', 'Could not update saved status.');
-          return;
+          return false;
         }
         setIsSaved(false);
       } else {
@@ -138,15 +150,39 @@ export function BathroomDetail() {
           .insert({ user_id: user.id, bathroom_id: id });
         if (error) {
           Alert.alert('Error', 'Could not update saved status.');
-          return;
+          return false;
         }
         setIsSaved(true);
       }
+      return true;
     } catch {
       Alert.alert('Error', 'Could not update saved status.');
+      return false;
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const handleSave = async () => {
+    const next = !isSaved;
+    const ok = await writeSaved(next);
+    if (!ok) return;
+    popBookmark();
+    showToast(
+      next
+        ? {
+            message: 'Saved to your places',
+            icon: 'bookmark',
+            actionLabel: 'View',
+            onAction: () => navigation.navigate('MainTabs', { screen: 'Saved' }),
+          }
+        : {
+            message: 'Removed from Saved',
+            icon: 'bookmark-remove-outline',
+            actionLabel: 'Undo',
+            onAction: () => { writeSaved(true); },
+          },
+    );
   };
 
   const handleReview = () => {
@@ -157,26 +193,7 @@ export function BathroomDetail() {
     await Share.share({ message: `Check out ${name} on TooDaLoo!` });
   };
 
-  const handleNavigate = async () => {
-    const label = encodeURIComponent(name);
-    // Apple Maps on iOS, Google Maps elsewhere; fall back to a universal URL.
-    const primary = Platform.select({
-      ios: `maps://?daddr=${lat},${lng}&q=${label}`,
-      android: `geo:${lat},${lng}?q=${lat},${lng}(${label})`,
-      default: `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`,
-    })!;
-    const webFallback = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
-    try {
-      const canOpen = await Linking.canOpenURL(primary);
-      await Linking.openURL(canOpen ? primary : webFallback);
-    } catch {
-      try {
-        await Linking.openURL(webFallback);
-      } catch {
-        Alert.alert('Error', 'Could not open maps.');
-      }
-    }
-  };
+  const handleNavigate = () => openDirections(lat, lng, name);
 
   const handleReport = () => {
     setReportTarget({ type: 'bathroom', id });
@@ -189,9 +206,7 @@ export function BathroomDetail() {
         <View style={{ position: 'absolute', top: insets.top + 8, left: 16, zIndex: 2 }}>
           <IconButton icon="chevron-left" accessibilityLabel="Go back" onPress={() => navigation.goBack()} />
         </View>
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-          <ActivityIndicator color={colors.accent} size="large" />
-        </View>
+        <SkeletonDetail heroHeight={HERO_HEIGHT + insets.top} />
       </View>
     );
   }
@@ -347,7 +362,9 @@ export function BathroomDetail() {
                   },
                 ]}
               >
-                <MaterialCommunityIcons name={a.icon} size={21} color={a.active ? colors.accentText : colors.text1} />
+                <Animated.View style={a.key === 'save' ? { transform: [{ scale: bookmarkScale }] } : undefined}>
+                  <MaterialCommunityIcons name={a.icon} size={21} color={a.active ? colors.accentText : colors.text1} />
+                </Animated.View>
                 <Text style={{ color: a.active ? colors.accentText : colors.text2, fontSize: 12, fontFamily: 'PlusJakartaSans_600SemiBold' }}>
                   {a.label}
                 </Text>

@@ -1,4 +1,4 @@
-import { haversine, formatDistance } from '../../utils/geo';
+import { haversine, formatDistance, formatWalkTime } from '../../utils/geo';
 
 describe('haversine()', () => {
   it('returns 0 for identical coordinates', () => {
@@ -93,5 +93,26 @@ describe('haversine + formatDistance integration', () => {
     const milesApart = haversine(40.7128, -74.006, 40.7200, -74.006);
     const formatted = formatDistance(milesApart);
     expect(formatted).toMatch(/mi away$/);
+  });
+});
+
+describe('formatWalkTime()', () => {
+  it('never shows less than 1 minute', () => {
+    expect(formatWalkTime(0)).toBe('1 min walk');
+    expect(formatWalkTime(0.01)).toBe('1 min walk');
+  });
+
+  it('converts miles at ~3 mph', () => {
+    expect(formatWalkTime(0.2)).toBe('4 min walk');
+    expect(formatWalkTime(1)).toBe('20 min walk');
+  });
+
+  it('switches to plain miles beyond a reasonable walk', () => {
+    expect(formatWalkTime(2.64)).toBe('2.6 mi');
+  });
+
+  it('returns empty for invalid input', () => {
+    expect(formatWalkTime(NaN)).toBe('');
+    expect(formatWalkTime(-1)).toBe('');
   });
 });

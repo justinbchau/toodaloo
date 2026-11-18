@@ -69,6 +69,13 @@ jest.mock('react-native-maps', () => {
   return { __esModule: true, default: MockMapView, Marker: View };
 });
 
+jest.mock('../../components/SkeletonDetail', () => ({
+  SkeletonDetail: () => {
+    const { View } = require('react-native');
+    return <View testID="skeleton-detail" />;
+  },
+}));
+
 jest.mock('../../components/SkeletonReviewCard', () => ({
   SkeletonReviewCard: () => {
     const { View } = require('react-native');
@@ -158,10 +165,10 @@ describe('BathroomDetail — populated state', () => {
   });
 
   it('shows distance computed from haversine when location matches route coords', async () => {
-    // Same coords as route params (40.7128, -74.006) → 0 ft
+    // Same coords as route params (40.7128, -74.006) → shortest walk
     render(<BathroomDetail />);
     await waitFor(() => expect(screen.getByText('Test Bathroom')).toBeTruthy());
-    expect(screen.getByText('0 ft away')).toBeTruthy();
+    expect(screen.getByText('1 min walk')).toBeTruthy();
   });
 
   it('shows star rating from bathroom data', async () => {

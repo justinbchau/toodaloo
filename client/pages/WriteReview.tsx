@@ -1,8 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View, Text, TextInput, Pressable, StyleSheet,
   ScrollView, Alert, KeyboardAvoidingView, Platform,
-  ActivityIndicator,
+  ActivityIndicator, Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
@@ -153,22 +153,14 @@ export function WriteReview() {
               <Text style={[styles.question, { color: colors.text1 }]}>How was it?</Text>
               <View style={styles.starsRow}>
                 {[1, 2, 3, 4, 5].map((star) => (
-                  <Pressable
+                  <StarButton
                     key={star}
+                    star={star}
+                    filled={star <= rating}
                     onPress={() => setRating(star)}
-                    hitSlop={4}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Rate ${star} ${star === 1 ? 'star' : 'stars'}`}
-                    accessibilityState={{ selected: star <= rating }}
-                    style={({ pressed }: { pressed: boolean }) => ({ transform: [{ scale: pressed ? 0.9 : 1 }] })}
-                  >
-                    <Text style={[
-                      styles.star,
-                      { color: star <= rating ? colors.yellow : colors.text3 },
-                    ]}>
-                      {star <= rating ? '★' : '☆'}
-                    </Text>
-                  </Pressable>
+                    filledColor={colors.yellow}
+                    emptyColor={colors.text3}
+                  />
                 ))}
               </View>
               <Text style={[styles.caption, { color: rating === 0 ? colors.text3 : colors.text1 }]}>{caption}</Text>
@@ -213,6 +205,36 @@ export function WriteReview() {
 
       </KeyboardAvoidingView>
     </SafeAreaView>
+  );
+}
+
+/** One tappable star; pops with a spring when it becomes filled. */
+function StarButton({ star, filled, onPress, filledColor, emptyColor }: {
+  star: number; filled: boolean; onPress: () => void; filledColor: string; emptyColor: string;
+}) {
+  const scale = useRef(new Animated.Value(1)).current;
+  const wasFilled = useRef(filled);
+  useEffect(() => {
+    if (filled && !wasFilled.current) {
+      // Stagger by position so a 5-star tap ripples left → right.
+      scale.setValue(0.6);
+      Animated.spring(scale, { toValue: 1, useNativeDriver: true, speed: 18, bounciness: 16, delay: (star - 1) * 35 } as any).start();
+    }
+    wasFilled.current = filled;
+  }, [filled, scale, star]);
+
+  return (
+    <Pressable
+      onPress={onPress}
+      hitSlop={4}
+      accessibilityRole="button"
+      accessibilityLabel={`Rate ${star} ${star === 1 ? 'star' : 'stars'}`}
+      accessibilityState={{ selected: filled }}
+    >
+      <Animated.Text style={[styles.star, { color: filled ? filledColor : emptyColor, transform: [{ scale }] }]}>
+        {filled ? '★' : '☆'}
+      </Animated.Text>
+    </Pressable>
   );
 }
 

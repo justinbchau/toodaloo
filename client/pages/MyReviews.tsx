@@ -7,6 +7,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { FlashList } from '@shopify/flash-list';
 import { useThemeContext } from '../context/ThemeContext';
 import { useUser } from '../context/UserContext';
+import { useToast } from '../context/ToastContext';
 import { supabase } from '../lib/supabase';
 import { RootStackParamList } from '../RootStackParams';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
@@ -30,6 +31,7 @@ export function MyReviews() {
   const { colors } = useThemeContext();
   const { user } = useUser();
   const navigation = useNavigation<Nav>();
+  const { showToast } = useToast();
 
   const load = useCallback(async (): Promise<MyReview[]> => {
     if (!user) return [];
@@ -67,29 +69,31 @@ export function MyReviews() {
     [navigation]
   );
 
+  // Optimistic delete with an undo window: the row disappears now, and the
+  // DELETE only runs once the toast times out without "Undo" being tapped.
   const handleDelete = useCallback(
     (item: MyReview) => {
-      Alert.alert(
-        'Delete review?',
-        `Your review of ${item.bathroom?.name ?? 'this bathroom'} will be removed permanently.`,
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Delete',
-            style: 'destructive',
-            onPress: async () => {
-              const { error } = await supabase.from('reviews').delete().eq('id', item.id);
-              if (error) {
-                Alert.alert('Error', 'Could not delete your review. Please try again.');
-                return;
-              }
-              setData((prev) => (prev ?? []).filter((r) => r.id !== item.id));
-            },
-          },
-        ]
-      );
+      setData((prev) => (prev ?? []).filter((r) => r.id !== item.id));
+      showToast({
+        message: 'Review deleted',
+        icon: 'trash-can-outline',
+        actionLabel: 'Undo',
+        onAction: () =>
+          setData((prev) =>
+            [...(prev ?? []).filter((r) => r.id !== item.id), item].sort((x, y) =>
+              y.created_at.localeCompare(x.created_at),
+            ),
+          ),
+        onCommit: async () => {
+          const { error } = await supabase.from('reviews').delete().eq('id', item.id);
+          if (error) {
+            Alert.alert('Error', 'Could not delete your review. Please try again.');
+            refetch();
+          }
+        },
+      });
     },
-    [setData]
+    [setData, showToast, refetch]
   );
 
   const renderItem = useCallback(

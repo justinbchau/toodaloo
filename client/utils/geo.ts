@@ -30,3 +30,21 @@ export function formatDistance(miles: number): string {
   }
   return `${miles.toFixed(1)} mi away`;
 }
+
+// Average walking pace used for ETA copy (~3 mph, the usual maps-app default).
+const WALK_MPH = 3;
+// Past this, "walk" stops being a useful framing — show plain distance instead.
+const MAX_WALK_MILES = 2;
+
+/**
+ * Human walking ETA for a distance in miles, e.g. "4 min walk".
+ * Falls back to "2.6 mi" once a walk would take longer than ~40 minutes.
+ */
+export function formatWalkTime(miles: number): string {
+  if (!Number.isFinite(miles) || miles < 0) return '';
+  if (miles > MAX_WALK_MILES) return `${miles.toFixed(1)} mi`;
+  const minutes = Math.max(1, Math.round((miles / WALK_MPH) * 60));
+  return `${minutes} min walk`;
+}
+
+export const KM_TO_MILES = 0.621371;

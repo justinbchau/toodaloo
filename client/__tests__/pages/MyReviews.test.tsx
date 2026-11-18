@@ -14,6 +14,11 @@ import { mockColors, mockUser } from '../helpers/mocks';
 const mockGoBack = jest.fn();
 const mockNavigate = jest.fn();
 
+const mockShowToast = jest.fn();
+jest.mock('../../context/ToastContext', () => ({
+  useToast: () => ({ showToast: (...args: any[]) => mockShowToast(...args) }),
+}));
+
 jest.mock('@react-navigation/native', () => {
   const ReactActual = require('react');
   return {
@@ -166,58 +171,51 @@ describe('MyReviews — edit action', () => {
   });
 });
 
-describe('MyReviews — delete action', () => {
-  it('asks for confirmation before deleting', async () => {
-    const alertSpy = jest.spyOn(Alert, 'alert');
+describe('MyReviews — delete action (undo window)', () => {
+  const lastToast = () => mockShowToast.mock.calls[mockShowToast.mock.calls.length - 1][0];
+
+  it('removes the review immediately and offers Undo, without deleting yet', async () => {
     await renderMyReviews();
 
     fireEvent.press(screen.getAllByText('Delete')[0]);
 
-    expect(alertSpy).toHaveBeenCalledWith(
-      'Delete review?',
-      expect.stringContaining('Test Bathroom'),
-      expect.any(Array),
-    );
-    expect(mockDeleteEq).not.toHaveBeenCalled();
-    alertSpy.mockRestore();
-  });
-
-  it('deletes the review and removes it from the list on confirm', async () => {
-    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation((_t, _m, buttons) => {
-      const confirm = buttons?.find((b) => b.style === 'destructive');
-      confirm?.onPress?.();
-    });
-
-    await renderMyReviews();
-
-    await act(async () => {
-      fireEvent.press(screen.getAllByText('Delete')[0]);
-    });
-
-    expect(mockDeleteEq).toHaveBeenCalledWith('id', 'review-1');
     await waitFor(() => expect(screen.queryByText('Test Bathroom')).toBeNull());
     expect(screen.getByText('Other Bathroom')).toBeTruthy();
-    alertSpy.mockRestore();
+    expect(lastToast()).toEqual(expect.objectContaining({ message: 'Review deleted', actionLabel: 'Undo' }));
+    expect(mockDeleteEq).not.toHaveBeenCalled();
   });
 
-  it('keeps the review and shows an error alert when the delete fails', async () => {
-    mockDeleteEq.mockResolvedValue({ error: { message: 'DB error' } });
-    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation((title, _m, buttons) => {
-      // Auto-confirm only the initial confirmation dialog.
-      if (title === 'Delete review?') {
-        buttons?.find((b) => b.style === 'destructive')?.onPress?.();
-      }
-    });
-
+  it('restores the review when Undo is tapped and never deletes it', async () => {
     await renderMyReviews();
+    fireEvent.press(screen.getAllByText('Delete')[0]);
+    await waitFor(() => expect(screen.queryByText('Test Bathroom')).toBeNull());
 
-    await act(async () => {
-      fireEvent.press(screen.getAllByText('Delete')[0]);
-    });
+    act(() => lastToast().onAction());
 
-    expect(mockDeleteEq).toHaveBeenCalled();
     expect(screen.getByText('Test Bathroom')).toBeTruthy();
+    expect(mockDeleteEq).not.toHaveBeenCalled();
+  });
+
+  it('commits the delete when the toast expires', async () => {
+    await renderMyReviews();
+    fireEvent.press(screen.getAllByText('Delete')[0]);
+
+    await act(async () => { await lastToast().onCommit(); });
+
+    expect(mockDeleteEq).toHaveBeenCalledWith('id', 'review-1');
+    expect(screen.queryByText('Test Bathroom')).toBeNull();
+  });
+
+  it('alerts and reloads the list when the committed delete fails', async () => {
+    mockDeleteEq.mockResolvedValue({ error: { message: 'DB error' } });
+    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+    await renderMyReviews();
+    fireEvent.press(screen.getAllByText('Delete')[0]);
+
+    await act(async () => { await lastToast().onCommit(); });
+
     expect(alertSpy).toHaveBeenCalledWith('Error', expect.any(String));
+    await waitFor(() => expect(screen.getByText('Test Bathroom')).toBeTruthy());
     alertSpy.mockRestore();
   });
 });
