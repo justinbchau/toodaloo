@@ -1,0 +1,114 @@
+# client/docs/TESTFLIGHT.md: submit an inspected EAS build to TestFlight by ID.
+# This is manual and separate from the build workflow. Submission requires
+# an App Store Connect API key stored on EAS for non-interactive use.
+#
+# Starting this workflow IS a release action — only run it with Justin's
+# explicit go-ahead for that build.
+name: TestFlight submit
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_id:
+        description: EAS build ID from the completed TestFlight build run
+        required: true
+        type: string
+
+concurrency:
+  group: testflight
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  submit:
+    name: Inspect build · EAS submit
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    defaults:
+      run:
+        working-directory: client
+    steps:
+      - name: Verify dispatch branch
+        working-directory: .
+        env:
+          DISPATCH_REF: ${{ github.ref }}
+        run: |
+          if [ "$DISPATCH_REF" != 'refs/heads/main' ]; then
+            echo "::error::Dispatch the TestFlight submit workflow from main."
+            exit 1
+          fi
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Check EXPO_TOKEN is set
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          if [ -z "$EXPO_TOKEN" ]; then
+            echo "::error::Add an Expo access token as the EXPO_TOKEN repository secret."
+            exit 1
+          fi
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+      - run: npm ci
+
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: 24.7.0
+          packager: npm
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Inspect selected build
+        env:
+          BUILD_ID: ${{ inputs.build_id }}
+        run: |
+          eas build:view "$BUILD_ID" --json > build.json
+          jq -e --arg id "$BUILD_ID" '
+            (.id == $id) and
+            ((.status | ascii_downcase) == "finished") and
+            ((.platform | ascii_downcase) == "ios") and
+            (.buildProfile == "testflight") and
+            (.appIdentifier == "com.jchau.toodaloo") and
+            (.gitCommitHash | test("^[0-9a-f]{40}$"))
+          ' build.json > /dev/null
+          source_commit=$(jq -r '.gitCommitHash' build.json)
+          if ! git merge-base --is-ancestor "$source_commit" HEAD; then
+            echo "::error::The selected build's source commit is not merged into main."
+            exit 1
+          fi
+
+      - name: Submit exact build to TestFlight
+        id: submit
+        env:
+          BUILD_ID: ${{ inputs.build_id }}
+        run: |
+          eas submit --platform ios --profile testflight \
+            --id "$BUILD_ID" --non-interactive --wait
+
+      - name: Release record
+        if: always()
+        env:
+          BUILD_ID: ${{ inputs.build_id }}
+          SUBMIT_OUTCOME: ${{ steps.submit.outcome }}
+        run: |
+          {
+            echo "### TestFlight submission"
+            echo ""
+            echo "- EAS build ID: \`$BUILD_ID\`"
+            if [ -s build.json ]; then
+              jq -r '"- Build: \(.status) · \(.appVersion) (\(.appBuildVersion)) · commit `\(.gitCommitHash // .metadata.gitCommitHash)`"' build.json || true
+            fi
+            echo "- EAS submission: $SUBMIT_OUTCOME (see the submit step for its EAS record)"
+            echo ""
+            echo "Next (client/docs/TESTFLIGHT.md): confirm Apple processing, export compliance and"
+            echo "internal tester access, device smoke test, then tag \`testflight/<version>-<build>\` only once verified."
+          } >> "$GITHUB_STEP_SUMMARY"

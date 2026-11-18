@@ -1,6 +1,6 @@
 {
   "cli": {
-    "version": ">= 5.9.0",
+    "version": ">= 16.0.0",
     "appVersionSource": "remote"
   },
   "build": {
@@ -18,10 +18,22 @@
     "production": {
       "autoIncrement": true,
       "channel": "production"
+    },
+    "testflight": {
+      "developmentClient": false,
+      "distribution": "store",
+      "environment": "preview",
+      "channel": "preview",
+      "autoIncrement": true
     }
   },
   "submit": {
     "production": {
+      "ios": {
+        "ascAppId": "6788189154"
+      }
+    },
+    "testflight": {
       "ios": {
         "ascAppId": "6788189154"
       }

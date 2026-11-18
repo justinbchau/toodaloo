@@ -22,10 +22,11 @@ and manual GitHub workflows.
 | Submit profile `production` with `ascAppId: 6788189154` | In repo. This suggests an App Store Connect record exists; confirm it (step S3) |
 | Native project `client/ios/` (bundle id `com.jchau.toodaloo`, iOS 15.1+, location string, privacy manifest, 1024 px icon with no alpha) | In repo |
 | `Podfile.lock` matches every autolinked native module in `node_modules` | Verified 2026-11-18 |
-| `testflight` build and submit profiles in `eas.json` | **Pending.** Proposed change, apply before the first run |
-| `.github/workflows/testflight.yml` and `testflight-submit.yml` | **Pending.** Proposed change, apply before the first run |
-| `ITSAppUsesNonExemptEncryption = false` in `ios/toodaloo/Info.plist` | **Pending.** Until it lands, answer export compliance by hand for each build (Troubleshooting) |
-| `ios/toodaloo/Supporting/Expo.plist` committed with updates enabled | **Pending.** EAS CLI fixes it at build time; see Troubleshooting "Expo.plist modified after a build" |
+| `testflight` build and submit profiles in `eas.json` (store, `preview` env + channel, `autoIncrement`) | In repo |
+| `.github/workflows/testflight.yml` and `testflight-submit.yml` | In repo. GitHub can only dispatch them once they're on `main` (merge this branch first) |
+| `ITSAppUsesNonExemptEncryption = false` in `ios/toodaloo/Info.plist` (+ `app.json` mirror) | In repo |
+| `ios/toodaloo/Supporting/Expo.plist` committed with updates enabled (synced via `expo-updates configuration:syncnative`) | In repo |
+| `DEVELOPMENT_TEAM` / `appleTeamId` | **Not set, intentionally.** EAS-managed signing doesn't need it. Add `CPHGQNPK2S` only after confirming toodaloo is on the same Apple team as Faros (only needed for local Xcode archives) |
 | `EXPO_TOKEN` GitHub secret, EAS `preview` env vars, ASC API key on EAS, signing credentials | **Justin, one time** (setup checklist below) |
 
 Until the pending repo changes land, use the CLI fallback in "Fastest path".
