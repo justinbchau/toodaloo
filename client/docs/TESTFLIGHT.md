@@ -27,8 +27,9 @@ and manual GitHub workflows.
 | `ITSAppUsesNonExemptEncryption = false` in `ios/toodaloo/Info.plist` (+ `app.json` mirror) | In repo |
 | `ios/toodaloo/Supporting/Expo.plist` committed with updates enabled (synced via `expo-updates configuration:syncnative`) | In repo |
 | `DEVELOPMENT_TEAM` / `appleTeamId` | **Not set, intentionally.** EAS-managed signing doesn't need it. Add `CPHGQNPK2S` only after confirming toodaloo is on the same Apple team as Faros (only needed for local Xcode archives) |
-| `.github/workflows/db-staging.yml` (dry-run / apply / seed the staging Supabase project) | In repo. Needs the `staging` GitHub environment (S6c) |
-| Staging Supabase project, auth email template, EAS `preview` → staging, `EXPO_TOKEN`, ASC API key on EAS, signing credentials | **Justin, one time** (setup checklist below) |
+| TestFlight backend | **Production, for now** (S6). Staging is deferred until external testers or real users |
+| `.github/workflows/db-staging.yml` (dry-run / apply / seed a staging Supabase project) | In repo, unused until staging is set up (deferred) |
+| Unpause production, apply migrations `0009`/`0010` to production, confirm EAS `preview` = production, `EXPO_TOKEN`, ASC API key on EAS, signing credentials | **Justin, one time** (setup checklist below) |
 
 Until the pending repo changes land, use the CLI fallback in "Fastest path".
 
@@ -110,19 +111,84 @@ Manage your API Key**. ASC API keys belong to the team, so you can **reuse the
 key Faros already uses** rather than making a new one. The `.p8` stays out of
 git (`*.p8` is gitignored); never put the Key ID or Issuer ID in `eas.json`.
 
-**S6. Staging Supabase project for TestFlight (decided: testers use staging, never production).**
+**S6. Backend for TestFlight: production, for now (decided 2026-11-19).**
+TestFlight builds talk to the **production** Supabase project. That's acceptable
+while the app is unreleased and Justin is the only tester: there are no real users
+whose data could be affected. A staging project is deferred until the switch
+criteria below; its workflow and steps are ready (see "Staging setup (deferred)").
+
+The `testflight` profile reads `environment: "preview"`, so EAS `preview` must hold
+the **production** values. `EXPO_PUBLIC_*` values are inlined into the JS bundle at
+build time, and `lib/supabase.ts` throws at startup if they're missing, so **a
+build without them crashes on launch.**
+
+*S6a. Unpause production [Justin].* Free-tier projects pause after about a week of
+inactivity. In the Supabase dashboard, restore the project if it shows as paused.
+
+*S6b. Apply migrations `0009` and `0010` to production [Justin, from a Mac].* The
+new client writes `reviews.tags` and reads `bathrooms.hours`, so **submitting a
+review fails until these are applied.** First check what production has recorded:
+
+```sql
+select version, name from supabase_migrations.schema_migrations order by version;
+```
+
+If `0009` is listed as `review_tags_and_hours` (an old number for what is now
+`0010`), mark it reverted first. Otherwise `db push` would treat the ratings fix
+as already applied and skip it without any error:
+
+```bash
+supabase migration repair --status reverted 0009
+```
+
+Then apply, from `client/`:
+
+```bash
+supabase link --project-ref <production-ref>
+supabase db push --dry-run     # should list 0009 and 0010 (plus anything older that's missing)
+supabase db push
+```
+
+Use `db push`, not the dashboard SQL editor: `db push` records each migration in
+`schema_migrations`, so future pushes don't re-apply or skip anything.
+
+*S6c. Confirm EAS `preview` points at production [Justin].*
+
+```bash
+cd client
+eas env:list --environment preview       # should show the production EXPO_PUBLIC_SUPABASE_URL
+eas env:list --environment production    # same project
+```
+
+`RELEASE.md` says both environments were populated earlier with production
+values. If `preview` is empty, create the two variables with the production URL
+and the anon/publishable key (**never** the service_role key):
+`eas env:create --environment preview --name EXPO_PUBLIC_SUPABASE_URL --visibility plaintext`
+(then the same for `EXPO_PUBLIC_SUPABASE_ANON_KEY`).
+
+*S6d. Test-data hygiene.* Reviews, saved places and bathrooms created while testing
+land in the real database. Name test bathrooms with a `TEST` prefix so they're easy
+to find, and delete test data before the public launch.
+
+**Switch to staging when either of these happens:** someone other than Justin joins
+TestFlight, or production has real users. At that point follow the deferred
+staging setup below, then point EAS `preview` at staging.
+
+#### Staging setup (deferred, for when it's needed)
+
+The original staging plan, kept ready to use.
 The `testflight` profile reads `environment: "preview"`, so EAS `preview` must
 point at a **separate staging project**. EAS `production` stays on the
 production project. `EXPO_PUBLIC_*` values are inlined into the JS bundle at
 build time, and `lib/supabase.ts` throws at startup if they're missing, so
 **a build without them crashes on launch.**
 
-*S6a. Create the project [Justin].* In the Supabase dashboard create
+*St1. Create the project [Justin].* In the Supabase dashboard create
 `toodaloo-staging`, on the same org and region as production. Note its
 **project ref** and its database connection string (Project Settings →
 Database → Connection string → URI; the session pooler URI is fine).
 
-*S6b. Configure auth the same way as production [Justin]. A new project won't do this for you.*
+*St2. Configure auth the same way as production [Justin]. A new project won't do this for you.*
 - **Email OTP code:** toodaloo signs in with a 6-digit code (`otp_length = 6`,
   `config.toml`). Supabase's default "Magic Link" email sends a link, not the
   code. In Authentication → Email Templates → **Magic Link**, include
@@ -134,9 +200,9 @@ Database → Connection string → URI; the session pooler URI is fine).
   tester. Before adding other internal testers, either add them to the Supabase
   team or set custom SMTP (Authentication → SMTP Settings).
 
-*S6c. Bring the schema and data up to date [Justin dispatches].*
+*St3. Bring the schema and data up to date [Justin dispatches].*
 Create a GitHub **environment** named `staging` (repo Settings → Environments):
-- secret `SUPABASE_DB_URL`: the staging connection string from S6a
+- secret `SUPABASE_DB_URL`: the staging connection string from St1
 - variable `SUPABASE_PROJECT_REF`: the staging project ref
 - optional: a repository variable `SUPABASE_PROD_PROJECT_REF` set to the
   production ref, so the workflow refuses if the two are ever the same.
@@ -149,7 +215,7 @@ plus `supabase/seed/sf.sql` San Francisco launch set). The workflow only reads t
 Re-run it with `apply` whenever a new migration lands, **before** building
 TestFlight from code that needs it. (Same as the Faros flow, pointed at staging.)
 
-*S6d. Point EAS `preview` at staging [Justin].*
+*St4. Point EAS `preview` at staging [Justin].*
 
 ```bash
 cd client
@@ -223,15 +289,15 @@ Once the setup checklist is done:
    **Install**.
 
 **B. CLI fallback [Justin], from a Mac or any machine with Node 20.19+.**
-Use the `testflight` profile, which talks to the **staging** project (S6). Don't
-use `--profile production` for TestFlight: it reads the EAS `production`
-environment, so testers would read and write the **production** database.
+Use the `testflight` profile (EAS `preview` environment and `preview` update channel;
+see S6 for which backend that points at). Keep TestFlight on `testflight` rather
+than `--profile production`, so OTA updates for testers stay on their own channel.
 
 ```bash
 cd client
 npm ci
 npx tsc --noEmit && npm test
-eas build  --platform ios --profile testflight            # staging backend (EAS `preview` env)
+eas build  --platform ios --profile testflight            # EAS `preview` env (production backend for now, S6)
 eas submit --platform ios --profile testflight --latest   # or: --id <EAS build id>
 ```
 

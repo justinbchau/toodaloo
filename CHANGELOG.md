@@ -10,6 +10,31 @@ _Nothing yet._
 
 ---
 
+## [TestFlight backend] — 2026-11-19 · `d31d476`
+
+**TestFlight uses the production Supabase project for now; staging is deferred**
+
+### Changed
+- `client/docs/TESTFLIGHT.md` S6 now says TestFlight builds use **production** (decided
+  2026-11-19). The app is unreleased and Justin is the only tester, so no real users'
+  data is at risk. New owner steps:
+  - **S6a:** unpause production.
+  - **S6b:** apply migrations `0009` and `0010` with `supabase db push`. Check
+    `schema_migrations` first, and run `supabase migration repair --status reverted
+    0009` if it recorded the old `0009 review_tags_and_hours`.
+  - **S6c:** confirm EAS `preview` holds the production values.
+  - **S6d:** test-data hygiene (`TEST`-prefixed bathrooms, clean up before launch).
+- The staging steps are kept as "Staging setup (deferred)" (St1–St4), ready for when it's
+  needed. `db-staging.yml` is unchanged apart from its header comment and stays unused
+  until then.
+
+### Notes
+- **Switch to staging when:** someone other than Justin joins TestFlight, or production
+  has real users.
+- Supersedes the earlier "[Staging]" decision below.
+
+---
+
 ## [Review fixes] — 2026-11-18 · `9c26062`
 
 **Fixes from the PR #49 review (code-review skill + automated Claude review)**

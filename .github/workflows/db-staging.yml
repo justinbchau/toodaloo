@@ -1,5 +1,6 @@
-# client/docs/TESTFLIGHT.md (S6): keep the STAGING Supabase project — the
-# backend TestFlight builds talk to — in step with client/supabase/migrations.
+# client/docs/TESTFLIGHT.md ("Staging setup (deferred)"): keep a STAGING Supabase
+# project in step with client/supabase/migrations. Unused until staging is set up;
+# TestFlight currently uses the production project (TESTFLIGHT.md S6).
 # Adapted from the Faros production db-migrate workflow; manual dispatch only.
 #
 #   dry-run  list pending migrations (default, changes nothing)
