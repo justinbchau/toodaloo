@@ -40,6 +40,7 @@ export type Database = {
           address: string | null
           created_at: string
           created_by: string | null
+          hours: Json | null
           id: string
           is_24_hours: boolean
           lat: number
@@ -54,6 +55,7 @@ export type Database = {
           address?: string | null
           created_at?: string
           created_by?: string | null
+          hours?: Json | null
           id?: string
           is_24_hours?: boolean
           lat: number
@@ -68,6 +70,7 @@ export type Database = {
           address?: string | null
           created_at?: string
           created_by?: string | null
+          hours?: Json | null
           id?: string
           is_24_hours?: boolean
           lat?: number
@@ -107,6 +110,7 @@ export type Database = {
           created_at: string
           id: string
           rating: number
+          tags: string[]
           user_id: string
         }
         Insert: {
@@ -115,6 +119,7 @@ export type Database = {
           created_at?: string
           id?: string
           rating: number
+          tags?: string[]
           user_id: string
         }
         Update: {
@@ -123,6 +128,7 @@ export type Database = {
           created_at?: string
           id?: string
           rating?: number
+          tags?: string[]
           user_id?: string
         }
         Relationships: [
@@ -171,6 +177,7 @@ export type Database = {
           created_at: string | null
           id: string | null
           rating: number | null
+          tags: string[] | null
           user_id: string | null
         }
         Relationships: [
@@ -193,6 +200,7 @@ export type Database = {
           created_at: string
           created_by: string
           distance_km: number
+          hours: Json
           id: string
           is_24_hours: boolean
           lat: number

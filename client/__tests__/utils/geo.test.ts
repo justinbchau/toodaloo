@@ -1,4 +1,4 @@
-import { haversine, formatDistance } from '../../utils/geo';
+import { haversine, formatWalkTime } from '../../utils/geo';
 
 describe('haversine()', () => {
   it('returns 0 for identical coordinates', () => {
@@ -40,58 +40,23 @@ describe('haversine()', () => {
   });
 });
 
-describe('formatDistance()', () => {
-  it('returns feet for distances under 0.1 miles', () => {
-    const result = formatDistance(0.05);
-    expect(result).toBe('264 ft away');
+describe('formatWalkTime()', () => {
+  it('never shows less than 1 minute', () => {
+    expect(formatWalkTime(0)).toBe('1 min walk');
+    expect(formatWalkTime(0.01)).toBe('1 min walk');
   });
 
-  it('returns feet for very short distance', () => {
-    // 0.01 miles = 52.8 ft → rounds to 53
-    const result = formatDistance(0.01);
-    expect(result).toBe('53 ft away');
+  it('converts miles at ~3 mph', () => {
+    expect(formatWalkTime(0.2)).toBe('4 min walk');
+    expect(formatWalkTime(1)).toBe('20 min walk');
   });
 
-  it('returns miles with 1 decimal at exactly 0.1 miles', () => {
-    const result = formatDistance(0.1);
-    expect(result).toBe('0.1 mi away');
+  it('switches to plain miles beyond a reasonable walk', () => {
+    expect(formatWalkTime(2.64)).toBe('2.6 mi');
   });
 
-  it('returns miles with 1 decimal for longer distances', () => {
-    expect(formatDistance(0.5)).toBe('0.5 mi away');
-    expect(formatDistance(1.0)).toBe('1.0 mi away');
-    expect(formatDistance(2.7)).toBe('2.7 mi away');
-  });
-
-  it('rounds miles to 1 decimal place', () => {
-    expect(formatDistance(1.25)).toBe('1.3 mi away');
-    expect(formatDistance(1.24)).toBe('1.2 mi away');
-  });
-
-  it('handles zero distance as feet', () => {
-    const result = formatDistance(0);
-    expect(result).toBe('0 ft away');
-  });
-
-  it('rounds feet to nearest whole number', () => {
-    // 0.076 miles = 401.28 ft → rounds to 401
-    const result = formatDistance(0.076);
-    expect(result).toBe('401 ft away');
-  });
-});
-
-describe('haversine + formatDistance integration', () => {
-  it('formats a close distance as feet', () => {
-    // Two points ~200 feet apart
-    const milesApart = haversine(40.7128, -74.006, 40.7129, -74.006);
-    const formatted = formatDistance(milesApart);
-    expect(formatted).toMatch(/ft away$/);
-  });
-
-  it('formats a distant point as miles', () => {
-    // Two points ~0.5 miles apart
-    const milesApart = haversine(40.7128, -74.006, 40.7200, -74.006);
-    const formatted = formatDistance(milesApart);
-    expect(formatted).toMatch(/mi away$/);
+  it('returns empty for invalid input', () => {
+    expect(formatWalkTime(NaN)).toBe('');
+    expect(formatWalkTime(-1)).toBe('');
   });
 });

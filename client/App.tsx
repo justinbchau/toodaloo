@@ -16,6 +16,7 @@ import {
 import { ContextStore } from './context/context';
 import { ThemeProvider, useThemeContext } from './context/ThemeContext';
 import { UserProvider, useUser } from './context/UserContext';
+import { ToastProvider } from './context/ToastContext';
 import { RootStackParamList } from './RootStackParams';
 import { Home } from './pages/Home';
 import { Auth } from './navigation/auth';
@@ -42,7 +43,7 @@ function AppNavigator() {
           justifyContent: 'center',
         }}
       >
-        <ActivityIndicator color={colors.purple} size="large" />
+        <ActivityIndicator color={colors.accent} size="large" />
       </View>
     );
   }
@@ -86,9 +87,11 @@ export default function App() {
       <ThemeProvider>
         <UserProvider>
           <ContextStore>
-            <NavigationContainer>
-              <AppNavigator />
-            </NavigationContainer>
+            <ToastProvider>
+              <NavigationContainer>
+                <AppNavigator />
+              </NavigationContainer>
+            </ToastProvider>
           </ContextStore>
         </UserProvider>
       </ThemeProvider>

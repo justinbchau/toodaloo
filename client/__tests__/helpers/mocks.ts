@@ -3,27 +3,14 @@
  * Import what you need — don't rely on Jest automocking.
  */
 
+import { darkColors, Colors } from '../../theme/colors';
+
 // ---------------------------------------------------------------------------
 // Theme
 // ---------------------------------------------------------------------------
-export const mockColors = {
-  bg: '#0B0B0F',
-  surface1: '#111118',
-  surface2: '#18181F',
-  surface3: '#1E1E28',
-  text1: '#EEEEF4',
-  text2: '#8B8B9E',
-  text3: '#44444F',
-  purple: '#7B6EF6',
-  purpleDim: 'rgba(123,110,246,0.16)',
-  purpleText: '#A99FF9',
-  purpleGlow: 'rgba(123,110,246,0.35)',
-  border: '#1E1E28',
-  borderMed: '#2A2A35',
-  green: '#34C77A',
-  red: '#F05A5A',
-  yellow: '#F5C542',
-};
+// The real dark palette, typed as Colors, so the mock can never drift from the
+// token set (a missing token used to render as `undefined` in tests).
+export const mockColors: Colors = { ...darkColors };
 
 // ---------------------------------------------------------------------------
 // Supabase chainable query builder

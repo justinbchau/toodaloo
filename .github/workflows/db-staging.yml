@@ -1,0 +1,117 @@
+# client/docs/TESTFLIGHT.md (S6): keep the STAGING Supabase project — the
+# backend TestFlight builds talk to — in step with client/supabase/migrations.
+# Adapted from the Faros production db-migrate workflow; manual dispatch only.
+#
+#   dry-run  list pending migrations (default, changes nothing)
+#   apply    apply pending migrations
+#   seed     apply migrations, then the idempotent seed data
+#            (supabase/seed.sql NYC samples + supabase/seed/sf.sql launch city)
+#
+# Requires a GitHub environment named `staging` (repo Settings → Environments):
+#   secret    SUPABASE_DB_URL        staging Postgres connection string
+#   variable  SUPABASE_PROJECT_REF   staging project ref (e.g. abcdefghijklmnop)
+# Optional repository variable SUPABASE_PROD_PROJECT_REF: if set, the run
+# refuses to continue when the staging ref equals it.
+#
+# This workflow can never touch production by accident: it only reads the
+# `staging` environment, and the guard step rejects any URL that does not
+# belong to that environment's project ref.
+name: Staging database
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: dry-run lists pending migrations; apply deploys them; seed also loads seed data
+        required: true
+        type: choice
+        default: dry-run
+        options:
+          - dry-run
+          - apply
+          - seed
+
+concurrency:
+  group: staging-database
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    environment: staging
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: client
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: supabase/setup-cli@v3
+        with:
+          version: 2.117.0
+
+      - name: Guard — URL must belong to the staging project
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          STAGING_REF: ${{ vars.SUPABASE_PROJECT_REF }}
+          PROD_REF: ${{ vars.SUPABASE_PROD_PROJECT_REF }}
+        run: |
+          if [[ -z "$SUPABASE_DB_URL" || -z "$STAGING_REF" ]]; then
+            echo "::error::Set SUPABASE_DB_URL (secret) and SUPABASE_PROJECT_REF (variable) in the 'staging' GitHub environment."
+            exit 1
+          fi
+          if [[ -n "$PROD_REF" && "$STAGING_REF" == "$PROD_REF" ]]; then
+            echo "::error::SUPABASE_PROJECT_REF equals the production ref. Refusing."
+            exit 1
+          fi
+          python3 - <<'PY'
+          import os
+          from urllib.parse import urlsplit
+
+          url = urlsplit(os.environ["SUPABASE_DB_URL"])
+          ref = os.environ["STAGING_REF"]
+          direct = url.hostname == f"db.{ref}.supabase.co" and url.username == "postgres"
+          pooler = (url.hostname or "").endswith(".pooler.supabase.com") and url.username == f"postgres.{ref}"
+          if url.scheme not in {"postgres", "postgresql"} or not (direct or pooler):
+              raise SystemExit("Database URL does not identify the staging project ref.")
+          PY
+
+      - name: List pending migrations
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: supabase db push --db-url "$SUPABASE_DB_URL" --dry-run --skip-vault
+
+      - name: Apply pending migrations
+        if: inputs.action == 'apply' || inputs.action == 'seed'
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: supabase db push --db-url "$SUPABASE_DB_URL" --yes --skip-vault
+
+      - name: Load seed data (idempotent)
+        if: inputs.action == 'seed'
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          # ubuntu-latest ships psql; install it only if a runner image lacks it.
+          if ! command -v psql > /dev/null; then
+            sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client
+          fi
+          psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f supabase/seed.sql -f supabase/seed/sf.sql
+
+      - name: Run record
+        if: always()
+        env:
+          ACTION: ${{ inputs.action }}
+          STAGING_REF: ${{ vars.SUPABASE_PROJECT_REF }}
+        run: |
+          {
+            echo "### Staging database: $ACTION"
+            echo ""
+            echo "- Project ref: \`${STAGING_REF:-unset}\`"
+            echo "- Source commit: \`$(git rev-parse HEAD)\`"
+          } >> "$GITHUB_STEP_SUMMARY"

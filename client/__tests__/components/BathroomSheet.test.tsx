@@ -4,12 +4,39 @@
  * native interaction events beyond RNTL's scope).
  */
 import React from 'react';
-import { render, screen } from '@testing-library/react-native';
+import { render, screen, fireEvent } from '@testing-library/react-native';
 import { BathroomSheet } from '../../components/BathroomSheet';
 import { mockColors, mockBathroomCard } from '../helpers/mocks';
 
 jest.mock('../../context/ThemeContext', () => ({
   useThemeContext: () => ({ colors: mockColors, isDark: false }),
+}));
+
+// The real sheet runs on reanimated/gesture-handler natives; use the libraries' mocks.
+// (reanimated's own mock still boots the native worklets runtime, so stub the
+// handful of APIs the sheet uses.)
+jest.mock('react-native-reanimated', () => {
+  const { View } = require('react-native');
+  return {
+    __esModule: true,
+    default: { View },
+    useSharedValue: (v: number) => ({ value: v }),
+    useAnimatedStyle: () => ({}),
+    interpolate: () => 1,
+    Extrapolation: { CLAMP: 'clamp' },
+  };
+});
+jest.mock('@gorhom/bottom-sheet', () => ({ __esModule: true, ...require('@gorhom/bottom-sheet/mock') }));
+
+jest.mock('../../components/NearestCard', () => ({
+  NearestCard: ({ data, onDirections }: any) => {
+    const { Pressable, Text } = require('react-native');
+    return (
+      <Pressable testID={`nearest-card-${data.id}`} onPress={onDirections}>
+        <Text>{data.name}</Text>
+      </Pressable>
+    );
+  },
 }));
 
 jest.mock('../../components/SkeletonBathroomCard', () => ({
@@ -100,7 +127,7 @@ describe('BathroomSheet — populated state', () => {
     { ...mockBathroomCard, id: 'bathroom-2', name: 'Second Bathroom' },
   ];
 
-  it('renders real bathroom cards when data is present', () => {
+  it('renders the first (nearest) result as the Nearest hero card', () => {
     render(
       <BathroomSheet
         bathrooms={singleBathroom}
@@ -108,10 +135,12 @@ describe('BathroomSheet — populated state', () => {
         onCardPress={noop}
       />,
     );
-    expect(screen.getByTestId('bathroom-card-bathroom-1')).toBeTruthy();
+    expect(screen.getByTestId('nearest-card-bathroom-1')).toBeTruthy();
+    expect(screen.queryByTestId('bathroom-card-bathroom-1')).toBeNull();
+    expect(screen.queryByText('More nearby')).toBeNull();
   });
 
-  it('renders all bathroom cards', () => {
+  it('renders the remaining results as list rows under "More nearby"', () => {
     render(
       <BathroomSheet
         bathrooms={multipleBathrooms}
@@ -119,8 +148,36 @@ describe('BathroomSheet — populated state', () => {
         onCardPress={noop}
       />,
     );
-    expect(screen.getByTestId('bathroom-card-bathroom-1')).toBeTruthy();
+    expect(screen.getByTestId('nearest-card-bathroom-1')).toBeTruthy();
+    expect(screen.getByText('More nearby')).toBeTruthy();
     expect(screen.getByTestId('bathroom-card-bathroom-2')).toBeTruthy();
+  });
+
+  it('wires the Nearest card to onDirections with that bathroom', () => {
+    const onDirections = jest.fn();
+    render(
+      <BathroomSheet
+        bathrooms={multipleBathrooms}
+        isLoading={false}
+        onCardPress={noop}
+        onDirections={onDirections}
+      />,
+    );
+    fireEvent.press(screen.getByTestId('nearest-card-bathroom-1'));
+    expect(onDirections).toHaveBeenCalledWith(expect.objectContaining({ id: 'bathroom-1' }));
+  });
+
+  it('supports a custom empty state (e.g. before any location is known)', () => {
+    render(
+      <BathroomSheet
+        bathrooms={[]}
+        isLoading={false}
+        emptyTitle="Search an area"
+        emptyMessage="Find bathrooms anywhere."
+      />,
+    );
+    expect(screen.getByText('Search an area')).toBeTruthy();
+    expect(screen.queryByText('No bathrooms nearby yet.')).toBeNull();
   });
 
   it('shows the NEARBY heading', () => {

@@ -1,8 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Keyboard, Pressable, Text, TextInput, View } from 'react-native';
+import { addRecent, clearRecents, loadRecents } from '../lib/recentSearches';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { useThemeContext } from '../context/ThemeContext';
+import { shadows } from '../theme/shadows';
 
 // Minimal geocode search (FAF-28). Deliberately NOT autocomplete — on submit we
 // forward-geocode the typed text and hand the coordinates up to the Map, which
@@ -17,9 +19,11 @@ type LocationSearchProps = {
     // Bumped by the parent to clear the box when the map is reset from elsewhere
     // (e.g. the ◎ recenter FAB), keeping the search UI in sync with the map.
     resetSignal?: number;
+    /** Focus the field on mount (manual-location mode, where search is the next step). */
+    autoFocus?: boolean;
 };
 
-export default function LocationSearch({ onLocationSelected, onReset, resetSignal }: LocationSearchProps) {
+export default function LocationSearch({ onLocationSelected, onReset, resetSignal, autoFocus }: LocationSearchProps) {
     const { colors } = useThemeContext();
     const [value, setValue] = useState('');
     const [searching, setSearching] = useState(false);
@@ -43,8 +47,20 @@ export default function LocationSearch({ onLocationSelected, onReset, resetSigna
         setHasActiveSearch(false);
     }, [resetSignal]);
 
-    const handleSubmit = async () => {
-        const query = value.trim();
+    // Recent searches (Apple/Google Maps): shown when the empty field is focused.
+    const [recents, setRecents] = useState<string[]>([]);
+    const [focused, setFocused] = useState(false);
+    const blurTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+    useEffect(() => {
+        let active = true;
+        loadRecents().then((r) => { if (active) setRecents(r); });
+        return () => { active = false; clearTimeout(blurTimer.current); };
+    }, []);
+
+    const handleSubmit = () => runSearch(value);
+
+    const runSearch = async (raw: string) => {
+        const query = raw.trim();
         if (!query || searching) return;
 
         setSearching(true);
@@ -78,8 +94,18 @@ export default function LocationSearch({ onLocationSelected, onReset, resetSigna
         }
 
         setHasActiveSearch(true);
+        addRecent(query, recents).then(setRecents);
         onLocationSelected(coords.latitude, coords.longitude);
     };
+
+    const pickRecent = (q: string) => {
+        setValue(q);
+        setFocused(false);
+        Keyboard.dismiss();
+        runSearch(q);
+    };
+
+    const showRecents = focused && value.trim().length === 0 && recents.length > 0 && !message;
 
     const handleClear = () => {
         setValue('');
@@ -97,30 +123,38 @@ export default function LocationSearch({ onLocationSelected, onReset, resetSigna
             <View style={{
                 flexDirection: 'row',
                 alignItems: 'center',
-                gap: 8,
-                height: 44,
-                backgroundColor: colors.surface2,
-                borderRadius: 14,
-                borderWidth: 1,
-                borderColor: colors.borderMed,
-                paddingHorizontal: 12,
+                gap: 10,
+                height: 50,
+                backgroundColor: colors.glass,
+                borderRadius: 25,
+                paddingHorizontal: 16,
+                ...shadows.md,
+                shadowColor: colors.shadow,
             }}>
-                <MaterialCommunityIcons name="magnify" size={18} color={colors.text3} />
+                <MaterialCommunityIcons name="magnify" size={22} color={colors.text1} />
                 <TextInput
                     placeholder="Search location"
-                    placeholderTextColor={colors.text3}
+                    placeholderTextColor={colors.text2}
                     value={value}
-                    onChangeText={setValue}
+                    onChangeText={(t) => {
+                        setValue(t);
+                        // Editing dismisses a stale "couldn't find" message.
+                        if (message) setMessage(null);
+                    }}
                     onSubmitEditing={handleSubmit}
+                    onFocus={() => { clearTimeout(blurTimer.current); setFocused(true); }}
+                    // Delay so a tap on a recent row lands before the list unmounts.
+                    onBlur={() => { blurTimer.current = setTimeout(() => setFocused(false), 150); }}
                     editable={!searching}
                     returnKeyType="search"
+                    autoFocus={autoFocus}
                     autoCapitalize="words"
                     autoCorrect={false}
                     style={{
                         flex: 1,
                         color: colors.text1,
-                        fontFamily: 'PlusJakartaSans_400Regular',
-                        fontSize: 14,
+                        fontFamily: 'PlusJakartaSans_600SemiBold',
+                        fontSize: 15,
                         padding: 0,
                     }}
                 />
@@ -132,10 +166,61 @@ export default function LocationSearch({ onLocationSelected, onReset, resetSigna
                         accessibilityRole="button"
                         accessibilityLabel="Clear search"
                     >
-                        <MaterialCommunityIcons name="close-circle" size={18} color={colors.text3} />
+                        <MaterialCommunityIcons name="close-circle" size={20} color={colors.text3} />
                     </Pressable>
                 )}
             </View>
+
+            {showRecents && (
+                <View
+                    testID="recent-searches"
+                    style={{
+                        position: 'absolute',
+                        top: '100%',
+                        left: 0,
+                        right: 0,
+                        marginTop: 8,
+                        backgroundColor: colors.glass,
+                        borderRadius: 18,
+                        paddingVertical: 6,
+                        ...shadows.md,
+                        shadowColor: colors.shadow,
+                    }}
+                >
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 6, paddingBottom: 4 }}>
+                        <Text style={{ color: colors.text2, fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12 }}>Recent</Text>
+                        <Pressable
+                            onPress={() => { clearRecents(); setRecents([]); }}
+                            hitSlop={8}
+                            accessibilityRole="button"
+                            accessibilityLabel="Clear recent searches"
+                        >
+                            <Text style={{ color: colors.accentText, fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12 }}>Clear</Text>
+                        </Pressable>
+                    </View>
+                    {recents.map((q) => (
+                        <Pressable
+                            key={q}
+                            onPress={() => pickRecent(q)}
+                            accessibilityRole="button"
+                            accessibilityLabel={`Search ${q}`}
+                            style={({ pressed }: { pressed: boolean }) => ({
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                gap: 12,
+                                paddingHorizontal: 16,
+                                paddingVertical: 11,
+                                backgroundColor: pressed ? colors.surface2 : 'transparent',
+                            })}
+                        >
+                            <MaterialCommunityIcons name="history" size={18} color={colors.text2} />
+                            <Text numberOfLines={1} style={{ flex: 1, color: colors.text1, fontFamily: 'PlusJakartaSans_500Medium', fontSize: 15 }}>
+                                {q}
+                            </Text>
+                        </Pressable>
+                    ))}
+                </View>
+            )}
 
             {message && (
                 <View style={{
@@ -143,13 +228,13 @@ export default function LocationSearch({ onLocationSelected, onReset, resetSigna
                     top: '100%',
                     left: 0,
                     right: 0,
-                    marginTop: 6,
-                    backgroundColor: colors.surface1,
-                    borderRadius: 12,
-                    borderWidth: 1,
-                    borderColor: colors.borderMed,
-                    paddingHorizontal: 12,
-                    paddingVertical: 8,
+                    marginTop: 8,
+                    backgroundColor: colors.glass,
+                    borderRadius: 14,
+                    paddingHorizontal: 14,
+                    paddingVertical: 10,
+                    ...shadows.md,
+                    shadowColor: colors.shadow,
                 }}>
                     <Text style={{
                         color: colors.text2,

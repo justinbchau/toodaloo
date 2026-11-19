@@ -1,6 +1,5 @@
 import React, { useCallback } from 'react';
-import { View, Text, ActivityIndicator, StyleSheet, RefreshControl } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { View, StyleSheet, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -11,8 +10,10 @@ import { supabase } from '../lib/supabase';
 import { RootStackParamList } from '../RootStackParams';
 import { BathroomCard, BathroomCardData } from '../components/BathroomCard';
 import { ErrorState } from '../components/ErrorState';
-import { ACCESS_ICON, DEFAULT_ACCESS_ICON } from '../lib/accessIcons';
-import BackButton from '../components/BackButton';
+import { toCardData } from '../lib/bathroomCard';
+import { ScreenHeader } from '../components/ui/ScreenHeader';
+import { EmptyState } from '../components/ui/EmptyState';
+import { SkeletonBathroomCard } from '../components/SkeletonBathroomCard';
 import { useFocusedFetch } from '../hooks/useFocusedFetch';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -32,23 +33,7 @@ export function Submitted() {
 
     if (error) throw error;
 
-    return (data ?? []).map((b: any) => ({
-      id: b.id,
-      name: b.name,
-      icon: ACCESS_ICON[b.access_type] ?? DEFAULT_ACCESS_ICON,
-      sub:
-        b.access_type === 'public'
-          ? `Public${b.is_24_hours ? ' · Open 24h' : ''}`
-          : b.access_type === 'key_required'
-          ? 'Key Required'
-          : 'Purchase Required',
-      rating: Math.round(Number(b.rating_avg) || 0),
-      score: (Number(b.rating_avg) || 0).toFixed(1),
-      reviewCount: `(${b.review_count ?? 0})`,
-      distance: '',
-      lat: b.lat,
-      lng: b.lng,
-    }));
+    return (data ?? []).map((b: any) => toCardData(b));
   }, [user?.id]);
 
   // Refetch on focus so a newly added bathroom shows on return.
@@ -73,16 +58,18 @@ export function Submitted() {
   );
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
-      <View style={styles.header}>
-        <BackButton />
-        <Text style={{ fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 20, color: colors.text1 }}>
-          Submitted
-        </Text>
-      </View>
+    <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: colors.bg }}>
+      <ScreenHeader
+        title="Submitted"
+        subtitle={!isLoading && !hasError && bathrooms.length > 0 ? `${bathrooms.length} added by you` : undefined}
+      />
 
       {isLoading ? (
-        <ActivityIndicator color={colors.purple} style={{ marginTop: 40 }} />
+        <View style={[styles.listContent, { gap: 10 }]}>
+          <SkeletonBathroomCard />
+          <SkeletonBathroomCard />
+          <SkeletonBathroomCard />
+        </View>
       ) : hasError ? (
         <ErrorState
           title="Couldn't load your submissions"
@@ -90,25 +77,24 @@ export function Submitted() {
           onRetry={refetch}
         />
       ) : bathrooms.length === 0 ? (
-        <View style={styles.empty}>
-          <MaterialCommunityIcons name="map-marker-outline" size={48} color={colors.text3} />
-          <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 16, color: colors.text2, marginTop: 12 }}>
-            Nothing submitted yet
-          </Text>
-          <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 13, color: colors.text3, marginTop: 4 }}>
-            Bathrooms you add will show up here
-          </Text>
-        </View>
+        <EmptyState
+          icon="map-marker-plus-outline"
+          title="Nothing submitted yet"
+          message="Bathrooms you add will show up here. Know a good one? Put it on the map."
+          actionLabel="Add a bathroom"
+          onAction={() => navigation.navigate('MainTabs', { screen: 'Add' })}
+        />
       ) : (
         <FlashList
           data={bathrooms}
           keyExtractor={(item) => item.id}
           renderItem={renderItem}
           contentContainerStyle={styles.listContent}
+          ItemSeparatorComponent={Separator}
           refreshControl={
             <RefreshControl
               refreshing={isRefreshing}
-              tintColor={colors.purple}
+              tintColor={colors.accent}
               onRefresh={refresh}
             />
           }
@@ -118,19 +104,8 @@ export function Submitted() {
   );
 }
 
+const Separator = () => <View style={{ height: 10 }} />;
+
 const styles = StyleSheet.create({
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingTop: 8,
-    paddingBottom: 12,
-    gap: 12,
-  },
-  listContent: { paddingHorizontal: 16, paddingBottom: 32 },
-  empty: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
+  listContent: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 32 },
 });

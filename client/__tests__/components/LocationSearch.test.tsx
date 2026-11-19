@@ -15,6 +15,17 @@ jest.mock('../../context/ThemeContext', () => ({
 
 const mockGeocodeAsync = jest.fn();
 
+// In-memory AsyncStorage so recents persist within a test.
+const mockStore: Record<string, string> = {};
+jest.mock('@react-native-async-storage/async-storage', () => ({
+  __esModule: true,
+  default: {
+    getItem: jest.fn(async (k: string) => mockStore[k] ?? null),
+    setItem: jest.fn(async (k: string, v: string) => { mockStore[k] = v; }),
+    removeItem: jest.fn(async (k: string) => { delete mockStore[k]; }),
+  },
+}));
+
 jest.mock('expo-location', () => ({
   geocodeAsync: (...args: any[]) => mockGeocodeAsync(...args),
 }));
@@ -27,6 +38,7 @@ const submit = (query: string) => {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  for (const k of Object.keys(mockStore)) delete mockStore[k];
   // Default: geocode resolves to a single NYC result
   mockGeocodeAsync.mockResolvedValue([{ latitude: 40.7359, longitude: -73.9911 }]);
 });
@@ -144,5 +156,52 @@ describe('LocationSearch — external reset (resetSignal)', () => {
     expect(screen.getByPlaceholderText('Search location').props.value).toBe('');
     expect(screen.queryByLabelText('Clear search')).toBeNull();
     expect(onReset).not.toHaveBeenCalled();
+  });
+});
+
+describe('LocationSearch — recent searches', () => {
+  const focusEmpty = () => {
+    const input = screen.getByPlaceholderText('Search location');
+    fireEvent.changeText(input, '');
+    fireEvent(input, 'focus');
+  };
+
+  it('remembers a successful search and offers it when the empty field is focused', async () => {
+    render(<LocationSearch onLocationSelected={jest.fn()} onReset={jest.fn()} />);
+    submit('Union Square');
+    await waitFor(() => expect(mockStore['toodaloo.recentSearches']).toContain('Union Square'));
+
+    focusEmpty();
+    expect(screen.getByTestId('recent-searches')).toBeTruthy();
+    expect(screen.getByLabelText('Search Union Square')).toBeTruthy();
+  });
+
+  it('loads persisted recents and re-runs one when tapped', async () => {
+    mockStore['toodaloo.recentSearches'] = JSON.stringify(['Brooklyn', 'Soho']);
+    const onLocationSelected = jest.fn();
+    render(<LocationSearch onLocationSelected={onLocationSelected} onReset={jest.fn()} />);
+    await waitFor(() => {
+      focusEmpty();
+      expect(screen.getByLabelText('Search Soho')).toBeTruthy();
+    });
+
+    fireEvent.press(screen.getByLabelText('Search Soho'));
+
+    await waitFor(() => expect(onLocationSelected).toHaveBeenCalled());
+    expect(mockGeocodeAsync).toHaveBeenCalledWith('Soho');
+  });
+
+  it('does not record failed searches, and Clear empties the list', async () => {
+    mockStore['toodaloo.recentSearches'] = JSON.stringify(['Brooklyn']);
+    mockGeocodeAsync.mockResolvedValueOnce([]);
+    render(<LocationSearch onLocationSelected={jest.fn()} onReset={jest.fn()} />);
+    submit('asdfgh');
+    await screen.findByText(/Couldn't find that location/i);
+    expect(mockStore['toodaloo.recentSearches']).not.toContain('asdfgh');
+
+    focusEmpty();
+    fireEvent.press(screen.getByLabelText('Clear recent searches'));
+    await waitFor(() => expect(screen.queryByTestId('recent-searches')).toBeNull());
+    expect(mockStore['toodaloo.recentSearches']).toBeUndefined();
   });
 });

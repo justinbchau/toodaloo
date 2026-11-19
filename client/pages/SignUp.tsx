@@ -1,13 +1,11 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { AuthStackParamList } from '../RootStackParams';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useNavigation } from '@react-navigation/native';
-import { Page } from '../templates/Page';
-import { useThemeContext } from '../context/ThemeContext';
+import { AuthLayout, AuthNotice, AuthSwitch } from '../components/AuthLayout';
 import { PrimaryButton } from '../components/ui/PrimaryButton';
 import { FormInput } from '../components/ui/FormInput';
 import { supabase } from '../lib/supabase';
@@ -23,7 +21,6 @@ type FormValues = z.infer<typeof schema>;
 
 export function SignUp() {
     const navigation = useNavigation<signUpScreenProp>();
-    const { colors } = useThemeContext();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [authError, setAuthError] = useState<string | null>(null);
 
@@ -52,53 +49,52 @@ export function SignUp() {
     };
 
     return (
-        <Page>
-            <View style={styles.container}>
-                <Text style={[styles.title, { color: colors.text1 }]}>Get started</Text>
-                <Text style={[styles.subtitle, { color: colors.text2 }]}>Enter your email to sign up</Text>
-
-                <View style={styles.fields}>
-                    <Controller<FormValues>
-                        control={control}
-                        name="email"
-                        render={({ field: { onChange, onBlur, value }, fieldState: { error } }) => (
-                            <FormInput
-                                testID="signup-email"
-                                label="Email"
-                                onChangeText={onChange}
-                                onBlur={onBlur}
-                                value={value}
-                                keyboardType="email-address"
-                                autoCapitalize="none"
-                                error={error?.message}
-                            />
-                        )}
+        <AuthLayout
+            icon="account-plus-outline"
+            title="Create your account"
+            subtitle="Join the community finding (and rating) clean bathrooms. We'll email you a code to get started."
+            footer={
+                <>
+                    <PrimaryButton
+                        testID="signup-send"
+                        title="Send OTP →"
+                        onPress={handleSubmit(onSubmit)}
+                        disabled={isSubmitting}
+                        loading={isSubmitting}
                     />
-                </View>
-
-                {authError && (
-                    <Text style={[styles.errorText, { color: colors.red }]}>
-                        {authError}
-                    </Text>
+                    <AuthSwitch
+                        prompt="Already have an account?"
+                        action="Log in"
+                        onPress={() => navigation.replace('Login')}
+                    />
+                </>
+            }
+        >
+            <Controller<FormValues>
+                control={control}
+                name="email"
+                render={({ field: { onChange, onBlur, value }, fieldState: { error } }) => (
+                    <FormInput
+                        testID="signup-email"
+                        label="Email"
+                        icon="email-outline"
+                        placeholder="you@example.com"
+                        onChangeText={onChange}
+                        onBlur={onBlur}
+                        value={value}
+                        keyboardType="email-address"
+                        autoCapitalize="none"
+                        autoComplete="email"
+                        textContentType="emailAddress"
+                        returnKeyType="send"
+                        onSubmitEditing={handleSubmit(onSubmit)}
+                        autoFocus
+                        error={error?.message}
+                    />
                 )}
+            />
 
-                <PrimaryButton
-                    testID="signup-send"
-                    title="Send OTP →"
-                    onPress={handleSubmit(onSubmit)}
-                    style={styles.button}
-                    disabled={isSubmitting}
-                />
-            </View>
-        </Page>
+            {authError && <AuthNotice tone="error">{authError}</AuthNotice>}
+        </AuthLayout>
     );
 }
-
-const styles = StyleSheet.create({
-    container: { flex: 1, paddingHorizontal: 24 },
-    title: { marginTop: 32, fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 28 },
-    subtitle: { fontSize: 14, fontFamily: 'PlusJakartaSans_400Regular', marginTop: 8 },
-    fields: { marginTop: 28, gap: 16 },
-    errorText: { fontSize: 13, fontFamily: 'PlusJakartaSans_400Regular', textAlign: 'center', marginTop: 12 },
-    button: { marginTop: 16 },
-});

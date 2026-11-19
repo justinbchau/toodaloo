@@ -7,20 +7,21 @@ interface Props {
   style?: TextStyle;
 }
 
+/** Section heading inside a scrolling page (e.g. "Amenities", "Reviews"). */
 export function SectionLabel({ label, style }: Props) {
   const { colors } = useThemeContext();
   return (
-    <Text style={[styles.text, { color: colors.text3 }, style]}>
-      {label.toUpperCase()}
+    <Text accessibilityRole="header" style={[styles.text, { color: colors.text1 }, style]}>
+      {label}
     </Text>
   );
 }
 
 const styles = StyleSheet.create({
   text: {
-    fontSize: 11,
-    fontFamily: 'PlusJakartaSans_700Bold',
-    letterSpacing: 1.2,
+    fontSize: 18,
+    fontFamily: 'PlusJakartaSans_800ExtraBold',
+    letterSpacing: -0.4,
     marginBottom: 4,
   },
 });

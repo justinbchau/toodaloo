@@ -1,6 +1,5 @@
 import React, { useCallback } from 'react';
-import { View, Text, RefreshControl, ActivityIndicator, StyleSheet } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { View, RefreshControl, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -9,13 +8,16 @@ import { useUser } from '../context/UserContext';
 import { supabase } from '../lib/supabase';
 import { BathroomCard, BathroomCardData } from '../components/BathroomCard';
 import { ErrorState } from '../components/ErrorState';
-import { ACCESS_ICON, DEFAULT_ACCESS_ICON } from '../lib/accessIcons';
+import { EmptyState } from '../components/ui/EmptyState';
+import { ScreenHeader } from '../components/ui/ScreenHeader';
+import { SkeletonBathroomCard } from '../components/SkeletonBathroomCard';
+import { toCardData } from '../lib/bathroomCard';
 import { RootStackParamList } from '../RootStackParams';
 import { FlashList } from '@shopify/flash-list';
 import { useFocusedFetch } from '../hooks/useFocusedFetch';
 
 const listStyles = StyleSheet.create({
-  contentContainer: { paddingHorizontal: 16, paddingBottom: 32, gap: 12 },
+  contentContainer: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 32, gap: 10 },
 });
 
 export function Saved() {
@@ -55,39 +57,32 @@ export function Saved() {
     return (data ?? [])
       .map((row: any) => row.bathrooms)
       .filter(Boolean)
-      .map((b: any) => ({
-        id: b.id,
-        name: b.name,
-        icon: ACCESS_ICON[b.access_type] ?? DEFAULT_ACCESS_ICON,
-        sub:
-          b.access_type === 'public'
-            ? `Public${b.is_24_hours ? ' · Open 24h' : ''}`
-            : b.access_type === 'key_required'
-            ? 'Key Required'
-            : 'Purchase Required',
-        rating: Math.round(Number(b.rating_avg) || 0),
-        score: (Number(b.rating_avg) || 0).toFixed(1),
-        reviewCount: `(${b.review_count ?? 0})`,
-        distance: '',
-        lat: b.lat,
-        lng: b.lng,
-      }));
+      .map((b: any) => toCardData(b));
   }, [user?.id]);
 
   // Refetch on focus so newly saved/unsaved bathrooms reflect on return.
   const { data, isLoading, isRefreshing, hasError, refetch, refresh } = useFocusedFetch(load);
   const bathrooms = data ?? [];
 
+  const count = bathrooms.length;
+  const header = (
+    <ScreenHeader
+      variant="large"
+      title="Saved"
+      subtitle={!isLoading && !hasError && count > 0 ? `${count} saved ${count === 1 ? 'bathroom' : 'bathrooms'}` : 'Your go-to spots, one tap away.'}
+    />
+  );
+
   // Loading state
   if (isLoading) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
-        <View style={{ padding: 24 }}>
-          <Text style={{ fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 28, color: colors.text1 }}>
-            Saved
-          </Text>
+      <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: colors.bg }}>
+        {header}
+        <View style={listStyles.contentContainer}>
+          <SkeletonBathroomCard />
+          <SkeletonBathroomCard />
+          <SkeletonBathroomCard />
         </View>
-        <ActivityIndicator color={colors.purple} style={{ marginTop: 40 }} />
       </SafeAreaView>
     );
   }
@@ -95,12 +90,8 @@ export function Saved() {
   // Error state
   if (hasError) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
-        <View style={{ padding: 24 }}>
-          <Text style={{ fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 28, color: colors.text1 }}>
-            Saved
-          </Text>
-        </View>
+      <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: colors.bg }}>
+        {header}
         <ErrorState
           title="Couldn't load your saved places"
           retryAccessibilityLabel="Retry loading saved places"
@@ -111,51 +102,36 @@ export function Saved() {
   }
 
   // Empty state
-  if (bathrooms.length === 0) {
+  if (count === 0) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
-        <View style={{ padding: 24 }}>
-          <Text style={{ fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 28, color: colors.text1, marginBottom: 8 }}>
-            Saved
-          </Text>
-          <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 14, color: colors.text2 }}>
-            Your saved bathrooms will appear here.
-          </Text>
-        </View>
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <MaterialCommunityIcons name="bookmark-outline" size={48} color={colors.text3} />
-          <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 16, color: colors.text2, marginTop: 12 }}>
-            Nothing saved yet
-          </Text>
-          <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 13, color: colors.text3, marginTop: 4 }}>
-            Tap ⭐ on any bathroom to save it
-          </Text>
-        </View>
+      <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: colors.bg }}>
+        {header}
+        <EmptyState
+          icon="bookmark-outline"
+          title="Nothing saved yet"
+          message="Tap the bookmark on any bathroom to keep it here for next time."
+          actionLabel="Explore the map"
+          onAction={() => navigation.navigate('MainTabs', { screen: 'Map' })}
+        />
       </SafeAreaView>
     );
   }
 
   // Populated state
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
-      <View style={{ padding: 24, paddingBottom: 8 }}>
-        <Text style={{ fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 28, color: colors.text1, marginBottom: 4 }}>
-          Saved
-        </Text>
-        <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 14, color: colors.text2 }}>
-          {bathrooms.length} saved {bathrooms.length === 1 ? 'bathroom' : 'bathrooms'}
-        </Text>
-      </View>
+    <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: colors.bg }}>
+      {header}
       <FlashList
         data={bathrooms}
         keyExtractor={keyExtractor}
         renderItem={renderItem}
         contentContainerStyle={listStyles.contentContainer}
+        ItemSeparatorComponent={Separator}
         contentInsetAdjustmentBehavior="automatic"
         refreshControl={
           <RefreshControl
             refreshing={isRefreshing}
-            tintColor={colors.purple}
+            tintColor={colors.accent}
             onRefresh={refresh}
           />
         }
@@ -163,3 +139,5 @@ export function Saved() {
     </SafeAreaView>
   );
 }
+
+const Separator = () => <View style={{ height: 10 }} />;

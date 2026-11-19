@@ -7,9 +7,14 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { FlashList } from '@shopify/flash-list';
 import { useThemeContext } from '../context/ThemeContext';
 import { useUser } from '../context/UserContext';
+import { useToast } from '../context/ToastContext';
+import { pendingDeletes } from '../lib/pendingDeletes';
 import { supabase } from '../lib/supabase';
 import { RootStackParamList } from '../RootStackParams';
-import BackButton from '../components/BackButton';
+import { ScreenHeader } from '../components/ui/ScreenHeader';
+import { EmptyState } from '../components/ui/EmptyState';
+import { StarRating } from '../components/ui/StarRating';
+import { relativeDate } from '../lib/format';
 import { ErrorState } from '../components/ErrorState';
 import { useFocusedFetch } from '../hooks/useFocusedFetch';
 
@@ -27,6 +32,7 @@ export function MyReviews() {
   const { colors } = useThemeContext();
   const { user } = useUser();
   const navigation = useNavigation<Nav>();
+  const { showToast } = useToast();
 
   const load = useCallback(async (): Promise<MyReview[]> => {
     if (!user) return [];
@@ -38,7 +44,7 @@ export function MyReviews() {
 
     if (error) throw error;
 
-    return (data ?? []).map((r: any) => ({
+    return (data ?? []).filter((r: any) => !pendingDeletes.has(r.id)).map((r: any) => ({
       id: r.id,
       rating: r.rating,
       body: r.body,
@@ -64,29 +70,35 @@ export function MyReviews() {
     [navigation]
   );
 
+  // Optimistic delete with an undo window: the row disappears now, and the
+  // DELETE only runs once the toast times out without "Undo" being tapped.
   const handleDelete = useCallback(
     (item: MyReview) => {
-      Alert.alert(
-        'Delete review?',
-        `Your review of ${item.bathroom?.name ?? 'this bathroom'} will be removed permanently.`,
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Delete',
-            style: 'destructive',
-            onPress: async () => {
-              const { error } = await supabase.from('reviews').delete().eq('id', item.id);
-              if (error) {
-                Alert.alert('Error', 'Could not delete your review. Please try again.');
-                return;
-              }
-              setData((prev) => (prev ?? []).filter((r) => r.id !== item.id));
-            },
-          },
-        ]
-      );
+      pendingDeletes.add(item.id);
+      setData((prev) => (prev ?? []).filter((r) => r.id !== item.id));
+      showToast({
+        message: 'Review deleted',
+        icon: 'trash-can-outline',
+        actionLabel: 'Undo',
+        onAction: () => {
+          pendingDeletes.remove(item.id);
+          setData((prev) =>
+            [...(prev ?? []).filter((r) => r.id !== item.id), item].sort((x, y) =>
+              y.created_at.localeCompare(x.created_at),
+            ),
+          );
+        },
+        onCommit: async () => {
+          const { error } = await supabase.from('reviews').delete().eq('id', item.id);
+          pendingDeletes.remove(item.id);
+          if (error) {
+            Alert.alert('Error', 'Could not delete your review. Please try again.');
+            refetch();
+          }
+        },
+      });
     },
-    [setData]
+    [setData, showToast, refetch]
   );
 
   const renderItem = useCallback(
@@ -104,37 +116,46 @@ export function MyReviews() {
         }}
         style={({ pressed }: { pressed: boolean }) => [
           styles.card,
-          { backgroundColor: colors.surface2, borderColor: colors.border, opacity: pressed ? 0.8 : 1 },
+          { backgroundColor: pressed ? colors.surface2 : colors.surface1, borderColor: colors.cardBorder },
         ]}
       >
         <View style={styles.cardHeader}>
-          <Text style={{ color: colors.text1, fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 15, flex: 1 }} numberOfLines={1}>
-            {item.bathroom?.name ?? 'Unknown bathroom'}
-          </Text>
-          <Text style={{ color: colors.text3, fontSize: 12, fontFamily: 'PlusJakartaSans_400Regular' }}>
-            {new Date(item.created_at).toLocaleDateString()}
-          </Text>
+          <View style={[styles.tile, { backgroundColor: colors.surface2 }]}>
+            <MaterialCommunityIcons name="toilet" size={20} color={colors.text1} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: colors.text1, fontFamily: 'PlusJakartaSans_700Bold', fontSize: 15 }} numberOfLines={1}>
+              {item.bathroom?.name ?? 'Unknown bathroom'}
+            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 3 }}>
+              <StarRating rating={item.rating} size={13} />
+              <Text style={{ color: colors.text3, fontSize: 12, fontFamily: 'PlusJakartaSans_500Medium' }}>
+                {relativeDate(item.created_at)}
+              </Text>
+            </View>
+          </View>
+          {item.bathroom ? <MaterialCommunityIcons name="chevron-right" size={20} color={colors.text3} /> : null}
         </View>
-        <Text style={{ color: colors.yellow, fontSize: 13, marginTop: 4 }}>
-          {'★'.repeat(item.rating)}{'☆'.repeat(5 - item.rating)}
-        </Text>
         {item.body ? (
-          <Text style={{ color: colors.text2, fontSize: 13, fontFamily: 'PlusJakartaSans_400Regular', marginTop: 6, lineHeight: 18 }}>
+          <Text style={{ color: colors.text1, fontSize: 14, fontFamily: 'PlusJakartaSans_400Regular', marginTop: 12, lineHeight: 21 }}>
             {item.body}
           </Text>
-        ) : null}
-        <View style={styles.actionsRow}>
+        ) : (
+          <Text style={{ color: colors.text3, fontSize: 13, fontFamily: 'PlusJakartaSans_400Regular', marginTop: 12, fontStyle: 'italic' }}>
+            Rating only — no written review.
+          </Text>
+        )}
+        <View style={[styles.actionsRow, { borderTopColor: colors.border }]}>
           {item.bathroom ? (
             <Pressable
               onPress={() => handleEdit(item)}
               accessibilityRole="button"
               accessibilityLabel={`Edit review of ${item.bathroom.name}`}
-              style={({ pressed }: { pressed: boolean }) => [
-                styles.actionBtn,
-                { borderColor: colors.borderMed, opacity: pressed ? 0.7 : 1 },
-              ]}
+              hitSlop={6}
+              style={({ pressed }: { pressed: boolean }) => [styles.actionBtn, { opacity: pressed ? 0.6 : 1 }]}
             >
-              <Text style={{ color: colors.text2, fontSize: 12, fontFamily: 'PlusJakartaSans_600SemiBold' }}>
+              <MaterialCommunityIcons name="pencil-outline" size={16} color={colors.text2} />
+              <Text style={{ color: colors.text2, fontSize: 13, fontFamily: 'PlusJakartaSans_600SemiBold' }}>
                 Edit
               </Text>
             </Pressable>
@@ -143,12 +164,11 @@ export function MyReviews() {
             onPress={() => handleDelete(item)}
             accessibilityRole="button"
             accessibilityLabel={`Delete review of ${item.bathroom?.name ?? 'unknown bathroom'}`}
-            style={({ pressed }: { pressed: boolean }) => [
-              styles.actionBtn,
-              { borderColor: colors.borderMed, opacity: pressed ? 0.7 : 1 },
-            ]}
+            hitSlop={6}
+            style={({ pressed }: { pressed: boolean }) => [styles.actionBtn, { opacity: pressed ? 0.6 : 1 }]}
           >
-            <Text style={{ color: colors.red, fontSize: 12, fontFamily: 'PlusJakartaSans_600SemiBold' }}>
+            <MaterialCommunityIcons name="trash-can-outline" size={16} color={colors.red} />
+            <Text style={{ color: colors.red, fontSize: 13, fontFamily: 'PlusJakartaSans_600SemiBold' }}>
               Delete
             </Text>
           </Pressable>
@@ -159,16 +179,14 @@ export function MyReviews() {
   );
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
-      <View style={styles.header}>
-        <BackButton />
-        <Text style={{ fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 20, color: colors.text1 }}>
-          My Reviews
-        </Text>
-      </View>
+    <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: colors.bg }}>
+      <ScreenHeader
+        title="My Reviews"
+        subtitle={!isLoading && !hasError && reviews.length > 0 ? `${reviews.length} ${reviews.length === 1 ? 'review' : 'reviews'}` : undefined}
+      />
 
       {isLoading ? (
-        <ActivityIndicator color={colors.purple} style={{ marginTop: 40 }} />
+        <ActivityIndicator color={colors.accent} style={{ marginTop: 40 }} />
       ) : hasError ? (
         <ErrorState
           title="Couldn't load your reviews"
@@ -176,25 +194,24 @@ export function MyReviews() {
           onRetry={refetch}
         />
       ) : reviews.length === 0 ? (
-        <View style={styles.empty}>
-          <MaterialCommunityIcons name="note-text-outline" size={48} color={colors.text3} />
-          <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 16, color: colors.text2, marginTop: 12 }}>
-            No reviews yet
-          </Text>
-          <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 13, color: colors.text3, marginTop: 4 }}>
-            Reviews you write will show up here
-          </Text>
-        </View>
+        <EmptyState
+          icon="star-outline"
+          title="No reviews yet"
+          message="Reviews you write will show up here. Your ratings help everyone find a better bathroom."
+          actionLabel="Find a bathroom to review"
+          onAction={() => navigation.navigate('MainTabs', { screen: 'Map' })}
+        />
       ) : (
         <FlashList
           data={reviews}
           keyExtractor={(item) => item.id}
           renderItem={renderItem}
           contentContainerStyle={styles.listContent}
+          ItemSeparatorComponent={Separator}
           refreshControl={
             <RefreshControl
               refreshing={isRefreshing}
-              tintColor={colors.purple}
+              tintColor={colors.accent}
               onRefresh={refresh}
             />
           }
@@ -204,42 +221,37 @@ export function MyReviews() {
   );
 }
 
+const Separator = () => <View style={{ height: 10 }} />;
+
 const styles = StyleSheet.create({
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingTop: 8,
-    paddingBottom: 12,
-    gap: 12,
-  },
-  listContent: { paddingHorizontal: 16, paddingBottom: 32 },
+  listContent: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 32 },
   card: {
-    borderRadius: 14,
+    borderRadius: 18,
     borderWidth: 1,
     padding: 14,
-    marginBottom: 10,
   },
   cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 8,
+    gap: 12,
+  },
+  tile: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   actionsRow: {
     flexDirection: 'row',
-    gap: 8,
-    marginTop: 10,
+    gap: 20,
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: StyleSheet.hairlineWidth,
   },
   actionBtn: {
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  empty: {
-    flex: 1,
-    justifyContent: 'center',
+    flexDirection: 'row',
     alignItems: 'center',
+    gap: 6,
   },
 });

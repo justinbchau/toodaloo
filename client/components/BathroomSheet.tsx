@@ -1,218 +1,234 @@
-import React, { useRef, useCallback } from 'react';
-import {
-  View,
-  Text,
-  ScrollView,
-  StyleSheet,
-  Animated,
-  PanResponder,
-  Dimensions,
-} from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { View, Text, StyleSheet, Dimensions } from 'react-native';
+import BottomSheet, { BottomSheetScrollView, BottomSheetFlatList } from '@gorhom/bottom-sheet';
+import Animated, { useAnimatedStyle, useSharedValue, interpolate, Extrapolation } from 'react-native-reanimated';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useThemeContext } from '../context/ThemeContext';
+import { useInsets } from '../hooks/useInsets';
+import { shadows } from '../theme/shadows';
 import { BathroomCard, BathroomCardData } from './BathroomCard';
 import { SkeletonBathroomCard } from './SkeletonBathroomCard';
+import { NearestCard } from './NearestCard';
+import { PrimaryButton } from './ui/PrimaryButton';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
-// Snap positions as fractions of screen height (measured from bottom of screen)
-const SNAP_25 = SCREEN_HEIGHT * 0.25;
-const SNAP_50 = SCREEN_HEIGHT * 0.50;
-
-const DRAG_HANDLE_HEIGHT = 28; // visual height of the handle area
-const DRAG_THRESHOLD = 60; // px of drag before snapping to next position
+// Peek is tall enough for the header + the "Nearest" card on small phones; half
+// and full are for browsing. Built on @gorhom/bottom-sheet so dragging the list
+// hands off to the sheet (and back) like Apple/Google Maps.
+const PEEK = Math.max(280, SCREEN_HEIGHT * 0.33);
+// Height of the map's floating chrome (search pill + chip row) below the inset.
+const TOP_CHROME = 8 + 50 + 10 + 36 + 16;
 
 interface Props {
   bathrooms?: BathroomCardData[];
   onCardPress?: (id: string) => void;
   isLoading?: boolean;
+  /** Empty-state CTA (e.g. jump to the Add tab). */
+  onAddPress?: () => void;
+  /** Open walking directions for a result (powers the Nearest card). */
+  onDirections?: (b: BathroomCardData) => void;
+  /** Overrides the empty state, e.g. "Search an area" before any location is known. */
+  emptyTitle?: string;
+  emptyMessage?: string;
+  /** Floating controls pinned just above the sheet's top edge (e.g. recenter). */
+  accessory?: React.ReactNode;
 }
 
-export function BathroomSheet({ bathrooms = [], onCardPress, isLoading = false }: Props) {
+export function BathroomSheet({
+  bathrooms = [],
+  onCardPress,
+  isLoading = false,
+  onAddPress,
+  onDirections,
+  emptyTitle = 'No bathrooms nearby yet.',
+  emptyMessage = 'Add the first one!',
+  accessory,
+}: Props) {
   const { colors } = useThemeContext();
+  const insets = useInsets();
+  // Snap heights are measured against the sheet's container (the map screen,
+  // which ends above the tab bar) — not the window — so measure it.
+  const [containerH, setContainerH] = useState(SCREEN_HEIGHT - 84);
+  // Full height stops just below the search + filter chips so they stay usable.
+  const snapPoints = useMemo(() => {
+    const half = containerH * 0.55;
+    return [Math.min(PEEK, half - 1), half, Math.max(half + 1, containerH - insets.top - TOP_CHROME)];
+  }, [containerH, insets.top]);
+  const position = useSharedValue(SCREEN_HEIGHT);
 
-  // sheetHeight drives the height of the sheet
-  const sheetHeight = useRef(new Animated.Value(SNAP_25)).current;
-  const currentSnap = useRef<'25' | '50'>('25');
-  const dragStartHeight = useRef(SNAP_25);
+  // Ride the accessory on the sheet's top edge; fade it out as the sheet nears full height.
+  const accessoryStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: position.value - 60 }],
+    opacity: interpolate(position.value, [SCREEN_HEIGHT * 0.2, SCREEN_HEIGHT * 0.38], [0, 1], Extrapolation.CLAMP),
+  }));
 
-  const snapTo = useCallback((target: number, label: '25' | '50') => {
-    currentSnap.current = label;
-    Animated.spring(sheetHeight, {
-      toValue: target,
-      useNativeDriver: false,
-      bounciness: 4,
-    }).start();
-  }, [sheetHeight]);
-
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: (_, gestureState) =>
-        Math.abs(gestureState.dy) > 3,
-      onPanResponderGrant: () => {
-        // Capture the current animated value before dragging
-        dragStartHeight.current =
-          currentSnap.current === '25' ? SNAP_25 : SNAP_50;
-        sheetHeight.stopAnimation();
-      },
-      onPanResponderMove: (_, gestureState) => {
-        // dy is positive when dragging DOWN, so subtract to shrink/grow
-        const next = dragStartHeight.current - gestureState.dy;
-        const clamped = Math.max(SNAP_25 * 0.9, Math.min(SNAP_50 * 1.05, next));
-        sheetHeight.setValue(clamped);
-      },
-      onPanResponderRelease: (_, gestureState) => {
-        const draggingUp = gestureState.dy < -DRAG_THRESHOLD;
-        const draggingDown = gestureState.dy > DRAG_THRESHOLD;
-
-        if (currentSnap.current === '25' && draggingUp) {
-          snapTo(SNAP_50, '50');
-        } else if (currentSnap.current === '50' && draggingDown) {
-          snapTo(SNAP_25, '25');
-        } else {
-          // Snap back to current position
-          snapTo(
-            currentSnap.current === '25' ? SNAP_25 : SNAP_50,
-            currentSnap.current,
-          );
-        }
-      },
-    }),
-  ).current;
+  const count = bathrooms.length;
+  const [nearest, ...rest] = bathrooms;
+  const handleIndicatorStyle = useMemo(() => ({ backgroundColor: colors.surface3, width: 40, height: 5 }), [colors.surface3]);
 
   return (
-    <Animated.View
-      style={[
-        styles.sheet,
-        {
-          height: sheetHeight,
-          backgroundColor: colors.surface1,
-          borderColor: colors.borderMed ?? 'rgba(255,255,255,0.08)',
-        },
-      ]}
-    >
-      {/* Drag handle */}
-      <View style={styles.handleArea} {...panResponder.panHandlers}>
-        <View style={[styles.handle, { backgroundColor: colors.surface3 }]} />
-      </View>
+    <>
+      <View
+        pointerEvents="none"
+        style={StyleSheet.absoluteFill}
+        onLayout={(e) => {
+          const h = Math.round(e.nativeEvent.layout.height);
+          if (h > 0 && h !== containerH) setContainerH(h);
+        }}
+      />
+      {accessory ? (
+        <Animated.View pointerEvents="box-none" style={[styles.accessory, accessoryStyle]}>
+          {accessory}
+        </Animated.View>
+      ) : null}
 
-      {/* Content */}
-      <View style={styles.content}>
+      <BottomSheet
+        index={0}
+        snapPoints={snapPoints}
+        enableDynamicSizing={false}
+        animatedPosition={position}
+        handleIndicatorStyle={handleIndicatorStyle}
+        backgroundStyle={[styles.background, { backgroundColor: colors.bg, borderColor: colors.cardBorder, shadowColor: colors.shadow }]}
+      >
         <View style={styles.headingRow}>
-          <Text style={[styles.heading, { color: colors.text2 }]}>NEARBY</Text>
-          {!isLoading && bathrooms.length > 0 && (
-            <Text style={[styles.headingCount, { color: colors.purpleText }]}>
-              {bathrooms.length} {bathrooms.length === 1 ? 'location' : 'locations'}
-            </Text>
+          <Text style={[styles.heading, { color: colors.text1 }]}>Nearby bathrooms</Text>
+          {!isLoading && count > 0 && (
+            <View style={[styles.countPill, { backgroundColor: colors.surface2 }]}>
+              <Text style={[styles.headingCount, { color: colors.text2 }]}>
+                {count} {count === 1 ? 'location' : 'locations'}
+              </Text>
+            </View>
           )}
         </View>
 
-        {isLoading ? (
-          /* Loading: 3 skeleton cards */
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.scroll}
-            contentInsetAdjustmentBehavior="automatic"
-          >
-            <SkeletonBathroomCard />
-            <SkeletonBathroomCard />
-            <SkeletonBathroomCard />
-          </ScrollView>
-        ) : bathrooms.length === 0 ? (
-          /* Empty state */
-          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingBottom: 16 }}>
-            <MaterialCommunityIcons testID="empty-state-icon" name="toilet" size={40} color={colors.text3} />
-            <Text style={{
-              fontFamily: 'PlusJakartaSans_600SemiBold',
-              fontSize: 15, color: colors.text1,
-              marginTop: 12, textAlign: 'center',
-            }}>
-              No bathrooms nearby yet.
-            </Text>
-            <Text style={{
-              fontFamily: 'PlusJakartaSans_400Regular',
-              fontSize: 13, color: colors.text2,
-              marginTop: 4, textAlign: 'center',
-            }}>
-              Add the first one!
-            </Text>
-          </View>
+        {isLoading || count === 0 ? (
+          <BottomSheetScrollView contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
+            {isLoading ? (
+              <>
+                <SkeletonBathroomCard />
+                <SkeletonBathroomCard />
+                <SkeletonBathroomCard />
+              </>
+            ) : (
+              // Compact row layout so the CTA still fits at the peek height.
+              <>
+                <View style={[styles.emptyRow, { backgroundColor: colors.surface1, borderColor: colors.cardBorder }]}>
+                  <View style={[styles.emptyIcon, { backgroundColor: colors.surface2 }]}>
+                    <MaterialCommunityIcons testID="empty-state-icon" name="toilet" size={26} color={colors.text1} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.emptyTitle, { color: colors.text1 }]}>{emptyTitle}</Text>
+                    <Text style={[styles.emptySub, { color: colors.text2 }]}>{emptyMessage}</Text>
+                  </View>
+                </View>
+                {onAddPress ? (
+                  <PrimaryButton title="Add a bathroom" icon="plus" size="md" onPress={onAddPress} />
+                ) : null}
+              </>
+            )}
+          </BottomSheetScrollView>
         ) : (
-          /* Real data */
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.scroll}
-            contentInsetAdjustmentBehavior="automatic"
-          >
-            {bathrooms.map((b, i) => (
-              <BathroomCard
-                key={b.id}
-                data={b}
-                highlighted={i === 0}
-                onPress={() => onCardPress?.(b.id)}
-              />
-            ))}
-          </ScrollView>
+          // Virtualized: a 5 km search in a seeded city can return hundreds of rows.
+          <BottomSheetFlatList
+            data={rest}
+            keyExtractor={(b: BathroomCardData) => b.id}
+            contentContainerStyle={styles.list}
+            showsVerticalScrollIndicator={false}
+            initialNumToRender={8}
+            windowSize={7}
+            ItemSeparatorComponent={RowGap}
+            ListHeaderComponent={
+              <View style={{ gap: 10, marginBottom: rest.length > 0 ? 10 : 0 }}>
+                {/* The urgent path: one tap to walking directions. */}
+                <NearestCard
+                  data={nearest}
+                  onDirections={onDirections ? () => onDirections(nearest) : undefined}
+                  onPress={() => onCardPress?.(nearest.id)}
+                />
+                {rest.length > 0 && (
+                  <Text style={[styles.subheading, { color: colors.text2 }]}>More nearby</Text>
+                )}
+              </View>
+            }
+            renderItem={({ item }: { item: BathroomCardData }) => (
+              <BathroomCard data={item} onPress={() => onCardPress?.(item.id)} />
+            )}
+          />
         )}
-      </View>
-    </Animated.View>
+      </BottomSheet>
+    </>
   );
 }
 
+const RowGap = () => <View style={{ height: 10 }} />;
+
 const styles = StyleSheet.create({
-  sheet: {
+  accessory: {
     position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    borderTopLeftRadius: 26,
-    borderTopRightRadius: 26,
-    borderTopWidth: 1,
-    borderLeftWidth: 1,
-    borderRightWidth: 1,
-    overflow: 'hidden',
-    // Subtle shadow for depth
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -3 },
-    shadowOpacity: 0.18,
-    shadowRadius: 8,
-    elevation: 12,
-  },
-  handleArea: {
-    height: DRAG_HANDLE_HEIGHT,
+    top: 0,
+    left: 16,
+    right: 16,
+    height: 48,
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingTop: 8,
+    justifyContent: 'flex-end',
+    gap: 10,
   },
-  handle: {
-    width: 32,
-    height: 3,
-    borderRadius: 2,
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: 16,
-    paddingBottom: 12,
-    gap: 12,
+  background: {
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    borderWidth: 1,
+    ...shadows.lg,
   },
   headingRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: 4,
+    paddingBottom: 12,
   },
   heading: {
-    fontSize: 12,
+    fontSize: 20,
+    fontFamily: 'PlusJakartaSans_800ExtraBold',
+    letterSpacing: -0.5,
+  },
+  subheading: {
+    fontSize: 13,
     fontFamily: 'PlusJakartaSans_700Bold',
-    letterSpacing: 0.8,
+    marginTop: 8,
+    marginLeft: 4,
+  },
+  countPill: {
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
   },
   headingCount: {
-    fontSize: 11,
-    fontFamily: 'PlusJakartaSans_600SemiBold',
+    fontSize: 12,
+    fontFamily: 'PlusJakartaSans_700Bold',
   },
-  scroll: {
-    paddingBottom: 4,
+  list: {
+    paddingHorizontal: 16,
+    paddingBottom: 32,
+    gap: 10,
   },
+  emptyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    padding: 14,
+    borderRadius: 18,
+    borderWidth: 1,
+  },
+  emptyIcon: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyTitle: { fontSize: 15, fontFamily: 'PlusJakartaSans_700Bold' },
+  emptySub: { fontSize: 13, fontFamily: 'PlusJakartaSans_400Regular', marginTop: 2 },
 });

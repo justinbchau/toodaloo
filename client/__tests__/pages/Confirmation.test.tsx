@@ -15,9 +15,9 @@ jest.mock('../../context/ThemeContext', () => ({
   useThemeContext: () => ({ colors: mockColors, isDark: false }),
 }));
 
-// The Page template renders a BackButton that calls useNavigation(). Confirmation
-// itself uses the `navigation` prop, not the hook — this stub only keeps BackButton
-// from throwing outside a NavigationContainer.
+// AuthLayout's back button calls useNavigation(). Confirmation itself uses the
+// `navigation` prop, not the hook — this stub only keeps the layout from
+// throwing outside a NavigationContainer.
 jest.mock('@react-navigation/native', () => ({
   useNavigation: () => ({ navigate: jest.fn(), goBack: jest.fn() }),
 }));

@@ -44,8 +44,10 @@ jest.mock('../../context/context', () => {
 });
 
 const mockRequestPerms = jest.fn();
+const mockGetPerms = jest.fn();
 const mockGetPosition = jest.fn();
 jest.mock('expo-location', () => ({
+  getForegroundPermissionsAsync: () => mockGetPerms(),
   requestForegroundPermissionsAsync: () => mockRequestPerms(),
   getCurrentPositionAsync: () => mockGetPosition(),
 }));
@@ -65,9 +67,10 @@ jest.mock('lottie-react-native', () => {
   return { __esModule: true, default: (props: any) => <View {...props} /> };
 });
 jest.mock('../../components/BathroomSheet', () => ({
-  BathroomSheet: () => {
+  // Render the accessory slot — the recenter FAB rides on the sheet's top edge.
+  BathroomSheet: ({ accessory }: any) => {
     const { View } = require('react-native');
-    return <View testID="bathroom-sheet" />;
+    return <View testID="bathroom-sheet">{accessory}</View>;
   },
 }));
 jest.mock('../../components/ui/Chip', () => ({
@@ -103,7 +106,8 @@ jest.mock('../../lib/supabase', () => ({
 
 beforeEach(() => {
   jest.clearAllMocks();
-  mockRequestPerms.mockResolvedValue({ status: 'granted' });
+  mockGetPerms.mockResolvedValue({ status: 'granted', canAskAgain: true });
+  mockRequestPerms.mockResolvedValue({ status: 'granted', canAskAgain: true });
   mockGetPosition.mockResolvedValue({
     coords: { latitude: GPS.lat, longitude: GPS.lng },
     timestamp: 0,
@@ -188,11 +192,100 @@ describe('Map — recenter (◎) FAB', () => {
     const signalBefore = Number(screen.getByTestId('ls-reset-signal').props.children);
     mockRpc.mockClear();
 
-    fireEvent.press(screen.getByText('◎'));
+    fireEvent.press(screen.getByLabelText('Recenter on my location'));
     await flush();
 
     expect(mockRpc).toHaveBeenCalledWith('bathrooms_nearby', nearbyArgs(GPS.lat, GPS.lng));
     expect(mockSetCenter).toHaveBeenLastCalledWith({ lat: GPS.lat, lng: GPS.lng });
     expect(Number(screen.getByTestId('ls-reset-signal').props.children)).toBe(signalBefore + 1);
+  });
+});
+
+describe('Map — location permission priming', () => {
+  it('explains before prompting, and only asks the OS when the user opts in', async () => {
+    mockGetPerms.mockResolvedValue({ status: 'undetermined', canAskAgain: true });
+    render(<Map />);
+    await flush();
+
+    expect(screen.getByText('Find the closest bathroom, fast')).toBeTruthy();
+    expect(mockRequestPerms).not.toHaveBeenCalled();
+    expect(mockRpc).not.toHaveBeenCalled();
+
+    fireEvent.press(screen.getByText('Allow location'));
+    await flush();
+
+    expect(mockRequestPerms).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId('ls-search')).toBeTruthy();
+    expect(mockRpc).toHaveBeenCalledWith('bathrooms_nearby', nearbyArgs(GPS.lat, GPS.lng));
+  });
+
+  it('when permanently denied, offers Settings or a manual search — without fetching a fake location', async () => {
+    mockGetPerms.mockResolvedValue({ status: 'denied', canAskAgain: false });
+    render(<Map />);
+    await flush();
+
+    expect(screen.getByText('Location is turned off')).toBeTruthy();
+    fireEvent.press(screen.getByText('Search a location instead'));
+    await flush();
+
+    expect(screen.getByTestId('ls-search')).toBeTruthy();
+    expect(mockRpc).not.toHaveBeenCalled();
+    expect(screen.getByLabelText('Use my location')).toBeTruthy();
+
+    // Searching an area works without GPS.
+    fireEvent.press(screen.getByTestId('ls-search'));
+    await flush();
+    expect(mockRpc).toHaveBeenCalledWith('bathrooms_nearby', nearbyArgs(SEARCH.lat, SEARCH.lng));
+  });
+});
+
+describe('Map — permission request failure', () => {
+  it('falls back to search mode instead of stranding the user on the priming screen', async () => {
+    mockGetPerms.mockResolvedValue({ status: 'undetermined', canAskAgain: true });
+    mockRequestPerms.mockRejectedValue(new Error('native boom'));
+    jest.spyOn(console, 'error').mockImplementation(() => {});
+    render(<Map />);
+    await flush();
+
+    fireEvent.press(screen.getByText('Allow location'));
+    await flush();
+
+    expect(screen.getByTestId('ls-search')).toBeTruthy();
+    expect(screen.getByLabelText('Use my location')).toBeTruthy();
+  });
+});
+
+describe('Map — tapping a pin', () => {
+  const ROW = {
+    id: 'b1', name: 'Pin Bathroom', address: '1 Main St', access_type: 'public', is_24_hours: false,
+    rating_avg: 4.6, review_count: 3, lat: 40.751, lng: -73.981, distance_km: 0.3,
+  };
+
+  it('shows a floating preview in place of the sheet, and closing it brings the sheet back', async () => {
+    mockRpc.mockResolvedValue({ data: [ROW], error: null });
+    await renderMap();
+    expect(screen.getByTestId('bathroom-sheet')).toBeTruthy();
+
+    fireEvent.press(screen.getByText('4.6'));
+    await flush();
+
+    expect(screen.queryByTestId('bathroom-sheet')).toBeNull();
+    expect(screen.getByText('Pin Bathroom')).toBeTruthy();
+    expect(screen.getByLabelText('Walking directions to Pin Bathroom')).toBeTruthy();
+
+    fireEvent.press(screen.getByLabelText('Close preview'));
+    await flush();
+    expect(screen.getByTestId('bathroom-sheet')).toBeTruthy();
+  });
+
+  it('markers stop tracking view changes once settled (perf with hundreds of pins)', async () => {
+    mockRpc.mockResolvedValue({ data: [ROW], error: null });
+    await renderMap();
+    const { View } = require('react-native');
+    const marker = () =>
+      screen.UNSAFE_getAllByType(View).find((n: any) => n.props.tracksViewChanges !== undefined)!;
+    expect(marker().props.tracksViewChanges).toBe(true); // snapshots while laying out
+    await act(async () => { await new Promise((r) => setTimeout(r, 500)); });
+    expect(marker().props.tracksViewChanges).toBe(false);
   });
 });

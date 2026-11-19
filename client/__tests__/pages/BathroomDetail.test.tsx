@@ -35,8 +35,8 @@ jest.mock('../../context/ThemeContext', () => ({
     colors: {
       bg: '#0B0B0F', surface1: '#111118', surface2: '#18181F', surface3: '#1E1E28',
       text1: '#EEEEF4', text2: '#8B8B9E', text3: '#44444F',
-      purple: '#7B6EF6', purpleDim: 'rgba(123,110,246,0.16)',
-      purpleText: '#A99FF9', purpleGlow: 'rgba(123,110,246,0.35)',
+      accent: '#7B6EF6', accentDim: 'rgba(123,110,246,0.16)',
+      accentText: '#A99FF9', accentGlow: 'rgba(123,110,246,0.35)',
       border: '#1E1E28', borderMed: '#2A2A35',
       green: '#34C77A', red: '#F05A5A', yellow: '#F5C542',
     },
@@ -68,6 +68,13 @@ jest.mock('react-native-maps', () => {
   const MockMapView = (props: any) => <View {...props} />;
   return { __esModule: true, default: MockMapView, Marker: View };
 });
+
+jest.mock('../../components/SkeletonDetail', () => ({
+  SkeletonDetail: () => {
+    const { View } = require('react-native');
+    return <View testID="skeleton-detail" />;
+  },
+}));
 
 jest.mock('../../components/SkeletonReviewCard', () => ({
   SkeletonReviewCard: () => {
@@ -145,23 +152,23 @@ describe('BathroomDetail — populated state', () => {
     await waitFor(() => expect(screen.getByText('Test Bathroom')).toBeTruthy());
   });
 
-  it('shows the Open badge when is_24_hours=true', async () => {
+  it('shows the Open 24/7 badge when is_24_hours=true', async () => {
     render(<BathroomDetail />);
-    await waitFor(() => expect(screen.getByText('Open')).toBeTruthy());
+    await waitFor(() => expect(screen.getByText('Open 24/7')).toBeTruthy());
   });
 
-  it('hides the Open badge when is_24_hours=false', async () => {
+  it('hides the Open 24/7 badge when is_24_hours=false', async () => {
     setupDefaultMocks({ bathroom: { ...mockBathroomData, is_24_hours: false } });
     render(<BathroomDetail />);
     await waitFor(() => expect(screen.getByText('Test Bathroom')).toBeTruthy());
-    expect(screen.queryByText('Open')).toBeNull();
+    expect(screen.queryByText('Open 24/7')).toBeNull();
   });
 
   it('shows distance computed from haversine when location matches route coords', async () => {
-    // Same coords as route params (40.7128, -74.006) → 0 ft
+    // Same coords as route params (40.7128, -74.006) → shortest walk
     render(<BathroomDetail />);
     await waitFor(() => expect(screen.getByText('Test Bathroom')).toBeTruthy());
-    expect(screen.getByText('0 ft away')).toBeTruthy();
+    expect(screen.getByText('1 min walk')).toBeTruthy();
   });
 
   it('shows star rating from bathroom data', async () => {
@@ -242,14 +249,14 @@ describe('BathroomDetail — action buttons', () => {
     shareSpy.mockRestore();
   });
 
-  it('opens maps directions to the bathroom coords when Navigate is pressed', async () => {
+  it('opens maps directions to the bathroom coords when Directions is pressed', async () => {
     const canOpenSpy = jest.spyOn(Linking, 'canOpenURL').mockResolvedValue(true);
     const openSpy = jest.spyOn(Linking, 'openURL').mockResolvedValue(undefined);
     render(<BathroomDetail />);
     await waitFor(() => expect(screen.getByText('Test Bathroom')).toBeTruthy());
 
     await act(async () => {
-      fireEvent.press(screen.getByText('Navigate ›'));
+      fireEvent.press(screen.getByText('Directions'));
     });
 
     expect(openSpy).toHaveBeenCalledWith(expect.stringContaining('40.7128,-74.006'));
@@ -273,7 +280,7 @@ describe('BathroomDetail — action buttons', () => {
     render(<BathroomDetail />);
     await waitFor(() => expect(screen.getByText('Test Bathroom')).toBeTruthy());
 
-    fireEvent.press(screen.getByText('‹'));
+    fireEvent.press(screen.getByLabelText('Go back'));
     expect(mockGoBack).toHaveBeenCalledTimes(1);
   });
 });
@@ -477,3 +484,30 @@ describe('BathroomDetail — report a review', () => {
     expect(screen.getByText('Report this review')).toBeTruthy();
   });
 });
+
+describe('BathroomDetail — hours & review tags (0010)', () => {
+  it('shows the weekly hours table when the listing has hours', async () => {
+    setupDefaultMocks({
+      bathroom: { ...mockBathroomData, is_24_hours: false, hours: { mon: { open: '08:00', close: '20:00' }, sat: null } },
+    });
+    render(<BathroomDetail />);
+    await waitFor(() => expect(screen.getByText('Hours')).toBeTruthy());
+    expect(screen.getByText('8 AM – 8 PM')).toBeTruthy();
+    expect(screen.queryByText('Open 24/7')).toBeNull();
+  });
+
+  it('summarises the most-mentioned review tags and shows them on each review', async () => {
+    setupDefaultMocks({
+      reviews: [
+        { ...mockReview, id: 'r1', tags: ['clean', 'long_wait'] },
+        { ...mockReview, id: 'r2', user_id: 'someone-else', tags: ['clean'] },
+      ],
+    });
+    render(<BathroomDetail />);
+    await waitFor(() => expect(screen.getByText('People mention')).toBeTruthy());
+    // One summary pill + one chip per review that used the tag.
+    expect(screen.getAllByText('Clean').length).toBe(3);
+    expect(screen.getAllByText('Long wait').length).toBe(2);
+  });
+});
+

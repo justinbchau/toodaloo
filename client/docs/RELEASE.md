@@ -62,7 +62,7 @@ builds subscribe to:
 
 ```bash
 cd client
-eas update --channel production --message "Fix: <what changed>"
+eas update --channel production --environment production --message "Fix: <what changed>"
 ```
 
 Installed apps pick it up on next launch. This ONLY works for JS/TS/asset
@@ -114,7 +114,7 @@ Rule of thumb: **native change → bump `runtimeVersion` AND cut a new binary.**
   burning the 2-cert limit), so this step needs a terminal. After it, all
   builds/submits/updates run non-interactively (CLI, workflow, or MCP).
 - The `production` EAS Update channel + branch are already created (during
-  pipeline setup); the first `eas update --channel production` publishes to it.
+  pipeline setup); the first `eas update --channel production --environment production` publishes to it.
 
 ## Security follow-ups (before public release)
 
