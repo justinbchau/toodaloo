@@ -10,7 +10,7 @@ _Nothing yet._
 
 ---
 
-## [TestFlight backend] — 2026-11-19 · `TFB_HASH`
+## [TestFlight backend] — 2026-11-19 · `d31d476`
 
 **TestFlight uses the production Supabase project for now; staging is deferred**
 
